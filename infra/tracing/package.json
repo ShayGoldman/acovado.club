@@ -1,0 +1,7 @@
+{
+  "name": "@infra/tracing",
+  "scripts": {
+    "start": "docker compose up",
+    "ui": "open http://localhost:3000"
+  }
+}

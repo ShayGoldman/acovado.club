@@ -1,0 +1,11 @@
+{
+  "name": "@config/prettier",
+  "private": true,
+  "main": "config.js",
+  "files": [
+    "config.js"
+  ],
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}

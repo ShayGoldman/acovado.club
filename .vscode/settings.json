@@ -1,0 +1,5 @@
+{
+  // The path to the `bun` executable.
+  "bun.runtime": "~/.bun/bin/bun",
+  "editor.tabSize": 2
+}

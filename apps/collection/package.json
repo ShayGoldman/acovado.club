@@ -1,0 +1,32 @@
+{
+  "name": "@finance/collection",
+  "version": "0.0.1",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir lib --target node",
+    "dev": "bun --watch src/index.ts",
+    "lint": "bun eslint --fix .",
+    "format": "bun prettier --write .",
+    "clean": "rm -rf .turbo && rm -rf lib && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@config/eslint": "workspace:*",
+    "@config/prettier": "workspace:*",
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/bun": "^1.1.13"
+  },
+  "dependencies": {
+    "@modules/db": "workspace:*",
+    "@modules/events": "workspace:*",
+    "@modules/logger": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.55.0",
+    "@opentelemetry/sdk-trace-base": "^1.28.0",
+    "@opentelemetry/sdk-trace-node": "^1.28.0",
+    "cron": "^3.2.1",
+    "env-var": "^7.5.0",
+    "zod": "^3.23.8"
+  }
+}

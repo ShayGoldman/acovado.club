@@ -1,0 +1,31 @@
+{
+  "name": "@modules/ids",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build:code": "bun build src/index.ts --outdir dist --target node",
+    "build:declarations": "tsup src/index.ts --dts-only --out-dir dist",
+    "build": "bun run build:code && bun run build:declarations",
+    "dev": "bun run build:code --watch & bun run build:declarations --watch",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
+    "typecheck": "bun tsc --noEmit",
+    "lint": "bun eslint --fix .",
+    "format": "bun prettier --write ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nanoid": "^5.0.9"
+  },
+  "devDependencies": {
+    "@config/eslint": "workspace:*",
+    "@config/prettier": "workspace:*",
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "type-fest": "^4.28.1"
+  }
+}

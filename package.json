@@ -1,0 +1,40 @@
+{
+  "name": "finance",
+  "description": "",
+  "private": true,
+  "packageManager": "bun@1.1.36",
+  "workspaces": [
+    "config/*",
+    "infra/*",
+    "modules/*",
+    "apps/*",
+    "tests/*"
+  ],
+  "scripts": {
+    "build": "bun turbo run build",
+    "clean": "bun turbo run clean",
+    "dev": "bun turbo run dev",
+    "format": "bun turbo run format",
+    "lint": "bun turbo run lint",
+    "test": "bun turbo run test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@changesets/cli": "^2.27.10",
+    "@config/tsconfig": "workspace:*",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "turbo": "^2.3.1"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "bun run lint",
+      "bun run format"
+    ],
+    "*.json": [
+      "bun run format"
+    ]
+  }
+}
