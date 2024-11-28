@@ -1,15 +1,13 @@
 {
-  "name": "@modules/events",
+  "name": "@modules/types",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "packageManager": "bun@1.1.36",
   "scripts": {
-    "build:code": "bun build src/index.ts --outdir dist --target node",
-    "build:declarations": "tsup src/index.ts --dts-only --out-dir dist",
-    "build": "bun run build:code && bun run build:declarations",
-    "dev": "bun run build:code --watch & bun run build:declarations --watch",
+    "build": "tsup src/index.ts --dts-only --out-dir dist",
+    "dev": "bun run build --watch",
     "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
     "typecheck": "bun tsc --noEmit",
     "lint": "bun eslint --fix .",
@@ -19,18 +17,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@modules/logger": "workspace:*",
-    "@modules/ids": "workspace:*",
-    "@modules/tracing": "workspace:*",
-    "@opentelemetry/api": "^1.9.0",
-    "amqplib": "^0.10.5"
+    "nanoid": "^5.0.9"
   },
   "devDependencies": {
-    "@modules/types": "workspace:*",
     "@config/eslint": "workspace:*",
     "@config/prettier": "workspace:*",
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*",
-    "@types/amqplib": "^0.10.5"
+    "type-fest": "^4.28.1"
   }
 }

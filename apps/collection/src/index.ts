@@ -1,73 +1,57 @@
-import { makeConsumer, makeProducer } from '@modules/events';
+import Env from '@/env';
+import {
+  makeConsumer,
+  type Message,
+  type BasePayload,
+  type EventHandler,
+} from '@modules/events';
 import { makeLogger } from '@modules/logger';
 
+import { makeMigrateDB, type Ticker } from '@modules/db';
 import { makeTracer } from '@modules/tracing';
+import { makeDB } from './db';
+import type { Identified } from '@modules/types';
 
-const logger = makeLogger();
-
-const producer = makeProducer({
-  logger,
-  broker: 'amqp://rabbit:rabbit@localhost:5672',
-  tracing: {
-    tracer: makeTracer({
-      serviceName: 'producer',
-      exporterUrl: 'http://localhost:4318/v1/traces',
-      logger,
-    }),
-  },
+const logger = makeLogger({
+  name: 'bebe',
 });
 
-// Consumer setup
-const consumer = makeConsumer({
+const migrate = makeMigrateDB({
+  url: Env.DATABASE_URL,
   logger,
-  broker: 'amqp://rabbit:rabbit@localhost:5672',
-  tracing: {
-    tracer: makeTracer({
-      serviceName: 'consumer',
-      exporterUrl: 'http://localhost:4318/v1/traces',
-      logger,
-    }),
-  },
+});
+
+await migrate();
+const tracer = makeTracer({
+  serviceName: 'bebe',
+  exporterUrl: Env.TRACE_EXPORTER_URL,
+  logger,
+});
+const db = makeDB({
+  url: Env.DATABASE_URL,
+});
+
+const consumers = makeConsumer({
+  broker: Env.BROKER_URL,
+  logger,
+  tracing: { tracer },
   handlers: [
     {
-      domain: 'tests',
-      queue: 'all-tests',
-      onMessage: async (message, c) => {
-        c.log.info({ messageId: message.metadata.messageId }, 'Message received');
-
-        c.with!('another-span', async (c) => {
-          c.log.info({ messageId: message.metadata.messageId }, 'Another span');
-        });
-        console.log(
-          /* LOG */ '=====',
-          'message',
-          message.metadata.messageId,
-          message.metadata.queue,
-        );
-      },
-    },
-    {
-      domain: 'tests',
-      queue: 'some-tests',
-      routingKey: 'tests.some',
-      onMessage: async (message) => {
-        console.log(
-          /* LOG */ '=====',
-          'message',
-          message.metadata.messageId,
-          message.metadata.queue,
-        );
+      domain: 'collection',
+      queue: 'collection.requested',
+      // TODO need to type messages now
+      onMessage: async (
+        message: Message<BasePayload<Ticker, 'collection', 'collection.requested'>>,
+        context,
+      ) => {
+        console.log(/* LOG */ '=====', 'message.payload', message.payload);
+        context.log.info(message, 'Received message');
       },
     },
   ],
 });
 
-await producer.connect();
-await consumer.connect();
+logger.info('Setting up...');
+await consumers.connect();
 
-await producer.send('tests', 'tests.all', [{ test: Math.random() }]);
-await producer.send('tests', 'tests.some', [{ test: Math.random() }]);
-
-// TODO make sure all logs are clean and with simple and readable context
-
-// TODO find a convention for better queue readability in rabbit UI
+logger.info('Starting...');

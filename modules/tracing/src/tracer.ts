@@ -113,12 +113,12 @@ export function makeTracer(options: TracerOptions): Tracer {
   ): Promise<T>;
   async function withSpan<T>(
     name: string,
-    opts: { attributes?: Attributes; headers?: any },
+    opts: { attributes?: Attributes; headers?: any; attach?: boolean },
     fn: (context: ContextType) => Promise<T>,
   ): Promise<T>;
   // Implementation
   async function withSpan<T>(name: string, optsOrFn: any, maybeFn?: any): Promise<T> {
-    let opts: { attributes?: Attributes; headers?: any } = {};
+    let opts: { attributes?: Attributes; headers?: any; attach?: boolean } = {};
     let fn: (context: ContextType) => Promise<T>;
 
     if (typeof optsOrFn === 'function') {

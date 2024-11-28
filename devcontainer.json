@@ -1,0 +1,8 @@
+{
+  "name": "My Workspace",
+  "context": "..",
+  "dockerComposeFile": ["../docker-compose.yaml"],
+  "service": "collection", // Or whichever service you're working on
+  "workspaceFolder": "/usr/src/app",
+  "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+}

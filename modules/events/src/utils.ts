@@ -40,7 +40,7 @@ export async function initializeChannel(
   queue: string,
   routingKey: string,
   logger: Logger,
-): Promise<amqp.Channel> {
+): Promise<{ channel: amqp.Channel; queue: string; exchange: string }> {
   const channel = await connection.createChannel();
   logger.info(
     { event: 'channel.created', queue },
@@ -48,18 +48,18 @@ export async function initializeChannel(
   );
 
   const exchange = `${domain}.exchange`;
-  const _queue = `${domain}.${queue}`;
+  const queueName = `${domain}.${queue}`;
 
   await channel.assertExchange(exchange, 'topic', { durable: true });
-  await channel.assertQueue(_queue, { durable: true });
-  await channel.bindQueue(_queue, exchange, routingKey);
+  await channel.assertQueue(queueName, { durable: true });
+  await channel.bindQueue(queueName, exchange, routingKey);
 
   logger.info(
-    { event: 'queue.bound', exchange, queue: _queue, routingKey },
-    `Queue "${_queue}" bound to exchange "${exchange}" with routing key "${routingKey}"`,
+    { event: 'queue.bound', exchange, queue: queueName, routingKey },
+    `Queue "${queueName}" bound to exchange "${exchange}" with routing key "${routingKey}"`,
   );
 
-  return channel;
+  return { channel, queue: queueName, exchange };
 }
 
 export function makeMessageMetadata(

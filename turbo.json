@@ -10,14 +10,18 @@
       "cache": false
     },
     "test:watch": {
-      "cache": false, 
-      "persistent": true
+      "cache": false,
+      "persistent": false
     },
     "lint": {},
     "format": {},
+    "start": {
+      "cache": false,
+      "persistent": false
+    },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": false
     },
     "clean": {
       "cache": false

@@ -9,16 +9,17 @@ import {
 } from './utils';
 import amqp from 'amqplib';
 import type { Logger } from '@modules/logger';
-import type { Message } from './types';
+import type { Message, BasePayload } from './types';
 import type { KebabCase } from 'type-fest';
 import type { Context, Tracer } from '@modules/tracing'; // Use custom Tracer
 import { makeTracingDecorator } from './tracing-decorator';
+import type { Identified, SupporteIds } from '@modules/types';
 
-export interface EventHandler {
+export interface EventHandler<T = any> {
   domain: string;
   queue: KebabCase<string>;
   routingKey?: string; // Defaults to `#` if not provided
-  onMessage: <T>(message: Message<T>, context: Context) => Promise<void>;
+  onMessage: (message: Message<T>, context: Context) => Promise<void>;
 }
 
 export interface MakeEventsConsumerOpts {
@@ -50,30 +51,30 @@ export function makeConsumer({
     connection = await connectToBroker(broker, boundLogger);
 
     for (const handler of handlerList) {
-      const channel = await initializeChannel(
+      const { channel, exchange, queue } = await initializeChannel(
         connection,
         handler.domain,
         handler.queue,
         handler.routingKey || '#',
         boundLogger,
       );
-      channels.set(handler.queue, channel);
+      channels.set(queue, channel);
 
       const decoratedHandler = tracingDecorator.decorateHandler(handler.onMessage, {
         domain: handler.domain,
-        queue: handler.queue,
+        queue,
         routingKey: handler.routingKey || '#',
       });
 
       channel.consume(
-        handler.queue,
+        queue,
         async (msg) => {
           if (!msg) return;
 
           const content = JSON.parse(msg.content.toString());
           const metadata = makeMessageMetadata(
             handler.domain,
-            handler.queue,
+            queue,
             handler.routingKey || '#',
             msg.properties.messageId,
             msg.properties.headers,

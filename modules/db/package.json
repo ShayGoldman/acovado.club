@@ -8,7 +8,8 @@
   "scripts": {
     "build:code": "bun build src/index.ts --outdir dist --target node",
     "build:declarations": "tsup src/index.ts --dts-only --out-dir dist",
-    "build": "bun run build:code && bun run build:declarations",
+    "build:migrations": "drizzle-kit generate",
+    "build": "bun run build:code && bun run build:declarations && bun run build:migrations",
     "dev": "bun run build:code --watch & bun run build:declarations --watch",
     "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
     "typecheck": "bun tsc --noEmit",
@@ -19,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@modules/logger": "workspace:*",
     "drizzle-orm": "^0.36.3",
     "drizzle-zod": "^0.5.1",
     "pg": "^8.13.1",
@@ -30,6 +32,7 @@
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*",
     "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.28.1",
     "tsup": "^8.3.5",
     "type-fest": "^4.28.0"
   }

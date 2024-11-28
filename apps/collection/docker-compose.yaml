@@ -1,0 +1,30 @@
+services:
+  collection:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: collection
+    working_dir: /usr/src/app
+    command:
+      [
+        'bunx',
+        'turbo',
+        'run',
+        'dev',
+        '--filter=@modules/*',
+        '--filter=...@apps/collection',
+      ]
+    ports:
+      - '6001:3000'
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - private_network
+    env_file:
+      - apps/collection/.env
+
+networks:
+  private_network:
+    name: private_network

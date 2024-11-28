@@ -24,7 +24,11 @@ export interface Tracer {
   with<T>(name: string, fn: (context: Context) => Promise<T>): Promise<T>;
   with<T>(
     name: string,
-    opts: { attributes?: Attributes; headers?: Record<string, unknown> },
+    opts: {
+      attributes?: Attributes;
+      headers?: Record<string, unknown>;
+      attach?: boolean;
+    },
     fn: (context: Context) => Promise<T>,
   ): Promise<T>;
 }

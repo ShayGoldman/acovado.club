@@ -1,3 +1,5 @@
+import type { Identified, KebabCase, Paths, SupporteIds } from '@modules/types';
+
 export interface MessageMetadata {
   messageId: string;
   correlationId: string;
@@ -18,3 +20,28 @@ export interface Message<T> {
   payload: T;
   metadata: MessageMetadata;
 }
+
+type LifecycleStage = 'created' | 'updated' | 'deleted';
+type LifecycleEvent<T extends string> = `${KebabCase<T>}.${LifecycleStage | string}`;
+
+export interface BasePayload<
+  D extends Identified<SupporteIds> = Identified<SupporteIds>,
+  R extends string = string,
+  T extends LifecycleEvent<R> = LifecycleEvent<R>,
+> {
+  id: D['id'];
+  resource: R;
+  data: D;
+  type: T;
+  timestamp: Date;
+}
+
+export interface ModelCreatedEvent<D extends Identified<SupporteIds>, R extends string>
+  extends BasePayload<D, R, `${KebabCase<R>}.created`> {}
+
+export interface ModelUpdatedEvent<D extends Identified<SupporteIds>, R extends string>
+  extends BasePayload<D, R, `${KebabCase<R>}.updated`> {
+  updates: Array<Paths<D>>;
+}
+export interface ModelDeletedEvent<D extends Identified<SupporteIds>, R extends string>
+  extends BasePayload<D, R, `${KebabCase<R>}.deleted`> {}

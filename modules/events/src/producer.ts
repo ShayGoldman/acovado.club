@@ -40,7 +40,7 @@ export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts
   async function sendMessage<T = Record<string, unknown>>(
     domain: string,
     routingKey: '#' | string,
-    messages: T[],
+    messages: T | T[],
     headers: Record<string, string> = {},
   ) {
     if (!channel) {
@@ -54,15 +54,10 @@ export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts
     for (const msg of msgs) {
       const metadata = makeMessageMetadata(domain, '', routingKey);
 
-      let messageHeaders = {
+      const messageHeaders = {
         ...headers,
         'x-version': metadata.version,
       };
-
-      // If tracing is enabled, inject trace context
-      if (tracing && tracing.tracer) {
-        messageHeaders = injectTraceContext(messageHeaders);
-      }
 
       channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(msg)), {
         messageId: metadata.messageId,

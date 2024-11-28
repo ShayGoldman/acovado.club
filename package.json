@@ -1,5 +1,5 @@
 {
-  "name": "finance",
+  "name": "@repo",
   "description": "",
   "private": true,
   "packageManager": "bun@1.1.36",
@@ -13,7 +13,6 @@
   "scripts": {
     "build": "bun turbo run build",
     "clean": "bun turbo run clean",
-    "dev": "bun turbo run dev",
     "format": "bun turbo run format",
     "lint": "bun turbo run lint",
     "test": "bun turbo run test"

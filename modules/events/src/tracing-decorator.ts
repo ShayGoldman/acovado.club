@@ -95,31 +95,36 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
   function decorateProducer<T>(
     send: (
       domain: string,
-      routingKey: string,
-      messages: T[],
+      routingKey: '#' | string,
+      messages: T | T[],
       headers?: any,
     ) => Promise<void>,
-  ): (domain: string, routingKey: string, messages: T[], headers?: any) => Promise<void> {
+  ): (
+    domain: string,
+    routingKey: string,
+    messages: T | T[],
+    headers?: any,
+  ) => Promise<void> {
     if (!tracer) {
       // Tracer is not enabled, return the original send function
       return send;
     }
 
     return async (domain, routingKey, messages, headers = {}) => {
+      const tracedHeaders = injectTraceContext(headers);
       return tracer.with(
-        `Publish Message to ${routingKey}`,
+        `Publish Message to ${domain}.${routingKey}`,
         {
+          attach: true,
           attributes: {
             'messaging.system': 'rabbitmq',
             'messaging.destination': `${domain}.exchange`,
             'messaging.destination_kind': 'exchange',
             'messaging.routing_key': routingKey,
-            'messaging.messages.count': messages.length,
           },
         },
         async (context) => {
           try {
-            const tracedHeaders = injectTraceContext(headers);
             await send(domain, routingKey, messages, tracedHeaders);
           } catch (error: any) {
             context.log.error('Error publishing message', { error: error.message });

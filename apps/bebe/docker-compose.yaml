@@ -1,0 +1,21 @@
+services:
+  bebe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: bebe
+    working_dir: /usr/src/app
+    command:
+      ['bunx', 'turbo', 'run', 'dev', '--filter=@modules/*', '--filter=...@apps/bebe']
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - private_network
+    env_file:
+      - apps/bebe/.env
+
+networks:
+  private_network:
+    name: private_network

@@ -33,6 +33,7 @@
     "@config/prettier": "workspace:*",
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*",
+    "inquirer": "^12.1.0",
     "type-fest": "^4.28.1"
   }
 }
