@@ -1,0 +1,25 @@
+{
+  "name": "@clients/nano",
+  "version": "1.0.0",
+  "description": "",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "dev": "drizzle-kit studio --verbose"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "drizzle-kit": "^0.28.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@config/eslint": "workspace:*",
+    "@config/prettier": "workspace:*",
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/pg": "^8.11.10",
+    "tsup": "^8.3.5",
+    "type-fest": "^4.28.0"
+  }
+}
