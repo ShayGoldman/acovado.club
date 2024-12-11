@@ -8,7 +8,7 @@ import {
 } from './utils';
 import type { Logger } from '@modules/logger';
 import amqp from 'amqplib';
-import { injectTraceContext, type Tracer } from '@modules/tracing'; // Use custom Tracing
+import { type Tracer } from '@modules/tracing'; // Use custom Tracing
 import { makeTracingDecorator } from './tracing-decorator';
 
 interface MakeEventsProducerOpts {
@@ -17,6 +17,11 @@ interface MakeEventsProducerOpts {
   tracing?: {
     tracer: Tracer;
   };
+}
+
+interface SendMessageOpts {
+  headers?: Record<string, string>;
+  baggage?: Record<string, string>;
 }
 
 export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts) {
@@ -35,14 +40,13 @@ export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts
     boundLogger.info({ event: 'producer.channel_created' }, 'Producer channel created');
   }
 
-  const send = tracingDecorator.decorateProducer(sendMessage);
-
   async function sendMessage<T = Record<string, unknown>>(
     domain: string,
     routingKey: '#' | string,
     messages: T | T[],
-    headers: Record<string, string> = {},
+    opts: SendMessageOpts = {},
   ) {
+    const { headers = {} } = opts;
     if (!channel) {
       throw new Error('Producer is not connected. Call `connect()` first.');
     }
@@ -79,6 +83,8 @@ export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts
     channel = null;
     connection = null;
   }
+
+  const send = tracingDecorator.decorateProducer(sendMessage);
 
   return { connect, send, disconnect };
 }

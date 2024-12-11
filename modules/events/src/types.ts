@@ -21,8 +21,9 @@ export interface Message<T> {
   metadata: MessageMetadata;
 }
 
-type LifecycleStage = 'created' | 'updated' | 'deleted';
-type LifecycleEvent<T extends string> = `${KebabCase<T>}.${LifecycleStage | string}`;
+export type LifecycleStage = 'created' | 'updated' | 'deleted' | string;
+
+export type LifecycleEvent<R extends string> = `${R}.${LifecycleStage}`;
 
 export interface BasePayload<
   D extends Identified<SupporteIds> = Identified<SupporteIds>,
@@ -37,11 +38,11 @@ export interface BasePayload<
 }
 
 export interface ModelCreatedEvent<D extends Identified<SupporteIds>, R extends string>
-  extends BasePayload<D, R, `${KebabCase<R>}.created`> {}
+  extends BasePayload<D, R, `${R}.created`> {}
 
 export interface ModelUpdatedEvent<D extends Identified<SupporteIds>, R extends string>
-  extends BasePayload<D, R, `${KebabCase<R>}.updated`> {
+  extends BasePayload<D, R, `${R}.updated`> {
   updates: Array<Paths<D>>;
 }
 export interface ModelDeletedEvent<D extends Identified<SupporteIds>, R extends string>
-  extends BasePayload<D, R, `${KebabCase<R>}.deleted`> {}
+  extends BasePayload<D, R, `${R}.deleted`> {}

@@ -16,6 +16,7 @@ export interface Context {
   ): Promise<T>;
 
   log: Logger;
+  annotations: Map<string, string | number | boolean>;
   annotate(key: string, value: string | number | boolean): void;
   setName(name: string): void;
 }

@@ -48,7 +48,7 @@ export async function initializeChannel(
   );
 
   const exchange = `${domain}.exchange`;
-  const queueName = `${domain}.${queue}`;
+  const queueName = `${domain}:${queue}`;
 
   await channel.assertExchange(exchange, 'topic', { durable: true });
   await channel.assertQueue(queueName, { durable: true });

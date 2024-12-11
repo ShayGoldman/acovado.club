@@ -1,11 +1,35 @@
-// propagation.ts
+import {
+  context,
+  propagation,
+  type Context,
+  type BaggageEntry,
+} from '@opentelemetry/api';
 
-import { context, propagation, type Context } from '@opentelemetry/api';
+function toBaggageEntries(
+  entries: Record<string, unknown>,
+): Record<string, BaggageEntry> {
+  return Object.fromEntries(
+    Object.entries(entries).map(([key, value]) => [key, { value: String(value) }]),
+  );
+}
 
-export function injectTraceContext<T extends Record<string, unknown>>(carrier?: T): T {
+export function fromBaggageEntries(
+  entries: Array<[key: string, BaggageEntry]>,
+): Record<string, unknown> {
+  return Object.fromEntries(entries.map(([key, value]) => [key, value.value]));
+}
+
+export function injectTraceContext<T extends Record<string, unknown>>(
+  carrier?: T,
+  baggage: Record<string, unknown> = {},
+): T {
   const newCarrier = carrier ? { ...carrier } : {};
+
   try {
-    propagation.inject(context.active(), newCarrier);
+    const bag = propagation.createBaggage(toBaggageEntries(baggage));
+    const ctx = propagation.setBaggage(context.active(), bag);
+
+    propagation.inject(ctx, newCarrier);
   } catch {
     // If tracing is disabled or context is empty, do nothing
   }

@@ -1,9 +1,17 @@
 import type { Logger } from '@modules/logger';
 import type { Context } from '@modules/tracing';
-import { injectTraceContext, type Tracer } from '@modules/tracing';
+import {
+  extractTraceContext,
+  fromBaggageEntries,
+  injectTraceContext,
+  type Tracer,
+} from '@modules/tracing';
 import type { Message } from './types';
+import { context, propagation, trace } from '@opentelemetry/api';
 
 function makeNoopContext(log: Logger): Context {
+  const container = { annotations: new Map<string, string | number | boolean>() };
+
   const withFn = <T>(
     name: string,
     optsOrFn: any,
@@ -15,6 +23,7 @@ function makeNoopContext(log: Logger): Context {
   };
 
   const annotate = (key: string, value: string | number | boolean): void => {
+    container.annotations = container.annotations.set(key, value);
     // TODO can cause duplicate keys
     log.setBindings({ [key]: value });
   };
@@ -26,6 +35,7 @@ function makeNoopContext(log: Logger): Context {
   const noopContext: Context = {
     log,
     with: withFn,
+    annotations: new Map<string, string | number | boolean>(),
     annotate,
     setName,
   };
@@ -36,6 +46,11 @@ function makeNoopContext(log: Logger): Context {
 export interface MakeTracingDecoratorOpts {
   tracer?: Tracer;
   logger: Logger;
+}
+
+export interface SendOpts {
+  headers?: Record<string, string>;
+  baggage?: Record<string, string>;
 }
 
 export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
@@ -64,11 +79,19 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
       const messageId = message.metadata.messageId;
       const headers = message.metadata.headers;
 
+      const extractedContext = extractTraceContext(headers);
+      const currentBaggage = propagation.extract(extractedContext, headers);
+
+      const inheritedAttributes = fromBaggageEntries(
+        propagation.getBaggage(currentBaggage)?.getAllEntries() || [],
+      );
+
       return tracer.with(
         `${queue}: Consumed ${message.metadata.messageId}`,
         {
           headers,
           attributes: {
+            ...inheritedAttributes,
             'messaging.system': 'rabbitmq',
             'messaging.domain': domain,
             'messaging.destination': queue,
@@ -97,23 +120,24 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
       domain: string,
       routingKey: '#' | string,
       messages: T | T[],
-      headers?: any,
+      opts?: SendOpts,
     ) => Promise<void>,
   ): (
     domain: string,
     routingKey: string,
     messages: T | T[],
-    headers?: any,
+    opts?: SendOpts,
   ) => Promise<void> {
     if (!tracer) {
       // Tracer is not enabled, return the original send function
       return send;
     }
 
-    return async (domain, routingKey, messages, headers = {}) => {
-      const tracedHeaders = injectTraceContext(headers);
+    return async (domain, routingKey, messages, opts: SendOpts = {}) => {
+      const { headers = {}, baggage = {} } = opts;
+      const tracedHeaders = injectTraceContext(headers, baggage);
       return tracer.with(
-        `Publish Message to ${domain}.${routingKey}`,
+        `Publish Message to ${domain}:${routingKey}`,
         {
           attach: true,
           attributes: {
@@ -125,7 +149,7 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
         },
         async (context) => {
           try {
-            await send(domain, routingKey, messages, tracedHeaders);
+            await send(domain, routingKey, messages, { headers: tracedHeaders });
           } catch (error: any) {
             context.log.error('Error publishing message', { error: error.message });
             throw error;
