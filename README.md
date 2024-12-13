@@ -30,6 +30,7 @@ Run everything locally by following these instructions from the root of the proj
 ## Tasks
 
 [ ] Solve number handling (no floating points! and Number)
+[ ] Support `detached` mode for `tracer.with` to not always attach to the active context
 [ ] Producing messages should be done one-by-one
 [ ] Allow attaching to apps for debbuging
 [ ] Add some span events for producer & consumer, consider creating another span for the handler itself
