@@ -1,0 +1,1 @@
+ALTER TABLE "finance"."stories" ALTER COLUMN "volume_change" SET DATA TYPE double precision;

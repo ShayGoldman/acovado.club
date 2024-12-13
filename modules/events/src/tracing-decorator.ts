@@ -6,8 +6,9 @@ import {
   injectTraceContext,
   type Tracer,
 } from '@modules/tracing';
+import type { Primitive } from '@modules/types';
+import { propagation } from '@opentelemetry/api';
 import type { Message } from './types';
-import { context, propagation, trace } from '@opentelemetry/api';
 
 function makeNoopContext(log: Logger): Context {
   const container = { annotations: new Map<string, string | number | boolean>() };
@@ -50,7 +51,7 @@ export interface MakeTracingDecoratorOpts {
 
 export interface SendOpts {
   headers?: Record<string, string>;
-  baggage?: Record<string, string>;
+  baggage?: Record<string, Primitive>;
 }
 
 export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {

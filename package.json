@@ -8,14 +8,15 @@
     "infra/*",
     "modules/*",
     "apps/*",
+    "clients/*",
     "tests/*"
   ],
   "scripts": {
-    "build": "bun turbo run build",
-    "clean": "bun turbo run clean",
-    "format": "bun turbo run format",
-    "lint": "bun turbo run lint",
-    "test": "bun turbo run test"
+    "build": "bunx turbo run build",
+    "clean": "bunx turbo run clean",
+    "format": "bunx turbo run format",
+    "lint": "bunx turbo run lint",
+    "test": "bunx turbo run test"
   },
   "keywords": [],
   "author": "",

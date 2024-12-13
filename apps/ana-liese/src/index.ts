@@ -4,11 +4,11 @@ import { makeLogger } from '@modules/logger';
 
 import { makeMigrateDB } from '@modules/db';
 import { makeTracer } from '@modules/tracing';
-import { makeOnCollectionCreatedService } from './collection/collection.created.service';
 import { makeDB } from './db';
+import { makeOnSignalCreatedService } from './signaling/signal-created.service';
 
 const logger = makeLogger({
-  name: 'collection',
+  name: 'ana-liese',
 });
 
 const migrate = makeMigrateDB({
@@ -18,7 +18,7 @@ const migrate = makeMigrateDB({
 
 await migrate();
 const tracer = makeTracer({
-  serviceName: 'collection',
+  serviceName: 'ana-liese',
   exporterUrl: Env.TRACE_EXPORTER_URL,
   logger,
 });
@@ -37,10 +37,10 @@ const consumers = makeConsumer({
   tracing: { tracer },
   handlers: [
     {
-      domain: 'collection',
-      queue: 'collection.created',
+      domain: 'signal',
+      queue: 'signal.created',
       // TODO need to type messages now
-      onMessage: makeOnCollectionCreatedService({ db, producer }).onCollectionCreated,
+      onMessage: makeOnSignalCreatedService({ db }).onSignalCreated,
     },
   ],
 });

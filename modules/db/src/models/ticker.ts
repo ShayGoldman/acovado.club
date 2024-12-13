@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import S from './schema';
+import S from '@/schema';
 import Z from 'zod';
 
 const insertTickerSchema = createInsertSchema(S.tickers);

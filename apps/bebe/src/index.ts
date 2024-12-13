@@ -1,10 +1,11 @@
 import Env from '@/env';
-import { makeProducer, type BasePayload } from '@modules/events';
+import { makeProducer } from '@modules/events';
 import { makeLogger } from '@modules/logger';
 
 import { makeMigrateDB } from '@modules/db';
 import { makeTracer } from '@modules/tracing';
 import { makeDB } from './db';
+import { makeCronJobsService } from './entry-points/crons';
 
 const logger = makeLogger({
   name: 'bebe',
@@ -28,25 +29,16 @@ const producer = makeProducer({
 });
 const db = makeDB({
   url: Env.DATABASE_URL,
+  logger,
 });
 
 logger.info('Setting up...');
 await producer.connect();
 
-logger.info('Starting...');
+const crons = await makeCronJobsService({
+  db,
+  tracer,
+  producer,
+});
 
-const tickers = await db.query.tickers.findMany();
-
-for (const ticker of tickers) {
-  tracer.with(`Collect ticker ${ticker.symbol}`, async (c) => {
-    const event: BasePayload = {
-      id: Math.random(),
-      resource: 'collection-request',
-      data: ticker,
-      type: 'collection.requested',
-      timestamp: new Date(),
-    };
-    producer.send('collection', 'collection.requested', event);
-    c.log.info('Message sent');
-  });
-}
+await crons.start();

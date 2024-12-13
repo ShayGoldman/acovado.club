@@ -1,4 +1,4 @@
-import type { Identified, KebabCase, Paths, SupporteIds } from '@modules/types';
+import type { Identified, Paths, SupporteIds } from '@modules/types';
 
 export interface MessageMetadata {
   messageId: string;

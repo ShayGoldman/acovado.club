@@ -9,7 +9,7 @@ export interface MakeMigrateDBOpts {
 }
 
 export function makeMigrateDB({ url, logger }: MakeMigrateDBOpts) {
-  const db = makeDBClient({ url });
+  const db = makeDBClient({ url, logger });
 
   return async () => {
     const migrationsFolder = path.resolve(__dirname, './migrations');

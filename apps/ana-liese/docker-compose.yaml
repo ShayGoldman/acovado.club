@@ -1,0 +1,30 @@
+services:
+  ana-liese:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: ana-liese
+    working_dir: /usr/src/app
+    command:
+      [
+        'bunx',
+        'turbo',
+        'run',
+        'dev',
+        '--filter=@modules/*',
+        '--filter=...@apps/ana-liese',
+      ]
+    ports:
+      - '6001:3000'
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - private_network
+    env_file:
+      - apps/ana-liese/.env
+
+networks:
+  private_network:
+    name: private_network

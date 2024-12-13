@@ -20,15 +20,25 @@ Use option 1 with Dev containers (IDE plugin)
 
 ### Option 3:
 
-Run everything locally by following these instructions:
+Run everything locally by following these instructions from the root of the project:
 
-1. `@repo`: `bun turbo run start --filter="@infra/*"`
-2. `@repo`: `bun turbo run dev --filter="@modules/*"`
-3. `repo`: `bun turbo run dev --filter="@apps/%whatever%"`
+1. `bunx turbo start --filter="@infra/*"`
+2. `bunx turbo dev --filter="@modules/*"`
+3. `bunx turbo dev --filter="@clients/*"`
+4. `bunx turbo dev --filter="@apps/*"`
 
 ## Tasks
 
+[ ] Solve number handling (no floating points! and Number)
 [ ] Producing messages should be done one-by-one
 [ ] Allow attaching to apps for debbuging
+[ ] Add some span events for producer & consumer, consider creating another span for the handler itself
+[ ] Start throwing coded errors and make up a strategy for handling them
+[ ] Actually set a `correlationId` on messages and propagate it
+[ ] Support pre & post migration scripts (db) => Promise<void>
 [ ] Add Drizzle eslint plugin (https://orm.drizzle.team/docs/eslint-plugin)
 [ ] Running production mode with docker compose
+
+# Drizzle studio theme
+
+https://drizzle.studio/themes/elKOzCWRB2NDOTHL8_f8C/edit?token=0ad6fab842e81f61d5f2d2679526e7a3823b96b4

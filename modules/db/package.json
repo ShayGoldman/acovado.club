@@ -10,6 +10,7 @@
     "build:declarations": "tsup src/index.ts --dts-only --out-dir dist",
     "build:migrations": "drizzle-kit generate",
     "build": "bun run build:code && bun run build:declarations && bun run build:migrations",
+    "seed": "bun src/seed.ts",
     "dev": "bun run build:code --watch & bun run build:declarations --watch",
     "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
     "typecheck": "bun tsc --noEmit",
@@ -21,10 +22,10 @@
   "license": "ISC",
   "dependencies": {
     "@modules/logger": "workspace:*",
-    "drizzle-orm": "^0.36.3",
+    "drizzle-orm": "^0.36.4",
     "drizzle-zod": "^0.5.1",
     "pg": "^8.13.1",
-    "zod": "^3.23.8"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@config/eslint": "workspace:*",
@@ -33,7 +34,9 @@
     "@config/typescript": "workspace:*",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.28.1",
+    "drizzle-seed": "^0.1.3",
+    "lodash": "^4.17.21",
     "tsup": "^8.3.5",
-    "type-fest": "^4.28.0"
+    "type-fest": "^4.30.1"
   }
 }

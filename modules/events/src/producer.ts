@@ -10,6 +10,7 @@ import type { Logger } from '@modules/logger';
 import amqp from 'amqplib';
 import { type Tracer } from '@modules/tracing'; // Use custom Tracing
 import { makeTracingDecorator } from './tracing-decorator';
+import type { Primitive } from '@modules/types';
 
 interface MakeEventsProducerOpts {
   broker: string;
@@ -21,8 +22,10 @@ interface MakeEventsProducerOpts {
 
 interface SendMessageOpts {
   headers?: Record<string, string>;
-  baggage?: Record<string, string>;
+  baggage?: Record<string, Primitive>;
 }
+
+export type Producer = ReturnType<typeof makeProducer>;
 
 export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts) {
   let connection: amqp.Connection | null = null;

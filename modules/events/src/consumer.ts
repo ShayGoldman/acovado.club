@@ -1,19 +1,18 @@
 // consumer.ts
 
+import type { Logger } from '@modules/logger';
+import type { Context, Tracer } from '@modules/tracing'; // Use custom Tracer
+import amqp from 'amqplib';
+import type { KebabCase } from 'type-fest';
+import { makeTracingDecorator } from './tracing-decorator';
+import type { Message } from './types';
 import {
   connectToBroker,
-  safeClose,
   initializeChannel,
-  makeMessageMetadata,
   makeBoundLogger,
+  makeMessageMetadata,
+  safeClose,
 } from './utils';
-import amqp from 'amqplib';
-import type { Logger } from '@modules/logger';
-import type { Message, BasePayload } from './types';
-import type { KebabCase } from 'type-fest';
-import type { Context, Tracer } from '@modules/tracing'; // Use custom Tracer
-import { makeTracingDecorator } from './tracing-decorator';
-import type { Identified, SupporteIds } from '@modules/types';
 
 export interface EventHandler<T = any> {
   domain: string;
@@ -21,6 +20,8 @@ export interface EventHandler<T = any> {
   routingKey?: string; // Defaults to `#` if not provided
   onMessage: (message: Message<T>, context: Context) => Promise<void>;
 }
+
+export type Consumer = ReturnType<typeof makeConsumer>;
 
 export interface MakeEventsConsumerOpts {
   broker: string;
