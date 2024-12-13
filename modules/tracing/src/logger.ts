@@ -17,12 +17,42 @@ export function makeTracingLogger(logger: Logger, span: Span): Logger {
 
       // Add an event to the tracing span
       if (span && typeof span.addEvent === 'function') {
-        span.addEvent(level, { message, ...attributes });
+        span.addEvent(message, { message, ...flattenObject(attributes) });
       }
     };
   }
 
   return tracingLogger;
+}
+
+/**
+ * Flattens a nested object into a flat object with dot-notation keys
+ * @param obj The object to flatten
+ * @param prefix Optional prefix for nested keys (used in recursive calls)
+ * @returns A flat object with dot-notation keys
+ */
+function flattenObject(
+  obj: Record<string, any>,
+  prefix: string = '',
+): Record<string, any> {
+  return Object.keys(obj).reduce((acc, key) => {
+    const prefixedKey = prefix ? `${prefix}.${key}` : key;
+
+    // If the value is an object (but not null, and not an array)
+    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+      // Recursively flatten nested objects
+      return {
+        ...acc,
+        ...flattenObject(obj[key], prefixedKey),
+      };
+    }
+
+    // For non-object values or arrays, add to the accumulator
+    return {
+      ...acc,
+      [prefixedKey]: obj[key],
+    };
+  }, {});
 }
 
 function parseLogArgs(args: any[]): { message: string; attributes: Record<string, any> } {
