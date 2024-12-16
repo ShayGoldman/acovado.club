@@ -88,7 +88,7 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
       );
 
       return tracer.with(
-        `${queue}: Consumed ${message.metadata.messageId}`,
+        `Consume message from ${queue}`,
         {
           headers,
           attributes: {

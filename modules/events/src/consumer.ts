@@ -89,16 +89,10 @@ export function makeConsumer({
           try {
             await decoratedHandler(parsedMessage);
             channel.ack(msg);
-            boundLogger.info(
-              { event: 'consumer.message_processed' },
-              'Message processed successfully',
-            );
+            boundLogger.debug('Message processed successfully');
           } catch (error) {
             channel.nack(msg, false, true);
-            boundLogger.error(
-              { event: 'consumer.message_error', error },
-              'Error processing message',
-            );
+            boundLogger.error(error, 'Error processing message');
           }
         },
         { noAck: false },
