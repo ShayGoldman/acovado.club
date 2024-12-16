@@ -5,10 +5,11 @@ import type { Span } from '@opentelemetry/api';
 export function makeTracingLogger(logger: Logger, span: Span): Logger {
   const levels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'];
 
-  const tracingLogger = Object.create(logger);
+  const tracingLogger = logger.child({});
 
   for (const level of levels) {
     tracingLogger[level] = (...args: any[]) => {
+      // TODO find a way to add bindings to the logger
       // Log the message using the original logger
       (logger as any)[level](...args);
 
@@ -17,7 +18,7 @@ export function makeTracingLogger(logger: Logger, span: Span): Logger {
 
       // Add an event to the tracing span
       if (span && typeof span.addEvent === 'function') {
-        span.addEvent(message, { message, ...flattenObject(attributes) });
+        span.addEvent(message, flattenObject(attributes));
       }
     };
   }

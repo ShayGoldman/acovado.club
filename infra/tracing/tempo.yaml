@@ -1,4 +1,3 @@
----
 server:
   http_listen_port: 3200
 
@@ -22,7 +21,6 @@ distributor:
       protocols:
         http:
         grpc:
-    opencensus:
 
 ingester:
   max_block_duration: 5m # cut the headblock when this much time passes. this is being set for demo purposes and should probably be left alone normally
@@ -31,26 +29,15 @@ compactor:
   compaction:
     block_retention: 1h # overall Tempo trace retention. set for demo purposes
 
-metrics_generator:
-  registry:
-    external_labels:
-      source: tempo
-      cluster: docker-compose
-  storage:
-    path: /tmp/tempo/generator/wal
-    remote_write:
-      - url: http://prometheus:9090/api/v1/write
-        send_exemplars: true
-
 storage:
   trace:
-    backend: local # backend configuration to use
+    backend: local
     wal:
-      path: /tmp/tempo/wal # where to store the the wal locally
+      path: /tmp/tempo/wal
     local:
       path: /tmp/tempo/blocks
 
 overrides:
   defaults:
     metrics_generator:
-      processors: [service-graphs, span-metrics] # enables metrics generator
+      processors: [service-graphs, span-metrics]
