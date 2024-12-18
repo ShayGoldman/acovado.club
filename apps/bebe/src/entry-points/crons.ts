@@ -22,6 +22,11 @@ export async function makeCronJobsService(opts: MakeCronJobsServiceOpts) {
         job: new CronJob(
           '* * * * *',
           makeWatchListCollectionService(opts).collectWatchLists,
+          null,
+          null,
+          null,
+          null,
+          true, // run on init
         ),
       },
     ] as const;
