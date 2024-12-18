@@ -8,6 +8,8 @@ services:
     working_dir: /usr/src/app
     command:
       ['bunx', 'turbo', 'run', 'dev', '--filter=@modules/*', '--filter=...@apps/bebe']
+    ports:
+      - '6000:3000'
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
