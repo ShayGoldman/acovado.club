@@ -1,21 +1,20 @@
 // @modules/tracing/src/tracer.ts
 
 import type { Attributes, Span } from '@opentelemetry/api';
-import { context, propagation, SpanStatusCode, trace } from '@opentelemetry/api';
+import { context, SpanStatusCode, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import {
   CompositePropagator,
-  W3CTraceContextPropagator,
   W3CBaggagePropagator,
+  W3CTraceContextPropagator,
 } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { makeTracingLogger } from './logger';
-import { extractTraceContext, fromBaggageEntries } from './propagation';
+import { extractTraceContext } from './propagation';
 import type { Context as ContextType, Tracer, TracerOptions } from './types';
-import type { Primitive } from '@modules/types';
 
 export function makeTracer(options: TracerOptions): Tracer {
   const { serviceName, exporterUrl, logger } = options;
@@ -47,6 +46,7 @@ export function makeTracer(options: TracerOptions): Tracer {
       with: withSpan,
       log: tracingLogger,
       annotations: container.annotations,
+      // TODO add anotate object support (Date -> ISOString)
       annotate(key: string, value: string | number | boolean): void {
         container.annotations = container.annotations.set(key, value);
         span.setAttribute(key, value);

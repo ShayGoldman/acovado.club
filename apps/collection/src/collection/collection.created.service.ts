@@ -16,25 +16,27 @@ export function makeOnCollectionCreatedService({
   return {
     async onCollectionCreated(
       message: Message<BasePayload<Collection, 'collection', 'collection.created'>>,
-      c: Context,
+      ctx: Context,
     ) {
       const { data } = message.payload;
       const collectionData = data.data;
 
-      c.log.debug(message, 'Received collection.created message');
-      c.log.info(
+      ctx.log.debug(message, 'Received collection.created message');
+      ctx.log.info(
         { 'collection.id': data.id, 'collection.type': data.type },
         'Processing collection.created message',
       );
 
-      c.annotate('collection.id', data.id);
-      c.annotate('collection.type', data.type);
+      ctx.annotate('collection.id', data.id);
+      ctx.annotate('collection.type', data.type);
 
       if (collectionData.type === 'ticker') {
-        await tickerCollectionService.onTickerCollectionCreated(data, c);
+        await ctx.with('Collecting data for ticker', (c) =>
+          tickerCollectionService.onTickerCollectionCreated(data, c),
+        );
       }
 
-      c.log.info('Collection completed');
+      ctx.log.info('Collection completed');
       await db
         .update(schema.collections)
         .set({

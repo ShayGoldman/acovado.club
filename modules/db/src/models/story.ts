@@ -10,8 +10,11 @@ export type Story = Z.infer<typeof selectStorySchema>;
 
 const makeStorySchema = insertStorySchema
   .pick({
+    type: true,
+    signal: true,
     ticker: true,
-    volumeChange: true,
+    change: true,
+    createdAt: true,
   })
   .strict();
 

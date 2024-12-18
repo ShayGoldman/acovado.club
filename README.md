@@ -30,6 +30,7 @@ Run everything locally by following these instructions from the root of the proj
 ## Tasks
 
 [ ] Solve number handling (no floating points! and Number)
+[ ] Support silent mode for simulation to avoid spamming the console with producer messages
 [ ] Support `detached` mode for `tracer.with` to not always attach to the active context
 [ ] Producing messages should be done one-by-one
 [ ] Allow attaching to apps for debbuging

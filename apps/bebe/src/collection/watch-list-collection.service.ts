@@ -24,40 +24,43 @@ export function makeWatchListCollectionService(opts: MakeWatchListCollectionServ
       });
 
       for (const watchList of watchLists) {
-        tracer.with(`Create collections for watch list ${watchList.name}`, async (c) => {
-          c.annotate('watch-list.id', watchList.id);
-          c.annotate('watch-list.name', watchList.name);
+        await tracer.with(
+          `Create collections for watch list ${watchList.name}`,
+          async (c) => {
+            c.annotate('watch-list.id', watchList.id);
+            c.annotate('watch-list.name', watchList.name);
 
-          for (const { ticker } of watchList.tickers) {
-            c.log.info(
-              { tickerId: ticker.id },
-              `Creating collection for ticker ${ticker.name}`,
-            );
-            const [collection] = await db
-              .insert(schema.collections)
-              .values(
-                makeCollection({
-                  status: 'pending',
-                  type: 'ticker',
-                  data: {
+            for (const { ticker } of watchList.tickers) {
+              c.log.info(
+                { tickerId: ticker.id },
+                `Creating collection for ticker ${ticker.name}`,
+              );
+              const [collection] = await db
+                .insert(schema.collections)
+                .values(
+                  makeCollection({
+                    status: 'pending',
                     type: 'ticker',
-                    tickerId: ticker.id,
-                  },
-                }),
-              )
-              .returning();
+                    data: {
+                      type: 'ticker',
+                      tickerId: ticker.id,
+                    },
+                  }),
+                )
+                .returning();
 
-            c.log.debug(
-              { collectionId: collection.id },
-              `Collection created for ticker ${ticker.name}`,
-            );
+              c.log.debug(
+                { collectionId: collection.id },
+                `Collection created for ticker ${ticker.name}`,
+              );
 
-            const event = makeEvent('collection', 'created', collection);
-            producer.send('collection', 'collection.created', event, {
-              baggage: { 'ticker.id': ticker.id },
-            });
-          }
-        });
+              const event = makeEvent('collection', 'created', collection);
+              producer.send('collection', 'collection.created', event, {
+                baggage: { 'ticker.id': ticker.id },
+              });
+            }
+          },
+        );
       }
     },
   };

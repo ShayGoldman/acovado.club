@@ -38,10 +38,17 @@ export function makeTickerCollectionService({
         return;
       }
 
+      c.annotate('ticker.name', ticker.name);
+      c.annotate('ticker.symbol', ticker.symbol);
       c.setName(`Collecting ${ticker.name} ticker data`);
 
-      const tickerData = await collectTickerData(ticker);
-      c.log.debug({ tickerData }, 'Fetched ticker data');
+      const tickerData = await collectTickerData(ticker, c);
+
+      if (!tickerData) {
+        c.log.info(`No data found for ticker: ${ticker.name}`);
+        return;
+      }
+
       if (tickerData.marketState !== 'REGULAR') {
         c.log.info('Market is currently closed. Skipping');
         return;
@@ -50,22 +57,6 @@ export function makeTickerCollectionService({
       c.log.info('Creating signals');
 
       const signalsData = [
-        tickerData.trailingPE &&
-          makeSignalMetric({
-            collectionId: collection.id,
-            tickerId: ticker.id,
-            type: 'pe_trailing',
-            metric: Number(tickerData.trailingPE.toFixed(4)).toString(),
-          }),
-
-        tickerData.forwardPE &&
-          makeSignalMetric({
-            collectionId: collection.id,
-            tickerId: ticker.id,
-            type: 'pe_forward',
-            metric: Number(tickerData.forwardPE.toFixed(4)).toString(),
-          }),
-
         tickerData.regularMarketVolume &&
           makeSignalMetric({
             collectionId: collection.id,
@@ -83,6 +74,10 @@ export function makeTickerCollectionService({
           }),
       ].filter(Boolean) as SignalMetric[];
 
+      if (!signalsData.length) {
+        return;
+      }
+
       const signals = await db
         .insert(schema.signalMetrics)
         .values(signalsData)
@@ -90,7 +85,7 @@ export function makeTickerCollectionService({
 
       for (const signal of signals) {
         const event = makeEvent('signal', 'created', signal);
-        producer.send('signal', 'signal.created', event);
+        producer.send('signal', event.type, event);
       }
 
       c.log.debug({ signals }, 'Signals created');

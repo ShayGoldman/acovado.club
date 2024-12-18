@@ -51,9 +51,8 @@ export async function runSimulation(
           .where(({ signal_metrics }) => {
             const conditions = [];
             if (inputs.start)
-              conditions.push(gte(signal_metrics.createdAt, new Date(inputs.start)));
-            if (inputs.end)
-              conditions.push(lte(signal_metrics.createdAt, new Date(inputs.end)));
+              conditions.push(gte(signal_metrics.createdAt, inputs.start));
+            if (inputs.end) conditions.push(lte(signal_metrics.createdAt, inputs.end));
             if (inputs.type) conditions.push(eq(signal_metrics.type, inputs.type));
             if (inputs.tickers.length > 0)
               conditions.push(inArray(schema.tickers.symbol, inputs.tickers));

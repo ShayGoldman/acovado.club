@@ -2,6 +2,7 @@ import { sql, relations } from 'drizzle-orm';
 import * as D from 'drizzle-orm/pg-core';
 
 export const finance = D.pgSchema('finance');
+export const metabase = D.pgSchema('metabase');
 
 export const watchLists = finance.table('watch_lists', (c) => ({
   id: c
@@ -9,12 +10,12 @@ export const watchLists = finance.table('watch_lists', (c) => ({
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: c.varchar('name', { length: 128 }).notNull(),
-  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: c
-    .timestamp('updated_at')
+    .timestamp('updated_at', { mode: 'string' })
     .defaultNow()
     .notNull()
-    .$onUpdateFn(() => new Date()),
+    .$onUpdateFn(() => new Date().toISOString()),
 }));
 
 export const watchListsRelations = relations(watchLists, ({ many }) => ({
@@ -28,12 +29,12 @@ export const tickers = finance.table('tickers', (c) => ({
     .default(sql`gen_random_uuid()`),
   name: c.varchar('name', { length: 64 }).notNull(),
   symbol: c.varchar('symbol', { length: 8 }).notNull().unique(),
-  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: c
-    .timestamp('updated_at')
+    .timestamp('updated_at', { mode: 'string' })
     .defaultNow()
     .notNull()
-    .$onUpdateFn(() => new Date()),
+    .$onUpdateFn(() => new Date().toISOString()),
 }));
 
 export const tickersRelations = relations(tickers, ({ many }) => ({
@@ -51,7 +52,7 @@ export const watchListToTickers = finance.table(
       .uuid('ticker_id')
       .notNull()
       .references(() => tickers.id, { onDelete: 'cascade' }),
-    createdAt: c.timestamp('created_at').defaultNow().notNull(),
+    createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   }),
   (t) => ({
     pk: D.primaryKey({ columns: [t.watchListId, t.tickerId] }),
@@ -76,12 +77,12 @@ export const collections = finance.table('collections', (c) => ({
   type: c.varchar('type', { length: 64 }).notNull(),
   status: c.varchar('status', { length: 64 }).notNull(),
   data: c.jsonb('data').notNull(),
-  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: c
-    .timestamp('updated_at')
+    .timestamp('updated_at', { mode: 'string' })
     .defaultNow()
     .notNull()
-    .$onUpdateFn(() => new Date()),
+    .$onUpdateFn(() => new Date().toISOString()),
 }));
 
 export const signalMetrics = finance.table('signal_metrics', (c) => ({
@@ -96,26 +97,28 @@ export const signalMetrics = finance.table('signal_metrics', (c) => ({
     .references(() => collections.id, { onDelete: 'cascade' }),
   type: c.varchar('type', { length: 128 }).notNull(),
   metric: c.numeric('metric', { precision: 15, scale: 4 }).notNull(),
-  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
 }));
 
 export const kvStore = finance.table('kv_store', (c) => ({
   id: c.serial().primaryKey(),
   key: c.varchar('key', { length: 128 }).notNull().unique(),
   value: c.varchar('value', { length: 256 }).notNull(),
-  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: c
-    .timestamp('updated_at')
+    .timestamp('updated_at', { mode: 'string' })
     .defaultNow()
     .notNull()
-    .$onUpdateFn(() => new Date()),
+    .$onUpdateFn(() => new Date().toISOString()),
 }));
 
 export const stories = finance.table('stories', (c) => ({
   id: c.serial().primaryKey(),
-  ticker: c.varchar('ticker', { length: 128 }).notNull(),
-  volumeChange: c.doublePrecision('volume_change').notNull(),
-  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  type: c.varchar('type', { length: 128 }).notNull(),
+  ticker: c.uuid('ticker_id').notNull(),
+  signal: c.integer('signal_id').notNull(),
+  change: c.doublePrecision('change').notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
 }));
 
 export const schema = {

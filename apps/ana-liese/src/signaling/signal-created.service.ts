@@ -1,3 +1,4 @@
+import { makePriceAnomalyDetectionService } from '@/anomaly-detection/price-anomaly-detection.service';
 import { makeVolumeAnomalyDetectionService } from '@/anomaly-detection/volume-anomaly-detection.service';
 import { type DBClient, type SignalMetric } from '@modules/db';
 import type { BasePayload, Message } from '@modules/events';
@@ -9,6 +10,7 @@ export interface MakeOnSignalCreatedServiceOpts {
 
 export function makeOnSignalCreatedService({ db }: MakeOnSignalCreatedServiceOpts) {
   const volumeAnomalyDetectionService = makeVolumeAnomalyDetectionService({ db });
+  const priceAnomalyDetectionService = makePriceAnomalyDetectionService({ db });
 
   return {
     async onSignalCreated(
@@ -25,6 +27,10 @@ export function makeOnSignalCreatedService({ db }: MakeOnSignalCreatedServiceOpt
 
       if (data.type === 'volume') {
         await volumeAnomalyDetectionService.detect(data, c);
+      }
+
+      if (data.type === 'price') {
+        await priceAnomalyDetectionService.detect(data, c);
       }
 
       c.log.info('signal.created message processed');

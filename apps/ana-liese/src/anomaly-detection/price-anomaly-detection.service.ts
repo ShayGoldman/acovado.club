@@ -2,19 +2,18 @@ import { makeStory, schema, type DBClient, type SignalMetric } from '@modules/db
 import type { Context } from '@modules/tracing';
 
 const alpha = 0.005; // Smoothing factor for ZLEMA
-const consecutiveBreachLimit = 5; // Number of consecutive breaches required
-const minVolumeFloor = 100; // Minimum volume to consider for analysis
+const consecutiveBreachLimit = 3; // Number of consecutive breaches required for price
 const rollingWindow = 10; // Number of periods to calculate dynamic thresholds
 
-export interface MakeVolumeAnomalyDetectionService {
+export interface MakePriceAnomalyDetectionService {
   db: DBClient;
 }
 
-export function makeVolumeAnomalyDetectionService({
+export function makePriceAnomalyDetectionService({
   db,
-}: MakeVolumeAnomalyDetectionService) {
+}: MakePriceAnomalyDetectionService) {
   function validateSignal(signal: SignalMetric, c: Context): boolean {
-    if (signal.type !== 'volume') {
+    if (signal.type !== 'price') {
       c.log.error('Invalid signal type');
       return false;
     }
@@ -22,49 +21,43 @@ export function makeVolumeAnomalyDetectionService({
   }
 
   async function getState(symbol: string, c: Context) {
-    c.log.debug({ symbol }, 'Fetching state from database');
+    c.log.debug({ symbol }, 'Fetching price state from database');
 
-    const [lastZLEMA, lastVolume, breachCount, rollingStd] = await Promise.all([
+    const [lastZLEMA, breachCount, rollingStd] = await Promise.all([
       db.query.kvStore.findFirst({
-        where: (store, { eq }) => eq(store.key, `${symbol}.volume.lastZLEMA`),
+        where: (store, { eq }) => eq(store.key, `${symbol}.price.lastZLEMA`),
       }),
       db.query.kvStore.findFirst({
-        where: (store, { eq }) => eq(store.key, `${symbol}.volume.lastVolume`),
+        where: (store, { eq }) => eq(store.key, `${symbol}.price.breachCount`),
       }),
       db.query.kvStore.findFirst({
-        where: (store, { eq }) => eq(store.key, `${symbol}.volume.breachCount`),
-      }),
-      db.query.kvStore.findFirst({
-        where: (store, { eq }) => eq(store.key, `${symbol}.volume.rollingStd`),
+        where: (store, { eq }) => eq(store.key, `${symbol}.price.rollingStd`),
       }),
     ]);
 
     const parsed = {
       lastZLEMA: lastZLEMA?.value ? Number(lastZLEMA.value) : null,
-      lastVolume: lastVolume?.value ? Number(lastVolume.value) : null,
       breachCount: breachCount?.value ? Number(breachCount.value) : 0,
       rollingStd: rollingStd?.value ? JSON.parse(rollingStd.value) : [],
     };
 
-    c.log.debug({ symbol, parsed }, 'Fetched state from database');
+    c.log.debug({ symbol, parsed }, 'Fetched price state from database');
     return parsed;
   }
 
   function processSignal(
     state: {
       lastZLEMA: number | null;
-      lastVolume: number | null;
       breachCount: number;
       rollingStd: number[];
     },
-    currentVolume: number,
+    currentPrice: number,
     c: Context,
   ): {
     spikeDetected: boolean;
     difference: number;
     result: {
       lastZLEMA: number;
-      lastVolume: number;
       breachCount: number;
       rollingStd: number[];
     };
@@ -73,42 +66,22 @@ export function makeVolumeAnomalyDetectionService({
     let breachCount = state.breachCount;
 
     c.log.debug(
-      { currentVolume, state },
-      'Processing signal with dynamic thresholds and z-score',
+      { currentPrice, state },
+      'Processing price signal with dynamic thresholds and z-score',
     );
 
     // Handle nullable fields with defaults
-    const prevZLEMA = state.lastZLEMA ?? currentVolume; // Use currentVolume as default if null
-    const prevVolume = state.lastVolume ?? currentVolume; // Use currentVolume as default if null
-
-    // Ignore volumes below the floor
-    if (currentVolume < minVolumeFloor) {
-      c.log.info(
-        { currentVolume, minVolumeFloor },
-        'Current volume is below the minimum volume floor. Ignoring signal.',
-      );
-      return {
-        spikeDetected: false,
-        difference: 0,
-        result: {
-          lastZLEMA: prevZLEMA,
-          lastVolume: prevVolume,
-          breachCount,
-          rollingStd: state.rollingStd,
-        },
-      };
-    }
+    const prevZLEMA = state.lastZLEMA ?? currentPrice; // Default to current price if null
 
     // ZLEMA Calculation
     const lag = 2 / (1 + alpha);
-    const adjustedInput = currentVolume + (currentVolume - prevVolume) * lag;
+    const adjustedInput = currentPrice + (currentPrice - prevZLEMA) * lag;
     const lastZLEMA = alpha * adjustedInput + (1 - alpha) * prevZLEMA;
 
     c.log.debug({ adjustedInput, prevZLEMA, lastZLEMA }, 'Calculated new ZLEMA');
 
     // Calculate percentage difference and z-score
-    const safeZLEMA = Math.max(lastZLEMA, 1);
-    const percentageDifference = (Math.abs(currentVolume - lastZLEMA) / safeZLEMA) * 100;
+    const percentageDifference = (Math.abs(currentPrice - lastZLEMA) / lastZLEMA) * 100;
 
     // Update rolling standard deviation
     const updatedRollingStd = [
@@ -123,14 +96,14 @@ export function makeVolumeAnomalyDetectionService({
     const zScore = (percentageDifference - mean) / (stdDev || 1);
 
     c.log.debug(
-      { percentageDifference, mean, stdDev, 'z-score': zScore },
-      'Calculated dynamic threshold and z-score',
+      { percentageDifference, mean, stdDev, zScore },
+      'Calculated dynamic threshold and z-score for price',
     );
 
     // Check thresholds
     if (percentageDifference > mean + stdDev && zScore > 2) {
       breachCount += 1;
-      c.log.info({ percentageDifference, breachCount }, 'Threshold breached');
+      c.log.info({ percentageDifference, breachCount }, 'Threshold breached for price');
     } else {
       breachCount = 0;
     }
@@ -138,16 +111,15 @@ export function makeVolumeAnomalyDetectionService({
     // Detect sustained spike
     spikeDetected = breachCount >= consecutiveBreachLimit;
     if (spikeDetected) {
-      c.log.info({ breachCount }, 'Sustained spike detected');
+      c.log.info({ breachCount }, 'Sustained price spike detected');
       breachCount = 0; // Reset breach count after detection
     }
 
     return {
       spikeDetected,
-      difference: currentVolume - prevVolume,
+      difference: currentPrice - prevZLEMA,
       result: {
         lastZLEMA,
-        lastVolume: currentVolume,
         breachCount,
         rollingStd: updatedRollingStd,
       },
@@ -158,31 +130,23 @@ export function makeVolumeAnomalyDetectionService({
     symbol: string,
     state: {
       lastZLEMA: number;
-      lastVolume: number;
       breachCount: number;
       rollingStd: number[];
     },
     c: Context,
   ) {
-    c.log.debug({ symbol, state }, 'Saving state to database');
+    c.log.debug({ symbol, state }, 'Saving price state to database');
     await Promise.all([
       db
         .insert(schema.kvStore)
-        .values({ key: `${symbol}.volume.lastZLEMA`, value: String(state.lastZLEMA) })
+        .values({ key: `${symbol}.price.lastZLEMA`, value: String(state.lastZLEMA) })
         .onConflictDoUpdate({
           target: schema.kvStore.key,
           set: { value: String(state.lastZLEMA) },
         }),
       db
         .insert(schema.kvStore)
-        .values({ key: `${symbol}.volume.lastVolume`, value: String(state.lastVolume) })
-        .onConflictDoUpdate({
-          target: schema.kvStore.key,
-          set: { value: String(state.lastVolume) },
-        }),
-      db
-        .insert(schema.kvStore)
-        .values({ key: `${symbol}.volume.breachCount`, value: String(state.breachCount) })
+        .values({ key: `${symbol}.price.breachCount`, value: String(state.breachCount) })
         .onConflictDoUpdate({
           target: schema.kvStore.key,
           set: { value: String(state.breachCount) },
@@ -190,7 +154,7 @@ export function makeVolumeAnomalyDetectionService({
       db
         .insert(schema.kvStore)
         .values({
-          key: `${symbol}.volume.rollingStd`,
+          key: `${symbol}.price.rollingStd`,
           value: JSON.stringify(state.rollingStd),
         })
         .onConflictDoUpdate({
@@ -198,13 +162,13 @@ export function makeVolumeAnomalyDetectionService({
           set: { value: JSON.stringify(state.rollingStd) },
         }),
     ]);
-    c.log.debug({ symbol }, 'State saved');
+    c.log.debug({ symbol }, 'Price state saved');
   }
 
   return {
     async detect(signal: SignalMetric, ctx: Context): Promise<void> {
-      await ctx.with('Volume spike detection', async (c) => {
-        c.log.info('Volume spike detection started');
+      await ctx.with('Price spike detection', async (c) => {
+        c.log.info('Price spike detection started');
         c.annotate('signal.id', signal.id);
         c.annotate('signal.type', signal.type);
         c.annotate('signal.createdAt', signal.createdAt);
@@ -234,7 +198,7 @@ export function makeVolumeAnomalyDetectionService({
 
         if (spikeDetected) {
           const story = makeStory({
-            type: 'volume',
+            type: 'price',
             ticker: signal.tickerId,
             signal: signal.id,
             change: difference,
@@ -242,12 +206,12 @@ export function makeVolumeAnomalyDetectionService({
           });
           const [{ id }] = await db.insert(schema.stories).values(story).returning();
           c.annotate('story.id', id);
-          c.log.info('Spike detected and story recorded');
+          c.log.info('Price spike detected and story recorded');
         }
 
         await saveState(ticker.symbol, result, c);
 
-        c.log.info('Volume spike detection completed');
+        c.log.info('Price spike detection completed');
       });
     },
   };

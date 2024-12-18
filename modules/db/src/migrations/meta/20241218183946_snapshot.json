@@ -1,6 +1,6 @@
 {
-  "id": "8ebab84f-5ff5-43ca-b80e-9fc74509bb3d",
-  "prevId": "f27ee6e9-fe8a-4e8f-9651-568b40293201",
+  "id": "c7db79cd-842d-4c66-a509-dcb986166d8a",
+  "prevId": "6eae8d27-ad9f-4b90-8f96-e5f728159c0a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -197,14 +197,26 @@
           "primaryKey": true,
           "notNull": true
         },
-        "ticker": {
-          "name": "ticker",
+        "type": {
+          "name": "type",
           "type": "varchar(128)",
           "primaryKey": false,
           "notNull": true
         },
-        "volume_change": {
-          "name": "volume_change",
+        "ticker_id": {
+          "name": "ticker_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signal_id": {
+          "name": "signal_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "change": {
+          "name": "change",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
@@ -391,7 +403,8 @@
   },
   "enums": {},
   "schemas": {
-    "finance": "finance"
+    "finance": "finance",
+    "metabase": "metabase"
   },
   "sequences": {},
   "roles": {},

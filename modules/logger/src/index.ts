@@ -13,7 +13,6 @@ export function makeLogger(opts: LoggerOpts): Logger {
       err: pino.stdSerializers.errWithCause,
       error: pino.stdSerializers.errWithCause,
     },
-
     transport: {
       target: 'pino-pretty',
       options: {
