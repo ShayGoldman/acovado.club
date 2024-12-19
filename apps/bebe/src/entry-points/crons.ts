@@ -20,7 +20,7 @@ export async function makeCronJobsService(opts: MakeCronJobsServiceOpts) {
       {
         name: 'Watch Lists collection',
         job: new CronJob(
-          '* * * * *',
+          '*/30 * * * * *',
           makeWatchListCollectionService(opts).collectWatchLists,
           null,
           null,
