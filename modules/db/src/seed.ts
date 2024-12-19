@@ -11,8 +11,10 @@ const db = makeDBClient({
   logger: logger,
 });
 
-logger.info('Resetting all data');
-await reset(db, schema);
+if (Env.RESET_DB) {
+  logger.info('Resetting all data');
+  await reset(db, schema);
+}
 
 logger.info('Seeding Tickers');
 
@@ -30,6 +32,10 @@ await db.transaction(async (tx) => {
   const [chips] = await tx
     .insert(schema.watchLists)
     .values(makeWatchList({ name: 'Chips' }))
+    .returning();
+  const [wildcards] = await tx
+    .insert(schema.watchLists)
+    .values(makeWatchList({ name: 'Wildcards' }))
     .returning();
 
   const big7Tickers = await tx
@@ -72,6 +78,14 @@ await db.transaction(async (tx) => {
     ])
     .returning();
 
+  const wildcardTickers = await tx
+    .insert(schema.tickers)
+    .values([
+      makeTicker({ name: 'Nukkleus', symbol: 'NUKK' }),
+      makeTicker({ name: 'Hims & Hers Health', symbol: 'HIMS' }),
+    ])
+    .returning();
+
   const nvda = await tx.query.tickers.findFirst({
     where: (t, { eq }) => eq(t.symbol, 'NVDA'),
   });
@@ -105,6 +119,15 @@ await db.transaction(async (tx) => {
     quantumTickers.map((t) =>
       makeWatchListToTicker({
         watchListId: quantum.id,
+        tickerId: t.id,
+      }),
+    ),
+  );
+
+  await tx.insert(schema.watchListToTickers).values(
+    wildcardTickers.map((t) =>
+      makeWatchListToTicker({
+        watchListId: wildcards.id,
         tickerId: t.id,
       }),
     ),
