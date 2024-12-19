@@ -13,6 +13,7 @@ const db = makeDBClient({
 
 if (Env.RESET_DB) {
   logger.info('Resetting all data');
+
   await reset(db, schema);
 }
 
