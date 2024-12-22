@@ -1,15 +1,16 @@
 kind: pipeline
 type: docker
-name: docker-pipeline
+name: production-docker-pipeline
 
 environment:
-  REGISTRY_URL: docker-registry.acovado.club
-  IMAGE_NAME: docker-registry.acovado.club/test-image
+  IMAGE_NAME: docker-registry.acovado.club/production-image
 
 steps:
-  ##############################################################################
-  # Build and push the image
-  ##############################################################################
+  - name: debug-environment
+    image: alpine
+    commands:
+      - echo "IMAGE_NAME=${IMAGE_NAME}"
+      - echo "DRONE_COMMIT_SHA=${DRONE_COMMIT_SHA}"
 
   - name: build-image
     image: docker:20
@@ -17,9 +18,13 @@ steps:
       DOCKER_BUILDKIT: 1
     commands:
       - docker build --target production -t ${IMAGE_NAME}:${DRONE_COMMIT_SHA} .
+
+  - name: tag-latest
+    image: docker:20
+    commands:
       - docker tag ${IMAGE_NAME}:${DRONE_COMMIT_SHA} ${IMAGE_NAME}:latest
 
-  - name: push-image
+  - name: push-images
     image: docker:20
     environment:
       DOCKER_USERNAME:
@@ -27,8 +32,9 @@ steps:
       DOCKER_PASSWORD:
         from_secret: DOCKER_PASSWORD
     commands:
-      - echo "$DOCKER_PASSWORD" | docker login ${REGISTRY_URL} -u "$DOCKER_USERNAME" --password-stdin
+      - echo "$DOCKER_PASSWORD" | docker login docker-registry.acovado.club -u "$DOCKER_USERNAME" --password-stdin
       - docker push ${IMAGE_NAME}:${DRONE_COMMIT_SHA}
+      - docker push ${IMAGE_NAME}:latest
 
 trigger:
   branch:
