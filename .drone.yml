@@ -6,10 +6,10 @@ environment:
   REGISTRY_URL: docker-registry.acovado.club
   IMAGE_NAME: docker-registry.acovado.club/test-image
 
-services:
-  - name: docker
-    image: docker:dind
-    privileged: true
+volumes:
+  - name: docker-socket
+    host:
+      path: /var/run/docker.sock
 
 steps:
   ##############################################################################
@@ -20,6 +20,9 @@ steps:
     image: docker:20
     environment:
       DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
     commands:
       - docker build --target production -t $${IMAGE_NAME}:${DRONE_COMMIT_SHA} .
       - docker tag $${IMAGE_NAME}:${DRONE_COMMIT_SHA} $${IMAGE_NAME}:latest
@@ -31,9 +34,13 @@ steps:
         from_secret: DOCKER_USERNAME
       DOCKER_PASSWORD:
         from_secret: DOCKER_PASSWORD
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
     commands:
       - echo "$DOCKER_PASSWORD" | docker login $${REGISTRY_URL} -u "$DOCKER_USERNAME" --password-stdin
       - docker push $${IMAGE_NAME}:${DRONE_COMMIT_SHA}
+      - docker push $${IMAGE_NAME}:latest
 
 trigger:
   branch:
