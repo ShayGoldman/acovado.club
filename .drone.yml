@@ -1,10 +1,13 @@
 kind: pipeline
 type: docker
-name: docker-pipeline
+name: acovado
 
 environment:
   REGISTRY_URL: docker-registry.acovado.club
-  IMAGE_NAME: docker-registry.acovado.club/test-image
+  MODULES_IMAGE: docker-registry.acovado.club/modules
+  BEBE_IMAGE: docker-registry.acovado.club/bebe
+  COLLECTION_IMAGE: docker-registry.acovado.club/collection
+  ANA-LIESE_IMAGE: docker-registry.acovado.club/ana-liese
 
 volumes:
   - name: docker-socket
@@ -13,10 +16,9 @@ volumes:
 
 steps:
   ##############################################################################
-  # Build and push the image
+  # Step 1: Build and push shared modules
   ##############################################################################
-
-  - name: build-image
+  - name: build-modules
     image: docker:20
     environment:
       DOCKER_BUILDKIT: 1
@@ -24,23 +26,64 @@ steps:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker build --target production -t $${IMAGE_NAME}:${DRONE_COMMIT_SHA} .
-      - docker tag $${IMAGE_NAME}:${DRONE_COMMIT_SHA} $${IMAGE_NAME}:latest
+      - docker build --target modules -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
+      - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${MODULES_IMAGE}:latest
 
-  - name: push-image
+  ##############################################################################
+  # Step 2: Build and push bebe
+  ##############################################################################
+  - name: build-bebe
     image: docker:20
     environment:
-      DOCKER_USERNAME:
-        from_secret: DOCKER_USERNAME
-      DOCKER_PASSWORD:
-        from_secret: DOCKER_PASSWORD
+      DOCKER_BUILDKIT: 1
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - echo "$DOCKER_PASSWORD" | docker login $${REGISTRY_URL} -u "$DOCKER_USERNAME" --password-stdin
-      - docker push $${IMAGE_NAME}:${DRONE_COMMIT_SHA}
-      - docker push $${IMAGE_NAME}:latest
+      - docker build --target production --build-arg APP_PATH=bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} $${BEBE_IMAGE}:latest
+      - docker push $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${BEBE_IMAGE}:latest
+    depends_on:
+      - build-modules
+
+  ##############################################################################
+  # Step 3: Build and push collection
+  ##############################################################################
+  - name: build-collection
+    image: docker:20
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    commands:
+      - docker build --target production --build-arg APP_PATH=collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} $${COLLECTION_IMAGE}:latest
+      - docker push $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${COLLECTION_IMAGE}:latest
+    depends_on:
+      - build-modules
+
+  ##############################################################################
+  # Step 4: Build and push ana-liese
+  ##############################################################################
+  - name: build-ana-liese
+    image: docker:20
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    commands:
+      - docker build --target production --build-arg APP_PATH=ana-liese -t $${ANA-LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${ANA-LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA-LIESE_IMAGE}:latest
+      - docker push $${ANA-LIESE_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${ANA-LIESE_IMAGE}:latest
+    depends_on:
+      - build-modules
 
 trigger:
   branch:
