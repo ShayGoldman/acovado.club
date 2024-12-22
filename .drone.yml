@@ -7,6 +7,9 @@ environment:
   IMAGE_NAME: docker-registry.acovado.club/test-image
 
 steps:
+  ##############################################################################
+  # Build and push the image
+  ##############################################################################
   - name: build-image
     image: docker:20
     environment:
