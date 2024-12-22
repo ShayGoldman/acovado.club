@@ -6,6 +6,11 @@ environment:
   REGISTRY_URL: docker-registry.acovado.club
   IMAGE_NAME: docker-registry.acovado.club/test-image
 
+services:
+  - name: docker
+    image: docker:dind
+    privileged: true
+
 steps:
   ##############################################################################
   # Build and push the image
