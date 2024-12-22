@@ -1,0 +1,15 @@
+services:
+  bebe:
+    image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
+    environment:
+      NODE_ENV: production
+
+  collection:
+    image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
+    environment:
+      NODE_ENV: production
+
+  ana-liese:
+    image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
+    environment:
+      NODE_ENV: production

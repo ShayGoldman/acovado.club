@@ -85,6 +85,20 @@ steps:
     depends_on:
       - build-modules
 
+  ##############################################################################
+  # Step 5: Deploy 🤙
+  ##############################################################################
+  - name: deploy
+    image: docker:20
+    environment:
+      COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
+      REGISTRY_URL: ${{REGISTRY_URL}}
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    commands:
+      - docker-compose up -f docker-compose.prod.yaml -d
+
 trigger:
   branch:
     - ci/setup
