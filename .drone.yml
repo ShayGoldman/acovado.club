@@ -97,7 +97,7 @@ steps:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker-compose -f docker-compose.prod.yaml up -d
+      - docker-compose -f docker-compose.prod.yaml up --detach --force-recreate
     depends_on:
       - build-bebe
       - build-collection

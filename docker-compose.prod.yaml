@@ -1,5 +1,6 @@
 services:
   bebe:
+    container_name: bebe
     image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
     environment:
       NODE_ENV: production
@@ -7,6 +8,7 @@ services:
       - proxy-network
 
   collection:
+    container_name: collection
     image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
     environment:
       NODE_ENV: production
@@ -14,6 +16,7 @@ services:
       - proxy-network
 
   ana-liese:
+    container_name: ana-liese
     image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
     environment:
       NODE_ENV: production
