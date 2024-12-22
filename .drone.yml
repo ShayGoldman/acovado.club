@@ -1,10 +1,31 @@
 kind: pipeline
 type: docker
-name: default
+name: docker-pipeline
+
+environment:
+  REGISTRY_URL: docker-registry.acovado.club
+  IMAGE_NAME: docker-registry.acovado.club/test-image
 
 steps:
-  - name: greeting
-    image: alpine
+  - name: build-image
+    image: docker:20
+    environment:
+      DOCKER_BUILDKIT: 1
     commands:
-      - echo hello
-      - echo world
+      - docker build --target production -t ${IMAGE_NAME}:${DRONE_COMMIT_SHA} .
+      - docker tag ${IMAGE_NAME}:${DRONE_COMMIT_SHA} ${IMAGE_NAME}:latest
+
+  - name: push-image
+    image: docker:20
+    environment:
+      DOCKER_USERNAME:
+        from_secret: DOCKER_USERNAME
+      DOCKER_PASSWORD:
+        from_secret: DOCKER_PASSWORD
+    commands:
+      - echo "$DOCKER_PASSWORD" | docker login ${REGISTRY_URL} -u "$DOCKER_USERNAME" --password-stdin
+      - docker push ${IMAGE_NAME}:${DRONE_COMMIT_SHA}
+
+trigger:
+  branch:
+    - ci/setup
