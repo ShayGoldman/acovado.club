@@ -7,7 +7,7 @@ environment:
   MODULES_IMAGE: docker-registry.acovado.club/modules
   BEBE_IMAGE: docker-registry.acovado.club/bebe
   COLLECTION_IMAGE: docker-registry.acovado.club/collection
-  ANA-LIESE_IMAGE: docker-registry.acovado.club/ana-liese
+  ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
 
 volumes:
   - name: docker-socket
@@ -78,10 +78,10 @@ steps:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker build --target production --build-arg APP_PATH=ana-liese -t $${ANA-LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${ANA-LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA-LIESE_IMAGE}:latest
-      - docker push $${ANA-LIESE_IMAGE}:${DRONE_COMMIT_SHA}
-      - docker push $${ANA-LIESE_IMAGE}:latest
+      - docker build --target production --build-arg APP_PATH=ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA_LIESE_IMAGE}:latest
+      - docker push $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${ANA_LIESE_IMAGE}:latest
     depends_on:
       - build-modules
 
