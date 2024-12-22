@@ -9,7 +9,7 @@ steps:
   - name: debug-environment
     image: alpine
     commands:
-      - echo "IMAGE_NAME=${IMAGE_NAME}"
+      - echo "IMAGE_NAME=$${IMAGE_NAME}"
       - echo "DRONE_COMMIT_SHA=${DRONE_COMMIT_SHA}"
 
   - name: build-image
