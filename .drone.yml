@@ -93,13 +93,10 @@ steps:
     environment:
       COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
       REGISTRY_URL: ${REGISTRY_URL}
-
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - echo "COMMIT_HASH=${COMMIT_HASH}"
-      - echo "REGISTRY_URL=${REGISTRY_URL}"
       - docker-compose -f docker-compose.prod.yaml up -d
     depends_on:
       - build-bebe

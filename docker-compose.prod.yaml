@@ -3,13 +3,23 @@ services:
     image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
     environment:
       NODE_ENV: production
+    networks:
+      - proxy-network
 
   collection:
     image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
     environment:
       NODE_ENV: production
+    networks:
+      - proxy-network
 
   ana-liese:
     image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
     environment:
       NODE_ENV: production
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    external: true
