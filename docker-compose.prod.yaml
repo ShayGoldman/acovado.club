@@ -1,9 +1,8 @@
-x-shared-networks:
+x-shared-networks: &shared-networks
   networks:
     - proxy-network
 
 services:
-
   ##############################################################################
   # Apps
   ##############################################################################
@@ -15,7 +14,7 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *x-shared-networks
+    <<: *shared-networks
     profiles:
       - apps
 
@@ -27,7 +26,7 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *x-shared-networks
+    <<: *shared-networks
     profiles:
       - apps
 
@@ -39,7 +38,7 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *x-shared-networks
+    <<: *shared-networks
     profiles:
       - apps
 
@@ -54,7 +53,7 @@ services:
       POSTGRES_USER: production
       POSTGRES_PASSWORD: production
       POSTGRES_DB: production
-    <<: *x-shared-networks
+    <<: *shared-networks
     profiles:
       - infra
 
@@ -67,25 +66,25 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: rabbit
       RABBITMQ_DEFAULT_PASS: rabbit
-    <<: *x-shared-networks
+    <<: *shared-networks
     profiles:
       - infra
 
   grafana:
-      extends:
-        file: infra/tracing/docker-compose.yaml
-        service: grafana
-      ports: []
-      labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=acovado"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      depends_on:
-        - jaeger
-        - tempo
-        - otel-collector
+    extends:
+      file: infra/tracing/docker-compose.yaml
+      service: grafana
+    ports: []
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)'
+      - 'traefik.http.routers.grafana.entrypoints=websecure'
+      - 'traefik.http.routers.grafana.tls.certresolver=acovado'
+      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+    depends_on:
+      - jaeger
+      - tempo
+      - otel-collector
 
   otel-collector:
     extends:
@@ -108,22 +107,21 @@ services:
 
   prometheus:
     extends:
-        file: infra/tracing/docker-compose.yaml
-        service: prometheus
+      file: infra/tracing/docker-compose.yaml
+      service: prometheus
     volumes:
       - ${VOLUMES_ROOT}/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
 
   tempo:
     extends:
-        file: infra/tracing/docker-compose.yaml
-        service: tempo
+      file: infra/tracing/docker-compose.yaml
+      service: tempo
     ports: []
     command: [-config.file=/etc/tempo.yaml]
     volumes:
       - ${VOLUMES_ROOT}/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}:/tmp/tempo
-  
 
 networks:
   proxy-network:
