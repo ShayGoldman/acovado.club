@@ -120,7 +120,7 @@ steps:
       - name: docker-socket
         path: /var/run/docker.sock
       - name: env-files-root
-        path: ${ENV_FILES_ROOT}
+        path: /srv/env
       - name: volumes-root
         path: ${VOLUMES_ROOT}
     commands:
