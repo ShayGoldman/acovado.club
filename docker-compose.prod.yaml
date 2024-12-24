@@ -1,7 +1,3 @@
-x-shared-networks: &shared-networks
-  networks:
-    - proxy-network
-
 services:
   ##############################################################################
   # Apps
@@ -91,6 +87,8 @@ services:
       service: grafana
     env_file:
       - ${ENV_FILES_ROOT}/grafana.env
+    volumes:
+      - ${PROJECT_ROOT}/infra/tracing/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
     ports: []
     networks:
       - proxy-network
@@ -112,7 +110,7 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/otel-collector.env
     volumes:
-      - ${VOLUMES_ROOT}/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ${PROJECT_ROOT}/infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports: []
     networks:
       - proxy-network
@@ -139,7 +137,7 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/prometheus.env
     volumes:
-      - ${VOLUMES_ROOT}/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ${PROJECT_ROOT}/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
     networks:
       - proxy-network
@@ -153,8 +151,8 @@ services:
     ports: []
     command: [-config.file=/etc/tempo.yaml]
     volumes:
-      - ${VOLUMES_ROOT}/tempo.yaml:/etc/tempo.yaml
-      - ${VOLUMES_ROOT}:/tmp/tempo
+      - ${PROJECT_ROOT}/infra/tracing/tempo.yaml:/etc/tempo.yaml
+      - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
     networks:
       - proxy-network
 
