@@ -9,11 +9,14 @@ environment:
   COLLECTION_IMAGE: docker-registry.acovado.club/collection
   ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
   VOLUMES_ROOT: /srv/volumes
-
+  DOCKER_CACHE: /srv/docker-cache
 volumes:
   - name: docker-socket
     host:
       path: /var/run/docker.sock
+  - name: docker-cache
+    host:
+      path: /srv/docker-cache # Shared directory for Docker cache
 
 steps:
   ##############################################################################
@@ -26,8 +29,10 @@ steps:
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
+      - name: docker-cache
+        path: ${DOCKER_CACHE}
     commands:
-      - docker build --target modules -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE}:latest --target modules -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
       - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${MODULES_IMAGE}:latest
@@ -42,8 +47,10 @@ steps:
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
+      - name: docker-cache
+        path: ${DOCKER_CACHE}
     commands:
-      - docker build --target production --build-arg APP_PATH=bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE}:latest --cache-from=$${BEBE_IMAGE}:latest --target production --build-arg APP_PATH=bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} $${BEBE_IMAGE}:latest
       - docker push $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${BEBE_IMAGE}:latest
@@ -60,8 +67,10 @@ steps:
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
+      - name: docker-cache
+        path: ${DOCKER_CACHE}
     commands:
-      - docker build --target production --build-arg APP_PATH=collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE}:latest --cache-from=$${COLLECTION_IMAGE}:latest --target production --build-arg APP_PATH=collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} $${COLLECTION_IMAGE}:latest
       - docker push $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${COLLECTION_IMAGE}:latest
@@ -78,8 +87,10 @@ steps:
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
+      - name: docker-cache
+        path: ${DOCKER_CACHE}
     commands:
-      - docker build --target production --build-arg APP_PATH=ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE}:latest --cache-from=$${ANA_LIESE_IMAGE}:latest --target production --build-arg APP_PATH=ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA_LIESE_IMAGE}:latest
       - docker push $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${ANA_LIESE_IMAGE}:latest
@@ -99,7 +110,7 @@ steps:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker-compose -f docker-compose.prod.yaml up --deatch --profile infra
+      - docker-compose -f docker-compose.prod.yaml up --detach --profile infra
       - docker-compose -f docker-compose.prod.yaml up --detach --profile apps --force-recreate
     depends_on:
       - build-bebe
