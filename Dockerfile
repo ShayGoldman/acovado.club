@@ -4,9 +4,8 @@ WORKDIR /usr/src/app
 
 # Stage 1: Install dependencies
 FROM base AS dependencies
-COPY package.json bun.lockb config ./
-RUN bun install --frozen-lockfile
 COPY . ./
+RUN bun install --frozen-lockfile
 
 # Stage 2: Build shared modules
 FROM base AS modules
