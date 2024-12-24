@@ -113,6 +113,8 @@ steps:
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
+      - name: env
+        path: ${ENV_FILES_ROOT}
     commands:
       - docker-compose -f docker-compose.prod.yaml --profile infra up --detach
       - docker-compose -f docker-compose.prod.yaml --profile apps up --detach --force-recreate
