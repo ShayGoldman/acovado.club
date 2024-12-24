@@ -8,6 +8,7 @@ environment:
   BEBE_IMAGE: docker-registry.acovado.club/bebe
   COLLECTION_IMAGE: docker-registry.acovado.club/collection
   ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
+  VOLUMES_ROOT: /srv/volumes
 
 volumes:
   - name: docker-socket
@@ -88,16 +89,18 @@ steps:
   ##############################################################################
   # Step 5: Deploy 🤙
   ##############################################################################
-  - name: deploy
+  - name: deploy-infra
     image: docker:20
     environment:
       COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
       REGISTRY_URL: ${REGISTRY_URL}
+      VOLUMES_ROOT: ${VOLUMES_ROOT}
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker-compose -f docker-compose.prod.yaml up --detach --force-recreate
+      - docker-compose -f docker-compose.prod.yaml up --deatch --profile infra
+      - docker-compose -f docker-compose.prod.yaml up --detach --profile apps --force-recreate
     depends_on:
       - build-bebe
       - build-collection

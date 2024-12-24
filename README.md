@@ -29,6 +29,7 @@ Run everything locally by following these instructions from the root of the proj
 
 ## Tasks
 
+[ ] Add healthz endpoint for all services + production docker-compose
 [ ] Solve number handling (no floating points! and Number)
 [ ] Support silent mode for simulation to avoid spamming the console with producer messages
 [ ] Support `detached` mode for `tracer.with` to not always attach to the active context
