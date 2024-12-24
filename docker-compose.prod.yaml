@@ -15,7 +15,7 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *x-shared-network
+    <<: *x-shared-networks
     profiles:
       - apps
 
@@ -27,7 +27,7 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *x-shared-network
+    <<: *x-shared-networks
     profiles:
       - apps
 
@@ -39,7 +39,7 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *x-shared-network
+    <<: *x-shared-networks
     profiles:
       - apps
 
@@ -54,7 +54,7 @@ services:
       POSTGRES_USER: production
       POSTGRES_PASSWORD: production
       POSTGRES_DB: production
-    <<: *x-shared-network
+    <<: *x-shared-networks
     profiles:
       - infra
 
@@ -67,7 +67,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: rabbit
       RABBITMQ_DEFAULT_PASS: rabbit
-    <<: *x-shared-network
+    <<: *x-shared-networks
     profiles:
       - infra
 
