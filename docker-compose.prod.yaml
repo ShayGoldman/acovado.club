@@ -58,6 +58,8 @@ services:
     profiles:
       - infra
 
+  # TODO Drizzle studio maybe?
+
   rabbitmq:
     extends:
       file: infra/rabbitmq/docker-compose.yaml
