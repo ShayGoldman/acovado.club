@@ -116,6 +116,7 @@ steps:
       - name: env
         path: ${ENV_FILES_ROOT}
     commands:
+      - ls -l /srv/env
       - docker-compose -f docker-compose.prod.yaml --profile infra up --detach
       - docker-compose -f docker-compose.prod.yaml --profile apps up --detach --force-recreate
     depends_on:
