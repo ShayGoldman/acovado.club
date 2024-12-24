@@ -9,14 +9,15 @@ environment:
   COLLECTION_IMAGE: docker-registry.acovado.club/collection
   ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
   VOLUMES_ROOT: /srv/volumes
-  DOCKER_CACHE: /srv/docker-cache
+  DOCKER_CACHE: /srv/volumes/docker-cache
+
 volumes:
   - name: docker-socket
     host:
       path: /var/run/docker.sock
   - name: docker-cache
     host:
-      path: /srv/docker-cache # Shared directory for Docker cache
+      path: ${DOCKER_CACHE}
 
 steps:
   ##############################################################################
