@@ -132,3 +132,4 @@ steps:
 trigger:
   branch:
     - ci/setup
+    - ci/setup2
