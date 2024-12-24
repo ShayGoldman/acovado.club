@@ -21,10 +21,10 @@ volumes:
       path: /var/lib/docker
   - name: volumes-root
     host:
-      path: ${VOLUMES_ROOT}
+      path: /srv/volumes
   - name: env-files-root
     host:
-      path: ${ENV_FILES_ROOT}
+      path: /srv/env
 
 steps:
   ##############################################################################
