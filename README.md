@@ -29,6 +29,7 @@ Run everything locally by following these instructions from the root of the proj
 
 ## Tasks
 
+[ ] Support envs
 [ ] Add healthz endpoint for all services + production docker-compose
 [ ] Solve number handling (no floating points! and Number)
 [ ] Support silent mode for simulation to avoid spamming the console with producer messages
