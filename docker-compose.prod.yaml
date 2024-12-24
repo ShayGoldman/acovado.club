@@ -7,7 +7,6 @@ services:
   # Apps
   ##############################################################################
   bebe:
-    <<: *shared-networks
     container_name: bebe
     image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
     env_file:
@@ -17,11 +16,12 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
+    networks:
+      - proxy-network
     profiles:
       - apps
 
   collection:
-    <<: *shared-networks
     container_name: collection
     image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
     env_file:
@@ -31,11 +31,12 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
+    networks:
+      - proxy-network
     profiles:
       - apps
 
   ana-liese:
-    <<: *shared-networks
     container_name: ana-liese
     image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
     env_file:
@@ -45,6 +46,8 @@ services:
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
+    networks:
+      - proxy-network
     profiles:
       - apps
 
@@ -52,7 +55,6 @@ services:
   # Infra
   ##############################################################################
   postgres:
-    <<: *shared-networks
     extends:
       file: infra/postgres/docker-compose.yaml
       service: postgres
@@ -62,13 +64,14 @@ services:
       POSTGRES_USER: production
       POSTGRES_PASSWORD: production
       POSTGRES_DB: production
+    networks:
+      - proxy-network
     profiles:
       - infra
 
   # TODO Drizzle studio maybe?
 
   rabbitmq:
-    <<: *shared-networks
     extends:
       file: infra/rabbitmq/docker-compose.yaml
       service: rabbitmq
@@ -77,17 +80,20 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: rabbit
       RABBITMQ_DEFAULT_PASS: rabbit
+    networks:
+      - proxy-network
     profiles:
       - infra
 
   grafana:
-    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: grafana
     env_file:
       - ${ENV_FILES_ROOT}/grafana.env
     ports: []
+    networks:
+      - proxy-network
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)'
@@ -100,7 +106,6 @@ services:
       - otel-collector
 
   otel-collector:
-    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: otel-collector
@@ -109,23 +114,25 @@ services:
     volumes:
       - ${VOLUMES_ROOT}/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports: []
+    networks:
+      - proxy-network
     depends_on:
       - tempo
 
   jaeger:
-    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: otel-collector
     env_file:
       - ${ENV_FILES_ROOT}/jaeger.env
     ports: []
+    networks:
+      - proxy-network
     depends_on:
       - tempo
       - otel-collector
 
   prometheus:
-    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: prometheus
@@ -134,9 +141,10 @@ services:
     volumes:
       - ${VOLUMES_ROOT}/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
+    networks:
+      - proxy-network
 
   tempo:
-    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: tempo
@@ -147,6 +155,8 @@ services:
     volumes:
       - ${VOLUMES_ROOT}/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}:/tmp/tempo
+    networks:
+      - proxy-network
 
 networks:
   proxy-network:
