@@ -17,7 +17,7 @@ volumes:
       path: /var/run/docker.sock
   - name: docker-cache
     host:
-      path: ${DOCKER_CACHE}
+      path: /srv/volumes/docker-cache
 
 steps:
   ##############################################################################
