@@ -20,11 +20,5 @@ services:
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
-    networks:
-      - private_network
     env_file:
       - apps/ana-liese/.env
-
-networks:
-  private_network:
-    name: private_network

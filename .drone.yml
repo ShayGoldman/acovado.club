@@ -33,7 +33,6 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker pull $${MODULES_IMAGE}:latest || true
       - docker build --cache-from=$${MODULES_IMAGE}:latest --target modules -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
       - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}

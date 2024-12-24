@@ -20,11 +20,6 @@ services:
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
-    networks:
-      - private_network
+
     env_file:
       - apps/collection/.env
-
-networks:
-  private_network:
-    name: private_network
