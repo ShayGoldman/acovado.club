@@ -9,6 +9,7 @@ environment:
   COLLECTION_IMAGE: docker-registry.acovado.club/collection
   ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
   VOLUMES_ROOT: /srv/volumes
+  ENV_FILES_ROOT: /srv/env
 
 volumes:
   - name: docker-socket
@@ -106,6 +107,7 @@ steps:
       COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
       REGISTRY_URL: ${REGISTRY_URL}
       VOLUMES_ROOT: ${VOLUMES_ROOT}
+      ENV_FILES_ROOT: ${ENV_FILES_ROOT}
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock

@@ -7,38 +7,44 @@ services:
   # Apps
   ##############################################################################
   bebe:
+    <<: *shared-networks
     container_name: bebe
     image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/bebe.env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *shared-networks
     profiles:
       - apps
 
   collection:
+    <<: *shared-networks
     container_name: collection
     image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/collection.env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *shared-networks
     profiles:
       - apps
 
   ana-liese:
+    <<: *shared-networks
     container_name: ana-liese
     image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/ana-liese.env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://production:production@production:5432/development
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
-    <<: *shared-networks
     profiles:
       - apps
 
@@ -46,38 +52,45 @@ services:
   # Infra
   ##############################################################################
   postgres:
+    <<: *shared-networks
     extends:
       file: infra/postgres/docker-compose.yaml
       service: postgres
+    env_file:
+      - ${ENV_FILES_ROOT}/postgres.env
     environment:
       POSTGRES_USER: production
       POSTGRES_PASSWORD: production
       POSTGRES_DB: production
-    <<: *shared-networks
     profiles:
       - infra
 
   # TODO Drizzle studio maybe?
 
   rabbitmq:
+    <<: *shared-networks
     extends:
       file: infra/rabbitmq/docker-compose.yaml
       service: rabbitmq
+    env_file:
+      - ${ENV_FILES_ROOT}/rabbitmq.env
     environment:
       RABBITMQ_DEFAULT_USER: rabbit
       RABBITMQ_DEFAULT_PASS: rabbit
-    <<: *shared-networks
     profiles:
       - infra
 
   grafana:
+    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: grafana
+    env_file:
+      - ${ENV_FILES_ROOT}/grafana.env
     ports: []
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)'
       - 'traefik.http.routers.grafana.entrypoints=websecure'
       - 'traefik.http.routers.grafana.tls.certresolver=acovado'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
@@ -87,9 +100,12 @@ services:
       - otel-collector
 
   otel-collector:
+    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: otel-collector
+    env_file:
+      - ${ENV_FILES_ROOT}/otel-collector.env
     volumes:
       - ${VOLUMES_ROOT}/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports: []
@@ -97,26 +113,35 @@ services:
       - tempo
 
   jaeger:
+    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: otel-collector
+    env_file:
+      - ${ENV_FILES_ROOT}/jaeger.env
     ports: []
     depends_on:
       - tempo
       - otel-collector
 
   prometheus:
+    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: prometheus
+    env_file:
+      - ${ENV_FILES_ROOT}/prometheus.env
     volumes:
       - ${VOLUMES_ROOT}/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
 
   tempo:
+    <<: *shared-networks
     extends:
       file: infra/tracing/docker-compose.yaml
       service: tempo
+    env_file:
+      - ${ENV_FILES_ROOT}/tempo.env
     ports: []
     command: [-config.file=/etc/tempo.yaml]
     volumes:
