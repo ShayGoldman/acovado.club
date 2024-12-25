@@ -25,16 +25,6 @@ volumes:
 
 steps:
   ##############################################################################
-  # Step 0: Debug shit
-  ##############################################################################
-  - name: debug
-    image: docker:20
-    environment:
-      DOCKER_BUILDKIT: 1
-    commands:
-      - cat /drone/src/infra/tracing/prometheus.yaml
-
-  ##############################################################################
   # Step 1: Build and push shared modules
   ##############################################################################
   - name: build-modules

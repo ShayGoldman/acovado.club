@@ -88,7 +88,7 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/grafana.env
     volumes:
-      - /drone/src/infra/tracing/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./infra/tracing/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
     ports: []
     networks:
       - proxy-network
@@ -110,7 +110,7 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/otel-collector.env
     volumes:
-      - /drone/src/infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports: []
     networks:
       - proxy-network
@@ -137,7 +137,7 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/prometheus.env
     volumes:
-      - /drone/src/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
     networks:
       - proxy-network
@@ -151,7 +151,7 @@ services:
     ports: []
     command: [-config.file=/etc/tempo.yaml]
     volumes:
-      - /drone/src/infra/tracing/tempo.yaml:/etc/tempo.yaml
+      - ./infra/tracing/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
     networks:
       - proxy-network
