@@ -120,7 +120,7 @@ services:
   jaeger:
     extends:
       file: infra/tracing/docker-compose.yaml
-      service: otel-collector
+      service: jaeger
     env_file:
       - ${ENV_FILES_ROOT}/jaeger.env
     ports: []
