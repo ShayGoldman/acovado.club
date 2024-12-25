@@ -123,7 +123,7 @@ steps:
         path: /srv/volumes
     commands:
       # Copy the config files
-      - cp /drone/src/docker-compose.prod.yaml /srv/tmp/docker-compose.prod.yaml
+      - cp /drone/src/docker-compose.prod.yaml /srv/volumes/tmp/docker-compose.prod.yaml
       - cp /drone/src/infra/tracing/otel-collector-config.yaml /srv/volumes/config/otel-collector-config.yaml
       - cp /drone/src/infra/tracing/tempo.yaml /srv/volumes/config/tempo.yaml
       - cp /drone/src/infra/tracing/prometheus.yaml /srv/volumes/config/prometheus.yaml
