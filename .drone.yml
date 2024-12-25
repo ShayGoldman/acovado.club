@@ -121,6 +121,7 @@ steps:
       - name: volumes-root
         path: /srv/volumes
     commands:
+      - cat /drone/src/infra/tracing/tempo.yaml
       - docker-compose -f docker-compose.prod.yaml --profile infra up --detach
       - docker-compose -f docker-compose.prod.yaml --profile apps up --detach --force-recreate
     depends_on:
