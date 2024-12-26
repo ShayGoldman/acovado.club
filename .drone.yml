@@ -112,7 +112,7 @@ steps:
       REGISTRY_URL: ${REGISTRY_URL}
       PROJECT_ROOT: /drone/src
       VOLUMES_ROOT: /srv/volumes
-      CONFIG_FILES_ROOT: /srv/volumes/deployment/config
+      CONFIG_FILES_ROOT: /srv/volumes/deployment
       ENV_FILES_ROOT: /srv/env
     volumes:
       - name: docker-socket
@@ -124,10 +124,7 @@ steps:
     commands:
       # Update current deployment folder
       - cp /drone/src/docker-compose.prod.yaml /srv/volumes/deployment/docker-compose.prod.yaml
-      - cp /drone/src/infra/tracing/otel-collector-config.yaml /srv/volumes/deployment/config/otel-collector-config.yaml
-      - cp /drone/src/infra/tracing/tempo.yaml /srv/volumes/deployment/config/tempo.yaml
-      - cp /drone/src/infra/tracing/grafana-datasources.yaml /srv/volumes/deployment/config/grafana-datasources.yaml
-      - cp /drone/src/infra/tracing/prometheus.yaml /srv/volumes/deployment/config/prometheus.yaml
+      - cp /drone/src/infra /srv/volumes/deployment/infra
 
       # Deploy the new environment
       - docker-compose -f docker-compose.prod.yaml --profile infra -p acovado-infra up --detach

@@ -90,7 +90,7 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/grafana.env
     volumes:
-      - ${CONFIG_FILES_ROOT}/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ${CONFIG_FILES_ROOT}/infra/tracing/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
     ports: []
     networks:
       - proxy-network
@@ -104,6 +104,8 @@ services:
       - jaeger
       - tempo
       - otel-collector
+    profiles:
+      - infra
 
   otel-collector:
     extends:
@@ -112,12 +114,14 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/otel-collector.env
     volumes:
-      - ${CONFIG_FILES_ROOT}/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ${CONFIG_FILES_ROOT}/infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports: []
     networks:
       - proxy-network
     depends_on:
       - tempo
+    profiles:
+      - infra
 
   jaeger:
     extends:
@@ -131,6 +135,8 @@ services:
     depends_on:
       - tempo
       - otel-collector
+    profiles:
+      - infra
 
   prometheus:
     extends:
@@ -139,10 +145,12 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/prometheus.env
     volumes:
-      - ${CONFIG_FILES_ROOT}/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ${CONFIG_FILES_ROOT}/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
     networks:
       - proxy-network
+    profiles:
+      - infra
 
   tempo:
     extends:
@@ -151,13 +159,14 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/tempo.env
     ports: []
-    command: ['sh', '-c', 'while true; do sleep 1; done']
-    # command: [-config.file=/etc/tempo.yaml]
+    command: [-config.file=/etc/tempo.yaml]
     volumes:
-      - ${CONFIG_FILES_ROOT}/tempo.yaml:/etc/tempo.yaml
+      - ${CONFIG_FILES_ROOT}/infra/tracing/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
     networks:
       - proxy-network
+    profiles:
+      - infra
 
 networks:
   proxy-network:
