@@ -124,7 +124,7 @@ steps:
     commands:
       # Update current deployment folder
       - cp /drone/src/docker-compose.prod.yaml /srv/volumes/deployment/docker-compose.prod.yaml
-      - cp /drone/src/infra /srv/volumes/deployment/infra
+      - cp -r /drone/src/infra /srv/volumes/deployment/infra
 
       # Deploy the new environment
       - docker-compose -f docker-compose.prod.yaml --profile infra -p acovado-infra up --detach
@@ -133,6 +133,28 @@ steps:
       - build-bebe
       - build-collection
       - build-ana-liese
+
+  ##############################################################################
+  # Step 6: Cleanup Old Images
+  ##############################################################################
+  - name: cleanup
+    image: docker:20
+    environment:
+      REGISTRY_URL: ${REGISTRY_URL}
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    commands:
+      # Keep only the last 3 images for each repository
+      - docker images --format "{{.Repository}}:{{.Tag}}" | grep "${REGISTRY_URL}" | sort -r | awk -F':' '{print $1}' | uniq | while read repo; do
+        images=$(docker images --format "{{.Repository}}:{{.Tag}} {{.CreatedAt}}" | grep "^$repo" | sort -k2 | awk 'NR>3 {print $1}');
+        if [ -n "$images" ]; then
+        docker rmi -f $images || true;
+        fi;
+        done
+
+      # Remove dangling images
+      - docker image prune -f
 
 trigger:
   branch:
