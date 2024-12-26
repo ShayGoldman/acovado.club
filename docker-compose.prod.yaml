@@ -151,7 +151,8 @@ services:
     env_file:
       - ${ENV_FILES_ROOT}/tempo.env
     ports: []
-    command: [-config.file=/etc/tempo.yaml]
+    command: ['sh', '-c', 'while true; do sleep 1; done']
+    # command: [-config.file=/etc/tempo.yaml]
     volumes:
       - ${CONFIG_FILES_ROOT}/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
