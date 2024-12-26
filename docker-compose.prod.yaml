@@ -9,7 +9,7 @@ services:
       - ${ENV_FILES_ROOT}/bebe.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@production:5432/production
+      DATABASE_URL: postgresql://production:production@postgres:5432/production
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
     networks:
@@ -24,7 +24,7 @@ services:
       - ${ENV_FILES_ROOT}/collection.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@production:5432/production
+      DATABASE_URL: postgresql://production:production@postgres:5432/production
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
     networks:
@@ -39,7 +39,7 @@ services:
       - ${ENV_FILES_ROOT}/ana-liese.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@production:5432/production
+      DATABASE_URL: postgresql://production:production@postgres:5432/production
       BROKER_URL: amqp://rabbit:rabbit@localhost:5672
       TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
     networks:
