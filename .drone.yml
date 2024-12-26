@@ -123,7 +123,6 @@ steps:
         path: /srv/volumes
     commands:
       # Update current deployment folder
-      - cp /drone/src/docker-compose.prod.yaml /srv/volumes/deployment/docker-compose.prod.yaml
       - cp -r /drone/src/infra /srv/volumes/deployment/infra
 
       # Deploy the new environment
