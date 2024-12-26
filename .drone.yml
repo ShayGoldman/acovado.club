@@ -155,6 +155,8 @@ steps:
 
       # Remove dangling images
       - docker image prune -f
+    depends_on:
+      - deploy
 
 trigger:
   branch:
