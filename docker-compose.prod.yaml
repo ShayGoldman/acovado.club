@@ -10,8 +10,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@localhost:5672
-      TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
+      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
+      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
       - proxy-network
     profiles:
@@ -25,8 +25,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@localhost:5672
-      TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
+      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
+      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
       - proxy-network
     profiles:
@@ -40,8 +40,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@localhost:5672
-      TRACE_EXPORTER_URL: http://localhost:4318/v1/traces
+      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
+      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
       - proxy-network
     profiles:
