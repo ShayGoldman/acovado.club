@@ -184,8 +184,6 @@ services:
       file: clients/zook/docker-compose.yaml
       service: metabase-db
     ports: []
-    depends_on:
-      - metabase-db
     volumes:
       - ${VOLUMES_ROOT}/metabase-db-data:/var/lib/postgresql/data
     networks:
