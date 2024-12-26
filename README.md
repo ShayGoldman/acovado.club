@@ -29,6 +29,9 @@ Run everything locally by following these instructions from the root of the proj
 
 ## Tasks
 
+[ ] Add prometheus metrics everywhere
+[ ] Add tracing to proxy everywhere
+[ ] Separate the docker networks used: proxy for front facing services, internal for internal services
 [ ] Support envs
 [ ] Add healthz endpoint for all services + production docker-compose
 [ ] Solve number handling (no floating points! and Number)
