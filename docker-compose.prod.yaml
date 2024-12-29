@@ -183,15 +183,15 @@ services:
       - infra
 
   stats:
-    image: selfhostedpro/yacht
+    image: portainer/portainer-ce:2.25.1-alpine
     container_name: stats
     ports: []
     networks:
       - proxy-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /srv/volumes/stats:/config
-    restart: unless-stopped
+      - /srv/volumes/stats:/data
+    restart: always
     profiles:
       - infra
     labels:
@@ -199,7 +199,7 @@ services:
       - 'traefik.http.routers.stats.rule=Host(`stats.acovado.club`)'
       - 'traefik.http.routers.stats.entrypoints=websecure'
       - 'traefik.http.routers.stats.tls.certresolver=acovado'
-      - 'traefik.http.services.stats.loadbalancer.server.port=8000'
+      - 'traefik.http.services.stats.loadbalancer.server.port=9443'
       - 'traefik.http.routers.stats.middlewares=auth'
 
   ##############################################################################
