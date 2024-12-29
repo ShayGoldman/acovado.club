@@ -199,7 +199,7 @@ services:
       - 'traefik.http.routers.stats.rule=Host(`stats.acovado.club`)'
       - 'traefik.http.routers.stats.entrypoints=websecure'
       - 'traefik.http.routers.stats.tls.certresolver=acovado'
-      - 'traefik.http.services.stats.loadbalancer.server.port=9443'
+      - 'traefik.http.services.stats.loadbalancer.server.port=9000'
       - 'traefik.http.routers.stats.middlewares=auth'
 
   ##############################################################################
