@@ -136,6 +136,7 @@ services:
     depends_on:
       - tempo
       - otel-collector
+    restart: unless-stopped
     profiles:
       - infra
     labels:
@@ -180,6 +181,26 @@ services:
       - proxy-network
     profiles:
       - infra
+
+  stats:
+    image: selfhostedpro/yacht
+    container_name: stats
+    ports: []
+    networks:
+      - proxy-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/volumes/stats:/config
+    restart: unless-stopped
+    profiles:
+      - infra
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.stats.rule=Host(`stats.acovado.club`)'
+      - 'traefik.http.routers.stats.entrypoints=websecure'
+      - 'traefik.http.routers.stats.tls.certresolver=acovado'
+      - 'traefik.http.services.stats.loadbalancer.server.port=8000'
+      - 'traefik.http.routers.stats.middlewares=auth'
 
   ##############################################################################
   # Clients
