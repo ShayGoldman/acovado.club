@@ -9,6 +9,7 @@ services:
       DATABASE_URL: postgresql://production:production@postgres:5432/production
       BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+      CRONS_START_ON_INIT: false
     networks:
       - proxy-network
 
