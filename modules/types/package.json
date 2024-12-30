@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "packageManager": "bun@1.1.36",
   "scripts": {
-    "build": "bunx tsupsrc/index.ts --dts-only --out-dir dist",
+    "build": "bunx tsup src/index.ts --dts-only --out-dir dist",
     "dev": "bun run build --watch",
     "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
     "typecheck": "bun tsc --noEmit",
