@@ -7,7 +7,7 @@ services:
     volumes:
       - ${VOLUMES_ROOT}/metabase-db-data:/var/lib/postgresql/data
     networks:
-      - proxy-network
+      - internal-network
 
   metabase:
     extends:
@@ -20,6 +20,7 @@ services:
       - ${VOLUMES_ROOT}/metabase-data:/metabase-data
     networks:
       - proxy-network
+      - internal-network
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.metabase.rule=Host(`dashboard.acovado.club`)'
@@ -30,4 +31,6 @@ services:
 
 networks:
   proxy-network:
+    external: true
+  internal-network:
     external: true

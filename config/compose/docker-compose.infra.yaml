@@ -12,7 +12,7 @@ services:
     volumes:
       - ${VOLUMES_ROOT}/postgres-data:/var/lib/postgresql/data
     networks:
-      - proxy-network
+      - internal-network
 
   # TODO Drizzle studio maybe?
 
@@ -26,7 +26,7 @@ services:
       RABBITMQ_DEFAULT_USER: rabbit
       RABBITMQ_DEFAULT_PASS: rabbit
     networks:
-      - proxy-network
+      - internal-network
 
   grafana:
     extends:
@@ -39,6 +39,7 @@ services:
     ports: []
     networks:
       - proxy-network
+      - internal-network
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)'
@@ -61,7 +62,7 @@ services:
       - ${CONFIG_FILES_ROOT}/infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports: []
     networks:
-      - proxy-network
+      - internal-network
     depends_on:
       - tempo
 
@@ -74,6 +75,7 @@ services:
     ports: []
     networks:
       - proxy-network
+      - internal-network
     depends_on:
       - tempo
       - otel-collector
@@ -101,7 +103,7 @@ services:
       - ${CONFIG_FILES_ROOT}/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
     networks:
-      - proxy-network
+      - internal-network
 
   tempo:
     extends:
@@ -115,7 +117,7 @@ services:
       - ${CONFIG_FILES_ROOT}/infra/tracing/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
     networks:
-      - proxy-network
+      - internal-network
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
@@ -137,4 +139,6 @@ services:
 
 networks:
   proxy-network:
+    external: true
+  internal-network:
     external: true

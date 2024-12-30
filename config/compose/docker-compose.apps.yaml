@@ -11,7 +11,7 @@ services:
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
       CRONS_START_ON_INIT: false
     networks:
-      - proxy-network
+      - internal-network
 
   collection:
     container_name: collection
@@ -24,7 +24,7 @@ services:
       BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
-      - proxy-network
+      - internal-network
 
   ana-liese:
     container_name: ana-liese
@@ -37,8 +37,8 @@ services:
       BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
-      - proxy-network
+      - internal-network
 
 networks:
-  proxy-network:
+  internal-network:
     external: true
