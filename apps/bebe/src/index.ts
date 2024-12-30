@@ -39,6 +39,7 @@ const crons = await makeCronJobsService({
   db,
   tracer,
   producer,
+  env: Env,
 });
 
 await crons.start();

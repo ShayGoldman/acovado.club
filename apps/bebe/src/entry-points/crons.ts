@@ -1,4 +1,5 @@
 import { makeWatchListCollectionService } from '@/collection/watch-list-collection.service';
+import type { Environment } from '@/env';
 import type { DBClient } from '@modules/db';
 import type { Producer } from '@modules/events';
 import type { Tracer } from '@modules/tracing';
@@ -8,6 +9,7 @@ export interface MakeCronJobsServiceOpts {
   db: DBClient;
   tracer: Tracer;
   producer: Producer;
+  env: Environment;
 }
 
 export async function makeCronJobsService(opts: MakeCronJobsServiceOpts) {
@@ -20,13 +22,13 @@ export async function makeCronJobsService(opts: MakeCronJobsServiceOpts) {
       {
         name: 'Watch Lists collection',
         job: new CronJob(
-          '*/30 * * * * *',
+          '*/30 * 14-22 * * *',
           makeWatchListCollectionService(opts).collectWatchLists,
           null,
           null,
           null,
           null,
-          true, // run on init
+          opts.env.CRONS_START_ON_INIT,
         ),
       },
     ] as const;
