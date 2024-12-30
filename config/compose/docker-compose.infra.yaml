@@ -67,7 +67,7 @@ services:
 
   postgres:
     extends:
-      file: infra/postgres/docker-compose.yaml
+      file: ../../infra/postgres/docker-compose.yaml
       service: postgres
     env_file:
       - ${ENV_FILES_ROOT}/postgres.env
@@ -84,7 +84,7 @@ services:
 
   rabbitmq:
     extends:
-      file: infra/rabbitmq/docker-compose.yaml
+      file: ../../infra/rabbitmq/docker-compose.yaml
       service: rabbitmq
     env_file:
       - ${ENV_FILES_ROOT}/rabbitmq.env
@@ -96,7 +96,7 @@ services:
 
   grafana:
     extends:
-      file: infra/tracing/docker-compose.yaml
+      file: ../../infra/tracing/docker-compose.yaml
       service: grafana
     env_file:
       - ${ENV_FILES_ROOT}/grafana.env
@@ -119,7 +119,7 @@ services:
 
   otel-collector:
     extends:
-      file: infra/tracing/docker-compose.yaml
+      file: ../../infra/tracing/docker-compose.yaml
       service: otel-collector
     env_file:
       - ${ENV_FILES_ROOT}/otel-collector.env
@@ -133,7 +133,7 @@ services:
 
   jaeger:
     extends:
-      file: infra/tracing/docker-compose.yaml
+      file: ../../infra/tracing/docker-compose.yaml
       service: jaeger
     env_file:
       - ${ENV_FILES_ROOT}/jaeger.env
@@ -159,7 +159,7 @@ services:
 
   prometheus:
     extends:
-      file: infra/tracing/docker-compose.yaml
+      file: ../../infra/tracing/docker-compose.yaml
       service: prometheus
     env_file:
       - ${ENV_FILES_ROOT}/prometheus.env
@@ -171,7 +171,7 @@ services:
 
   tempo:
     extends:
-      file: infra/tracing/docker-compose.yaml
+      file: ../../infra/tracing/docker-compose.yaml
       service: tempo
     env_file:
       - ${ENV_FILES_ROOT}/tempo.env
