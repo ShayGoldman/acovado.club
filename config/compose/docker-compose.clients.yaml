@@ -1,0 +1,33 @@
+services:
+  metabase-db:
+    extends:
+      file: clients/zook/docker-compose.yaml
+      service: metabase-db
+    ports: []
+    volumes:
+      - ${VOLUMES_ROOT}/metabase-db-data:/var/lib/postgresql/data
+    networks:
+      - proxy-network
+
+  metabase:
+    extends:
+      file: clients/zook/docker-compose.yaml
+      service: metabase
+    ports: []
+    depends_on:
+      - metabase-db
+    volumes:
+      - ${VOLUMES_ROOT}/metabase-data:/metabase-data
+    networks:
+      - proxy-network
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.metabase.rule=Host(`dashboard.acovado.club`)'
+      - 'traefik.http.routers.metabase.entrypoints=websecure'
+      - 'traefik.http.routers.metabase.tls.certresolver=acovado'
+      - 'traefik.http.services.metabase.loadbalancer.server.port=3000'
+      - 'traefik.http.routers.metabase.middlewares=auth'
+
+networks:
+  proxy-network:
+    external: true

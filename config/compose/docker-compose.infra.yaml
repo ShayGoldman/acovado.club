@@ -1,55 +1,70 @@
 services:
-  ##############################################################################
-  # Apps
-  ##############################################################################
-  bebe:
-    container_name: bebe
-    image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
-    env_file:
-      - ${ENV_FILES_ROOT}/bebe.env
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
-      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+  proxy:
+    image: traefik:v3.2.3
+    container_name: proxy
+    restart: unless-stopped
+    # Instead of passing many --flags, we specify just one for our config file:
+    command:
+      - '--configFile=/etc/traefik/traefik.yaml'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./acme.json:/etc/traefik/acme.json
+    ports:
+      - '80:80'
+      - '443:443'
     networks:
       - proxy-network
-    profiles:
-      - apps
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.proxy.rule=Host(`proxy.${DOMAIN}`)'
+      - 'traefik.http.routers.proxy.entrypoints=websecure'
+      - 'traefik.http.routers.proxy.tls.certresolver=acovado'
+      - 'traefik.http.routers.proxy.service=api@internal'
+      - 'traefik.http.routers.proxy.middlewares=auth'
 
-  collection:
-    container_name: collection
-    image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
-    env_file:
-      - ${ENV_FILES_ROOT}/collection.env
+  oauth2-proxy:
+    image: bitnami/oauth2-proxy:latest
+    container_name: oauth2-proxy
+    restart: unless-stopped
+    volumes:
+      - ./authenticated_emails.txt:/etc/traefik/authenticated_emails.txt
+    command: # Some things just don't work with environment variables
+      - --authenticated-emails-file=/etc/traefik/authenticated_emails.txt
     environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
-      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+      OAUTH2_PROXY_REVERSE_PROXY: true
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: true
+
+      # Google OAuth
+      OAUTH2_PROXY_PROVIDER: google
+      OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
+
+      # Cookie Settings
+      OAUTH2_PROXY_COOKIE_DOMAINS: .${DOMAIN} # use false only if no HTTPS in dev
+      OAUTH2_PROXY_COOKIE_SECURE: true # use false only if no HTTPS in dev
+      OAUTH2_PROXY_COOKIE_HTTPONLY: true
+      OAUTH2_PROXY_COOKIE_EXPIRE: 168h # 7 days
+      OAUTH2_PROXY_COOKIE_REFRESH: 1h
+
+      # OAuth2 URLs (assuming subdomain auth.acovado.club)
+      OAUTH2_PROXY_REDIRECT_URL: https://auth.${DOMAIN}/oauth2/callback
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_PROXY_PREFIX: /oauth2
+      OAUTH2_PROXY_UPSTREAMS: static://200
+
     networks:
       - proxy-network
-    profiles:
-      - apps
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.oauth2-proxy.rule=Host(`auth.${DOMAIN}`)'
+      - 'traefik.http.routers.oauth2-proxy.entrypoints=websecure'
+      - 'traefik.http.routers.oauth2-proxy.tls.certresolver=acovado'
+      - 'traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180'
+      - 'traefik.http.middlewares.auth.forwardauth.address=http://oauth2-proxy:4180/'
+      - 'traefik.http.middlewares.auth.forwardauth.trustForwardHeader=true'
 
-  ana-liese:
-    container_name: ana-liese
-    image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
-    env_file:
-      - ${ENV_FILES_ROOT}/ana-liese.env
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
-      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
-    networks:
-      - proxy-network
-    profiles:
-      - apps
-
-  ##############################################################################
-  # Infra
-  ##############################################################################
   postgres:
     extends:
       file: infra/postgres/docker-compose.yaml
@@ -64,8 +79,6 @@ services:
       - ${VOLUMES_ROOT}/postgres-data:/var/lib/postgresql/data
     networks:
       - proxy-network
-    profiles:
-      - infra
 
   # TODO Drizzle studio maybe?
 
@@ -80,8 +93,6 @@ services:
       RABBITMQ_DEFAULT_PASS: rabbit
     networks:
       - proxy-network
-    profiles:
-      - infra
 
   grafana:
     extends:
@@ -105,8 +116,6 @@ services:
       - jaeger
       - tempo
       - otel-collector
-    profiles:
-      - infra
 
   otel-collector:
     extends:
@@ -121,8 +130,6 @@ services:
       - proxy-network
     depends_on:
       - tempo
-    profiles:
-      - infra
 
   jaeger:
     extends:
@@ -137,8 +144,6 @@ services:
       - tempo
       - otel-collector
     restart: unless-stopped
-    profiles:
-      - infra
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.jaeger.rule=Host(`jaeger.acovado.club`)'
@@ -163,8 +168,6 @@ services:
     ports: []
     networks:
       - proxy-network
-    profiles:
-      - infra
 
   tempo:
     extends:
@@ -179,8 +182,6 @@ services:
       - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
     networks:
       - proxy-network
-    profiles:
-      - infra
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
@@ -192,8 +193,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /srv/volumes/stats:/data
     restart: always
-    profiles:
-      - infra
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.stats.rule=Host(`stats.acovado.club`)'
@@ -201,42 +200,6 @@ services:
       - 'traefik.http.routers.stats.tls.certresolver=acovado'
       - 'traefik.http.services.stats.loadbalancer.server.port=9000'
       - 'traefik.http.routers.stats.middlewares=auth'
-
-  ##############################################################################
-  # Clients
-  ##############################################################################
-  metabase-db:
-    extends:
-      file: clients/zook/docker-compose.yaml
-      service: metabase-db
-    ports: []
-    volumes:
-      - ${VOLUMES_ROOT}/metabase-db-data:/var/lib/postgresql/data
-    networks:
-      - proxy-network
-    profiles:
-      - clients
-
-  metabase:
-    extends:
-      file: clients/zook/docker-compose.yaml
-      service: metabase
-    ports: []
-    depends_on:
-      - metabase-db
-    volumes:
-      - ${VOLUMES_ROOT}/metabase-data:/metabase-data
-    networks:
-      - proxy-network
-    profiles:
-      - clients
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.metabase.rule=Host(`dashboard.acovado.club`)'
-      - 'traefik.http.routers.metabase.entrypoints=websecure'
-      - 'traefik.http.routers.metabase.tls.certresolver=acovado'
-      - 'traefik.http.services.metabase.loadbalancer.server.port=3000'
-      - 'traefik.http.routers.metabase.middlewares=auth'
 
 networks:
   proxy-network:

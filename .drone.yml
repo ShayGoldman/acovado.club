@@ -126,9 +126,9 @@ steps:
       - cp -rf /drone/src/infra /srv/volumes/deployment/infra
 
       # Deploy the new environment
-      - docker-compose -f docker-compose.prod.yaml --profile infra -p acovado-infra up --detach
-      - docker-compose -f docker-compose.prod.yaml --profile clients -p acovado-clients up --detach --force-recreate
-      - docker-compose -f docker-compose.prod.yaml --profile apps -p acovado-apps up --detach --force-recreate
+      - docker-compose -f config/compose/docker-compose.infra.yaml -p acovado-infra up --detach
+      - docker-compose -f config/compose/docker-compose.clients.yaml -p acovado-clients up --detach --force-recreate
+      - docker-compose -f config/compose/docker-compose.apps.yaml -p acovado-apps up --detach --force-recreate
     depends_on:
       - build-bebe
       - build-collection
