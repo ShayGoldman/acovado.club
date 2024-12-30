@@ -7,7 +7,7 @@
   "packageManager": "bun@1.1.36",
   "scripts": {
     "build:code": "bun build src/index.ts --outdir dist --target node",
-    "build:declarations": "tsup src/index.ts --dts-only --out-dir dist",
+    "build:declarations": "bunx tsupsrc/index.ts --dts-only --out-dir dist",
     "build:migrations": "drizzle-kit generate",
     "build": "bun run build:code && bun run build:declarations && bun run build:migrations",
     "seed": "bun src/seed.ts",
