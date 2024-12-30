@@ -29,6 +29,7 @@ Run everything locally by following these instructions from the root of the proj
 
 ## Tasks
 
+[ ] Add turbo prune with cache between each build (https://turbo.build/repo/docs/guides/tools/docker)
 [ ] Add prometheus metrics everywhere
 [ ] Add tracing to proxy everywhere
 [ ] Separate the docker networks used: proxy for front facing services, internal for internal services
