@@ -8,7 +8,7 @@ COPY . ./
 RUN bun install --frozen-lockfile
 
 # Stage 2: Build shared modules
-FROM base AS modules
+FROM base AS modules-builder
 COPY --from=dependencies /usr/src/app ./
 WORKDIR /usr/src/app
 RUN bunx turbo build --filter="@modules/*"
@@ -16,7 +16,7 @@ RUN bunx turbo build --filter="@modules/*"
 # Stage 3: Build each app
 FROM base AS app-builder
 ARG APP_NAME
-COPY --from=modules /usr/src/app ./
+COPY --from=modules-builder /usr/src/app ./
 WORKDIR /usr/src/app
 RUN bunx turbo build --filter="$APP_NAME"
 
@@ -25,7 +25,7 @@ FROM base AS production
 WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=dependencies /usr/src/app ./
-COPY --from=modules /usr/src/app/modules ./modules
+COPY --from=modules-builder /usr/src/app/modules ./modules
 COPY --from=app-builder /usr/src/app/apps/$APP_PATH ./apps/$APP_PATH
 WORKDIR /usr/src/app/apps/$APP_PATH
 ENV NODE_ENV=production
