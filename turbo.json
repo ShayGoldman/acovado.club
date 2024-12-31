@@ -2,9 +2,18 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_DEFAULT", ".env*"],
-      "outputs": ["dist/**"],
-      "dependsOn": ["^build"]
+      "cache": true,
+      "persistent": false,
+      "inputs": [
+        "$TURBO_DEFAULT",
+        ".env*"
+      ],
+      "outputs": [
+        "dist/**"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test": {
       "cache": false
@@ -21,7 +30,7 @@
     },
     "dev": {
       "cache": false,
-      "persistent": false
+      "persistent": true
     },
     "clean": {
       "cache": false

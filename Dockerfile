@@ -2,13 +2,16 @@
 FROM oven/bun:1 AS base
 WORKDIR /usr/src/app
 
+FROM oven/bun:1-alpine AS base-alpine
+WORKDIR /usr/src/app
+
 # Stage 1: Install dependencies
 FROM base AS dependencies
 COPY . ./
 RUN bun install --frozen-lockfile
 
 # Stage 2: Build shared modules
-FROM base AS modules-builder
+FROM base-alpine AS modules-builder
 COPY --from=dependencies /usr/src/app ./
 WORKDIR /usr/src/app
 RUN bunx turbo build --filter="@modules/*"
@@ -21,7 +24,7 @@ WORKDIR /usr/src/app
 RUN bunx turbo build --filter="$APP_NAME"
 
 # Stage 4: Production image
-FROM base AS production
+FROM base-alpine AS production
 WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=dependencies /usr/src/app ./
