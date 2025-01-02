@@ -25,6 +25,7 @@ services:
       RABBITMQ_DEFAULT_USER: rabbit
     networks:
       - internal-network
+      - proxy-network
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.acovado.club`)'
