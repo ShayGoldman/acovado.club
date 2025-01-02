@@ -28,6 +28,7 @@ services:
       - 'traefik.http.routers.metabase.tls.certresolver=acovado'
       - 'traefik.http.services.metabase.loadbalancer.server.port=3000'
       - 'traefik.http.routers.metabase.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
 
 networks:
   proxy-network:

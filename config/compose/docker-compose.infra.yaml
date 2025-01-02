@@ -7,7 +7,6 @@ services:
       - ${ENV_FILES_ROOT}/postgres.env
     environment:
       POSTGRES_USER: production
-      POSTGRES_PASSWORD: production
       POSTGRES_DB: production
     volumes:
       - ${VOLUMES_ROOT}/postgres-data:/var/lib/postgresql/data
@@ -24,9 +23,16 @@ services:
       - ${ENV_FILES_ROOT}/rabbitmq.env
     environment:
       RABBITMQ_DEFAULT_USER: rabbit
-      RABBITMQ_DEFAULT_PASS: rabbit
     networks:
       - internal-network
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.acovado.club`)'
+      - 'traefik.http.routers.rabbitmq.entrypoints=websecure'
+      - 'traefik.http.routers.rabbitmq.tls.certresolver=acovado'
+      - 'traefik.http.services.rabbitmq.loadbalancer.server.port=15672'
+      - 'traefik.http.routers.rabbitmq.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
 
   grafana:
     extends:
@@ -47,6 +53,7 @@ services:
       - 'traefik.http.routers.grafana.tls.certresolver=acovado'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
       - 'traefik.http.routers.grafana.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
     depends_on:
       - jaeger
       - tempo
@@ -87,6 +94,7 @@ services:
       - 'traefik.http.routers.jaeger.tls.certresolver=acovado'
       - 'traefik.http.services.jaeger.loadbalancer.server.port=16686'
       - 'traefik.http.routers.jaeger.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
     deploy:
       resources:
         limits:
@@ -136,6 +144,7 @@ services:
       - 'traefik.http.routers.stats.tls.certresolver=acovado'
       - 'traefik.http.services.stats.loadbalancer.server.port=9000'
       - 'traefik.http.routers.stats.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
 
 networks:
   proxy-network:
