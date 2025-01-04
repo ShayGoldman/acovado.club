@@ -6,8 +6,6 @@ services:
       - ${ENV_FILES_ROOT}/bebe.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
       CRONS_START_ON_INIT: false
     networks:
@@ -20,8 +18,6 @@ services:
       - ${ENV_FILES_ROOT}/collection.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
       - internal-network
@@ -33,8 +29,6 @@ services:
       - ${ENV_FILES_ROOT}/ana-liese.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://production:production@postgres:5432/production
-      BROKER_URL: amqp://rabbit:rabbit@rabbitmq:5672
       TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
     networks:
       - internal-network

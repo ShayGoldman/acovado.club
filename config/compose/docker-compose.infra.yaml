@@ -1,12 +1,11 @@
 services:
   postgres:
     extends:
-      file: ../../infra/postgres/docker-compose.yaml
+      file: ../../infra/postgres/docker-compose.base.yaml
       service: postgres
     env_file:
       - ${ENV_FILES_ROOT}/postgres.env
     environment:
-      POSTGRES_USER: production
       POSTGRES_DB: production
     volumes:
       - ${VOLUMES_ROOT}/postgres-data:/var/lib/postgresql/data
@@ -17,12 +16,10 @@ services:
 
   rabbitmq:
     extends:
-      file: ../../infra/rabbitmq/docker-compose.yaml
+      file: ../../infra/rabbitmq/docker-compose.base.yaml
       service: rabbitmq
     env_file:
       - ${ENV_FILES_ROOT}/rabbitmq.env
-    environment:
-      RABBITMQ_DEFAULT_USER: rabbit
     networks:
       - internal-network
       - proxy-network
