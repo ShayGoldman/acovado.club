@@ -123,7 +123,7 @@ steps:
         path: /srv/volumes
     commands:
       # Update current deployment folder
-      - cp -rf /drone/src/infra /srv/volumes/deployment/infra
+      - cp -rf /drone/src/infra /srv/volumes/deployment
 
       # Deploy the new environment
       - docker-compose -f config/compose/docker-compose.infra.yaml -p acovado-infra up --detach
