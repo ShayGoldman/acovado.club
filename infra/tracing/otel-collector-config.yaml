@@ -12,8 +12,8 @@ extensions:
   health_check: {}
 
 exporters:
-  otlp:
-    endpoint: jaeger:4317
+  tempo:
+    endpoint: tempo:4317
     tls:
       insecure: true
   prometheus:
@@ -23,7 +23,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [otlp]
+      exporters: [tempo]
     metrics:
       receivers: [otlp]
       exporters: [prometheus]

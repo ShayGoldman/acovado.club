@@ -53,8 +53,8 @@ services:
       - 'traefik.http.routers.grafana.middlewares=auth'
       - 'traefik.docker.network=proxy-network'
     depends_on:
-      - jaeger
       - tempo
+      - prometheus
       - otel-collector
 
   otel-collector:
@@ -70,34 +70,6 @@ services:
       - internal-network
     depends_on:
       - tempo
-
-  jaeger:
-    extends:
-      file: ../../infra/tracing/docker-compose.yaml
-      service: jaeger
-    env_file:
-      - ${ENV_FILES_ROOT}/jaeger.env
-    ports: []
-    networks:
-      - proxy-network
-      - internal-network
-    depends_on:
-      - tempo
-      - otel-collector
-    restart: unless-stopped
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.jaeger.rule=Host(`jaeger.acovado.club`)'
-      - 'traefik.http.routers.jaeger.entrypoints=websecure'
-      - 'traefik.http.routers.jaeger.tls.certresolver=acovado'
-      - 'traefik.http.services.jaeger.loadbalancer.server.port=16686'
-      - 'traefik.http.routers.jaeger.middlewares=auth'
-      - 'traefik.docker.network=proxy-network'
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: '1gb'
 
   prometheus:
     extends:
