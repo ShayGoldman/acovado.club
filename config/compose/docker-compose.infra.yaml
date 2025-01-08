@@ -9,6 +9,7 @@ services:
       POSTGRES_DB: production
     volumes:
       - ${VOLUMES_ROOT}/postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
     networks:
       - internal-network
 
@@ -23,6 +24,7 @@ services:
     networks:
       - internal-network
       - proxy-network
+    restart: unless-stopped
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.acovado.club`)'
@@ -52,6 +54,7 @@ services:
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
       - 'traefik.http.routers.grafana.middlewares=auth'
       - 'traefik.docker.network=proxy-network'
+    restart: unless-stopped
     depends_on:
       - tempo
       - prometheus
@@ -68,6 +71,7 @@ services:
     ports: []
     networks:
       - internal-network
+    restart: unless-stopped
     depends_on:
       - tempo
 
@@ -80,6 +84,7 @@ services:
     volumes:
       - ${CONFIG_FILES_ROOT}/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports: []
+    restart: unless-stopped
     networks:
       - internal-network
 
@@ -94,6 +99,7 @@ services:
     volumes:
       - ${CONFIG_FILES_ROOT}/infra/tracing/tempo.yaml:/etc/tempo.yaml
       - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
+    restart: unless-stopped
     networks:
       - internal-network
 
