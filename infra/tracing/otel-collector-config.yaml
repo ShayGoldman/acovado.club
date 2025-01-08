@@ -3,8 +3,6 @@ receivers:
     protocols:
       http:
         endpoint: 0.0.0.0:4318
-      grpc:
-        endpoint: 0.0.0.0:4317
 
 processors:
 
@@ -12,18 +10,18 @@ extensions:
   health_check: {}
 
 exporters:
-  tempo:
+  otlp:
     endpoint: tempo:4317
     tls:
       insecure: true
   prometheus:
-    endpoint: '0.0.0.0:9090'
+    endpoint: 0.0.0.0:9090
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [tempo]
+      exporters: [otlp]
     metrics:
       receivers: [otlp]
       exporters: [prometheus]
