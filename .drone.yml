@@ -132,11 +132,12 @@ steps:
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
       - git add CHANGELOG.md
-      - git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
+      - |
+        git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
       - git push origin main
 
   ##############################################################################
-  # Step 6: Deploy 🤙
+  # Step 7: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker:20
@@ -168,7 +169,7 @@ steps:
       - build-ana-liese
 
   ##############################################################################
-  # Step 67: Cleanup Old Images
+  # Step 8: Cleanup Old Images
   ##############################################################################
   - name: cleanup
     image: docker:20
