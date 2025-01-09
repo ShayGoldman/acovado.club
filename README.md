@@ -1,4 +1,6 @@
-# Finance
+# acovado.club
+
+[![Build Status](https://ci.acovado.club/api/badges/ShayGoldman/acovado.club/status.svg?ref=refs/heads/main)](https://ci.acovado.club/ShayGoldman/acovado.club)
 
 ## Local Development
 
