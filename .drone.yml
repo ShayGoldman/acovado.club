@@ -32,10 +32,9 @@ steps:
     commands:
       - |
         if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
-          echo "Not a merge commit. Exiting pipeline."
-          exit 0
+          echo "Not a merge commit. Skipping pipeline."
+          exit 78
         fi
-      - echo "Merge commit detected. Proceeding with pipeline."
 
   ##############################################################################
   # Step 1: Build and push shared modules
@@ -54,6 +53,8 @@ steps:
       - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
       - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${MODULES_IMAGE}:latest
+    depends_on:
+      - validate-merge-commit
 
   ##############################################################################
   # Step 2: Build and push bebe
