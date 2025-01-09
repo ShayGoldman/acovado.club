@@ -1,0 +1,5 @@
+{
+  "name": "@config/compose",
+  "version": "0.1.0",
+  "packageManager": "bun@1.1.36"
+}
