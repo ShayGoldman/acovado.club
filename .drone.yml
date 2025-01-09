@@ -25,6 +25,18 @@ volumes:
 
 steps:
   ##############################################################################
+  # Step 0: Guard against non-merge commits
+  ##############################################################################
+  - name: validate-merge-commit
+    image: node:20-bullseye
+    commands:
+      - |
+        if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
+          echo "Not a merge commit. Skipping pipeline."
+          exit 78
+        fi
+
+  ##############################################################################
   # Step 1: Build and push shared modules
   ##############################################################################
   - name: build-modules
@@ -103,7 +115,28 @@ steps:
       - build-modules
 
   ##############################################################################
-  # Step 5: Deploy 🤙
+  # Step 5: Check for change sets
+  ##############################################################################
+  - name: check-changesets
+    image: oven/bun
+    commands:
+      - bun changeset status
+
+  ##############################################################################
+  # Step 6: Apply version bumps and update CHNAGELOG.md
+  ##############################################################################
+  - name: apply-changesets
+    image: oven/bun
+    commands:
+      - bun changeset version
+      - git config user.name "Drone CI"
+      - git config user.email "ci@acovado.club"
+      - git add CHANGELOG.md
+      - git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
+      - git push origin main
+
+  ##############################################################################
+  # Step 6: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker:20
@@ -135,7 +168,7 @@ steps:
       - build-ana-liese
 
   ##############################################################################
-  # Step 6: Cleanup Old Images
+  # Step 67: Cleanup Old Images
   ##############################################################################
   - name: cleanup
     image: docker:20
@@ -161,3 +194,8 @@ steps:
 trigger:
   branch:
     - ci/setup
+# trigger:
+#   event:
+#     - push
+#   branch:
+#     - main
