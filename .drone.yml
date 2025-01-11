@@ -154,7 +154,7 @@ steps:
 
       # Check if there are any changesets
       - bunx @changesets/cli status --verbose --output changesets.json
-      - jq -e '.changesets == [] and .releases == []' changesets. >/dev/null || exit 0; exit 78
+      - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null || exit 0; exit 78
 
       # Apply version bumps
       - bunx @changesets/cli version
