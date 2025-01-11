@@ -6,7 +6,7 @@
   ],
   "commit": false,
   "access": "restricted",
-  "baseBranch": "main",
+  "baseBranch": "ci/setup",
   "updateInternalDependencies": "patch",
   "ignore": []
 }
