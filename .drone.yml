@@ -43,8 +43,8 @@ steps:
     image: bash
     commands:
       - echo "Preparing to build images..."
-    depends_on:
-      - validate-merge-commit
+    # depends_on:
+    #   - validate-merge-commit
 
   ##############################################################################
   # Step 2: Build and push shared modules
