@@ -74,6 +74,11 @@ services:
     restart: unless-stopped
     depends_on:
       - tempo
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '1gb'
 
   prometheus:
     extends:
@@ -87,6 +92,11 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
 
   tempo:
     extends:
@@ -102,6 +112,11 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '2gb'
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
@@ -121,6 +136,11 @@ services:
       - 'traefik.http.services.stats.loadbalancer.server.port=9000'
       - 'traefik.http.routers.stats.middlewares=auth'
       - 'traefik.docker.network=proxy-network'
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '2gb'
 
 networks:
   proxy-network:

@@ -11,6 +11,11 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
 
   collection:
     container_name: collection
@@ -23,6 +28,11 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
 
   ana-liese:
     container_name: ana-liese
@@ -35,6 +45,11 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: '2gb'
 
 networks:
   internal-network:

@@ -9,6 +9,11 @@ services:
     restart: unless-stopped
     networks:
       - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '2gb'
 
   metabase:
     extends:
