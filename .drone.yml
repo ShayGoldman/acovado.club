@@ -50,7 +50,7 @@ steps:
   # Step 2: Build and push shared modules
   ##############################################################################
   - name: build-modules
-    image: docker:27
+    image: docker
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -70,7 +70,7 @@ steps:
   # Step 3: Build and push bebe
   ##############################################################################
   - name: build-bebe
-    image: docker:27
+    image: docker
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -90,7 +90,7 @@ steps:
   # Step 4: Build and push collection
   ##############################################################################
   - name: build-collection
-    image: docker:27
+    image: docker
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -110,7 +110,7 @@ steps:
   # Step 5: Build and push ana-liese
   ##############################################################################
   - name: build-ana-liese
-    image: docker:27
+    image: docker
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -171,7 +171,7 @@ steps:
   # Step 8: Deploy 🤙
   ##############################################################################
   - name: deploy
-    image: docker:27
+    image: docker
     environment:
       COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
       REGISTRY_URL: ${REGISTRY_URL}
@@ -201,7 +201,7 @@ steps:
   # Step 9: Cleanup Old Images
   ##############################################################################
   - name: cleanup
-    image: docker:27
+    image: docker
     environment:
       REGISTRY_URL: ${REGISTRY_URL}
     volumes:
