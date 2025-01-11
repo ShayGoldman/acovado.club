@@ -27,17 +27,27 @@ steps:
   ##############################################################################
   # Step 0: Guard against non-merge commits
   ##############################################################################
-  # - name: validate-merge-commit
-  #   image: node:20-bullseye
-  #   commands:
-  #     - |
-  #       if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
-  #         echo "Not a merge commit. Skipping pipeline."
-  #         exit 78
-  #       fi
+  - name: validate-merge-commit
+    image: node:20-bullseye
+    commands:
+      - |
+        if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
+          echo "Not a merge commit. Skipping pipeline."
+          exit 78
+        fi
 
   ##############################################################################
   # Step 1: Build and push shared modules
+  ##############################################################################
+  - name: pre-build
+    image: bash
+    commands:
+      - echo "Preparing to build images..."
+    depends_on:
+      - validate-merge-commit
+
+  ##############################################################################
+  # Step 2: Build and push shared modules
   ##############################################################################
   - name: build-modules
     image: docker:27
@@ -53,9 +63,11 @@ steps:
       - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
       - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${MODULES_IMAGE}:latest
+    depends_on:
+      - pre-build
 
   ##############################################################################
-  # Step 2: Build and push bebe
+  # Step 3: Build and push bebe
   ##############################################################################
   - name: build-bebe
     image: docker:27
@@ -75,7 +87,7 @@ steps:
       - build-modules
 
   ##############################################################################
-  # Step 3: Build and push collection
+  # Step 4: Build and push collection
   ##############################################################################
   - name: build-collection
     image: docker:27
@@ -95,7 +107,7 @@ steps:
       - build-modules
 
   ##############################################################################
-  # Step 4: Build and push ana-liese
+  # Step 5: Build and push ana-liese
   ##############################################################################
   - name: build-ana-liese
     image: docker:27
@@ -115,7 +127,7 @@ steps:
       - build-modules
 
   ##############################################################################
-  # Step 5: Post build
+  # Step 6: Post build
   ##############################################################################
   - name: post-build
     image: bash
@@ -130,7 +142,7 @@ steps:
       - build-ana-liese
 
   ##############################################################################
-  # Step 6: Apply version bumps and update CHNAGELOG.md
+  # Step 7: Apply version bumps and update CHNAGELOG.md
   ##############################################################################
   - name: apply-changesets
     image: oven/bun
@@ -152,7 +164,7 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 7: Deploy 🤙
+  # Step 8: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker:27
@@ -182,7 +194,7 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 8: Cleanup Old Images
+  # Step 9: Cleanup Old Images
   ##############################################################################
   - name: cleanup
     image: docker:27
@@ -204,8 +216,7 @@ steps:
 trigger:
   branch:
     - ci/setup
-# trigger:
-#   event:
-#     - push
-#   branch:
-#     - main
+  event:
+    - push
+  # branch:
+  #   - main
