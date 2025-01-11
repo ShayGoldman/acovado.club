@@ -120,6 +120,11 @@ steps:
   - name: check-changesets
     image: oven/bun
     commands:
+      # Install Git because :(
+      - apt-get update
+      - apt-get install -y git
+
+      # Check for change sets or stop this branch of pipeline
       - bunx @changesets/cli status || exit 78
     depends_on:
       - build-bebe
