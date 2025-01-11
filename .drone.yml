@@ -39,6 +39,18 @@ steps:
   ##############################################################################
   # Step 1: Build and push shared modules
   ##############################################################################
+  - name: debig
+    image: docker:20
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --help | grep cache-to
+
   - name: build-modules
     image: docker:20
     environment:
