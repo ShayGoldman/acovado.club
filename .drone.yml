@@ -115,24 +115,7 @@ steps:
       - build-modules
 
   ##############################################################################
-  # Step 5: Check for change sets
-  ##############################################################################
-  - name: check-changesets
-    image: oven/bun
-    commands:
-      # Install Git because :(
-      - apt-get update
-      - apt-get install -y git
-
-      # Check for change sets or stop this branch of pipeline
-      - bunx @changesets/cli status || exit 78
-    depends_on:
-      - build-bebe
-      - build-collection
-      - build-ana-liese
-
-  ##############################################################################
-  # Step 6: Apply version bumps and update CHNAGELOG.md
+  # Step 5: Apply version bumps and update CHNAGELOG.md
   ##############################################################################
   - name: apply-changesets
     image: oven/bun
@@ -142,6 +125,7 @@ steps:
       - apt-get install -y git
 
       # Apply version bumps
+      - bunx @changesets/cli status || exit 78
       - bunx @changesets/cli version
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
@@ -153,7 +137,7 @@ steps:
       - check-changesets
 
   ##############################################################################
-  # Step 7: Deploy 🤙
+  # Step 6: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker:27
@@ -185,7 +169,7 @@ steps:
       - build-ana-liese
 
   ##############################################################################
-  # Step 8: Cleanup Old Images
+  # Step 7: Cleanup Old Images
   ##############################################################################
   - name: cleanup
     image: docker:27
