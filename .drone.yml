@@ -49,7 +49,8 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
+      - |
+        docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
         --cache-to=type=registry,ref=$${MODULES_IMAGE}:cache,mode=max \
         --target modules-builder \
         -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
@@ -70,7 +71,8 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
+      - |
+        docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
         --cache-from=type=registry,ref=$${MODULES_IMAGE}:cache \
         --target production \
         --build-arg APP_PATH=bebe \
@@ -95,7 +97,8 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
+      - |
+        docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
         --cache-from=type=registry,ref=$${MODULES_IMAGE}:cache \
         --target production \
         --build-arg APP_PATH=collection \
@@ -120,7 +123,8 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
+      - |
+        docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
         --cache-from=type=registry,ref=$${MODULES_IMAGE}:cache \
         --target production \
         --build-arg APP_PATH=ana-liese \
