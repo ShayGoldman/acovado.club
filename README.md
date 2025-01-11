@@ -2,6 +2,45 @@
 
 ![Build Status](https://ci.acovado.club/api/badges/ShayGoldman/acovado.club/status.svg?ref=refs/heads/main)
 
+# Structure
+
+## Apps
+
+| Name       | Path                | Description                                                 |
+| ---------- | ------------------- | ----------------------------------------------------------- |
+| bebe       | `./apps/bebe`       | An orchestrator in charge of running background processes   |
+| collection | `./apps/collection` | A worker in charge of collecting information                |
+| ana-liese  | `./apps/ana-liese`  | A worker in charge of analyzing data and generating stories |
+
+## Modules
+
+| Name    | Path                | Description                                                 |
+| ------- | ------------------- | ----------------------------------------------------------- |
+| db      | `./modules/db`      | Data access, schema management and model validations        |
+| events  | `./modules/events`  | Message broker client both for producing and consuming      |
+| ids     | `./modules/ids`     | Simple module for generating ids                            |
+| logger  | `./modules/logger`  | Pino based logger                                           |
+| tracing | `./modules/tracing` | Tracing library aimed for ease-of-use                       |
+| types   | `./modules/types`   | Utility library used for type-coherence in apps and modules |
+
+## Infrastrcture
+
+| Name     | Path               | Description                                                                |
+| -------- | ------------------ | -------------------------------------------------------------------------- |
+| postgres | `./infra/postgres` | Self hosted postgres instance                                              |
+| rabbitmq | `./infra/rabbitmq` | Self hosted rabbitmq instance                                              |
+| tracing  | `./infra/tracing ` | Tracing stack consisting of: Grafana, Tempo, otel-collector and Prometheus |
+
+## Config
+
+| Name       | Path                  | Description                          |
+| ---------- | --------------------- | ------------------------------------ |
+| compose    | `./config/compose`    | Production deployment configurations |
+| eslint     | `./config/eslint`     | -                                    |
+| prettier   | `./config/prettier`   | -                                    |
+| tsconfig   | `./config/tsconfig`   | -                                    |
+| typescript | `./config/typescript` | -                                    |
+
 ## Local Development
 
 Run everything locally by following these instructions from the root of the project:
@@ -15,25 +54,6 @@ Run everything locally by following these instructions from the root of the proj
 
 It won't be the easiest to debug locally, but each of the apps has a `debug` script that will start the app with the `--inspect` flag.
 You can then attach to the process using the VSCode debugger.
-
-## Tasks
-
-[ ] Use Docker cache for builds
-[ ] Daily Docker cleanup
-[ ] Add turbo prune with cache between each build (https://turbo.build/repo/docs/guides/tools/docker)
-[ ] Add prometheus metrics everywhere
-[ ] Add tracing to proxy everywhere
-[ ] Add healthz endpoint for all services + production docker-compose
-[ ] Solve number handling (no floating points! and Number)
-[ ] Support silent mode for simulation to avoid spamming the console with producer messages
-[ ] Support `detached` mode for `tracer.with` to not always attach to the active context
-[ ] Producing messages should be done one-by-one
-[ ] Allow attaching to apps for debbuging
-[ ] Add some span events for producer & consumer, consider creating another span for the handler itself
-[ ] Start throwing coded errors and make up a strategy for handling them
-[ ] Actually set a `correlationId` on messages and propagate it
-[ ] Support pre & post migration scripts (db) => Promise<void>
-[ ] Add Drizzle eslint plugin (https://orm.drizzle.team/docs/eslint-plugin)
 
 # Drizzle studio theme
 
