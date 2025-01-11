@@ -1,3 +1,5 @@
+name: acovado-apps
+
 services:
   bebe:
     container_name: bebe

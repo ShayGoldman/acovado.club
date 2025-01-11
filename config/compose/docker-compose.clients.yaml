@@ -1,3 +1,5 @@
+name: acovado-clients
+
 services:
   metabase-db:
     extends:
