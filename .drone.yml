@@ -27,14 +27,14 @@ steps:
   ##############################################################################
   # Step 0: Guard against non-merge commits
   ##############################################################################
-  - name: validate-merge-commit
-    image: node:20-bullseye
-    commands:
-      - |
-        if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
-          echo "Not a merge commit. Skipping pipeline."
-          exit 78
-        fi
+  # - name: validate-merge-commit
+  #   image: node:20-bullseye
+  #   commands:
+  #     - |
+  #       if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
+  #         echo "Not a merge commit. Skipping pipeline."
+  #         exit 78
+  #       fi
 
   ##############################################################################
   # Step 1: Build and push shared modules
@@ -150,9 +150,13 @@ steps:
       # Install Git because :(
       - apt-get update
       - apt-get install -y git
+      - apt-get install -y jq
+
+      # Check if there are any changesets
+      - bunx @changesets/cli status --verbose --output changesets.json
+      - jq -e '.changesets == [] and .releases == []' changesets. >/dev/null || exit 0; exit 78
 
       # Apply version bumps
-      - bunx @changesets/cli status || exit 78
       - bunx @changesets/cli version
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
