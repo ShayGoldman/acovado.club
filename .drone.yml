@@ -40,7 +40,7 @@ steps:
   # Step 1: Build and push shared modules
   ##############################################################################
   - name: debig
-    image: docker:20-dind
+    image: docker:27
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -52,7 +52,7 @@ steps:
       - docker build --help | grep cache-to
 
   - name: build-modules
-    image: docker:20
+    image: docker:27
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -70,7 +70,7 @@ steps:
   # Step 2: Build and push bebe
   ##############################################################################
   - name: build-bebe
-    image: docker:20
+    image: docker:27
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -90,7 +90,7 @@ steps:
   # Step 3: Build and push collection
   ##############################################################################
   - name: build-collection
-    image: docker:20
+    image: docker:27
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -110,7 +110,7 @@ steps:
   # Step 4: Build and push ana-liese
   ##############################################################################
   - name: build-ana-liese
-    image: docker:20
+    image: docker:27
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
@@ -158,7 +158,7 @@ steps:
   # Step 7: Deploy 🤙
   ##############################################################################
   - name: deploy
-    image: docker:20
+    image: docker:27
     environment:
       COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
       REGISTRY_URL: ${REGISTRY_URL}
@@ -190,7 +190,7 @@ steps:
   # Step 8: Cleanup Old Images
   ##############################################################################
   - name: cleanup
-    image: docker:20
+    image: docker:27
     environment:
       REGISTRY_URL: ${REGISTRY_URL}
     volumes:
