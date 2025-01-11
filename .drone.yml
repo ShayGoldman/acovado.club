@@ -49,7 +49,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg --target modules-builder -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE} --target modules-builder -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
       - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${MODULES_IMAGE}:latest
@@ -67,7 +67,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg --cache-from=$${MODULES_IMAGE} --target production --build-arg APP_PATH=bebe --build-arg APP_NAME=@apps/bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE} --cache-from=$${BEBE_IMAGE} --target production --build-arg APP_PATH=bebe --build-arg APP_NAME=@apps/bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} $${BEBE_IMAGE}:latest
       - docker push $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${BEBE_IMAGE}:latest
@@ -87,7 +87,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg --cache-from=$${MODULES_IMAGE} --target production --build-arg APP_PATH=collection --build-arg APP_NAME=@apps/collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE} --cache-from=$${COLLECTION_IMAGE} --target production --build-arg APP_PATH=collection --build-arg APP_NAME=@apps/collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} $${COLLECTION_IMAGE}:latest
       - docker push $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${COLLECTION_IMAGE}:latest
@@ -107,7 +107,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --build-arg --cache-from=$${MODULES_IMAGE} --target production --build-arg APP_PATH=ana-liese --build-arg APP_NAME=@apps/ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --cache-from=$${MODULES_IMAGE} --cache-from=$${ANA_LIESE_IMAGE} --target production --build-arg APP_PATH=ana-liese --build-arg APP_NAME=@apps/ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA_LIESE_IMAGE}:latest
       - docker push $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${ANA_LIESE_IMAGE}:latest
