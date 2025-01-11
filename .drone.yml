@@ -119,30 +119,30 @@ steps:
   ##############################################################################
   # Step 5: Check for change sets
   ##############################################################################
-  - name: check-changesets
-    image: oven/bun
-    commands:
-      - bunx changeset status
-    depends_on:
-      - build-bebe
-      - build-collection
-      - build-ana-liese
+  # - name: check-changesets
+  #   image: oven/bun
+  #   commands:
+  #     - bunx changeset status
+  #   depends_on:
+  #     - build-bebe
+  #     - build-collection
+  #     - build-ana-liese
 
   ##############################################################################
   # Step 6: Apply version bumps and update CHNAGELOG.md
   ##############################################################################
-  - name: apply-changesets
-    image: oven/bun
-    commands:
-      - bunx changeset version
-      - git config user.name "Drone CI"
-      - git config user.email "ci@acovado.club"
-      - git add CHANGELOG.md
-      - |
-        git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
-      - git push origin main
-    depends_on:
-      - check-changesets
+  # - name: apply-changesets
+  #   image: oven/bun
+  #   commands:
+  #     - bunx changeset version
+  #     - git config user.name "Drone CI"
+  #     - git config user.email "ci@acovado.club"
+  #     - git add CHANGELOG.md
+  #     - |
+  #       git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
+  #     - git push origin main
+  #   depends_on:
+  #     - check-changesets
 
   ##############################################################################
   # Step 7: Deploy 🤙
