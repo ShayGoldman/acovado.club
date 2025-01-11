@@ -4,6 +4,7 @@
   "packageManager": "bun@1.1.36",
   "scripts": {
     "build": "bun build src/index.ts --outdir lib --target node",
+    "debug": "bun --inspect=localhost:16000/bebe src/index.ts",
     "dev": "bun --watch src/index.ts",
     "lint": "bun eslint --fix .",
     "format": "bun prettier --write .",

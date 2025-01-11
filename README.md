@@ -1,26 +1,8 @@
 # acovado.club
 
-[![Build Status](https://ci.acovado.club/api/badges/ShayGoldman/acovado.club/status.svg?ref=refs/heads/main)](https://ci.acovado.club/ShayGoldman/acovado.club)
+![Build Status](https://ci.acovado.club/api/badges/ShayGoldman/acovado.club/status.svg?ref=refs/heads/main)
 
 ## Local Development
-
-### Option 1:
-
-Use docker-compose to run the local development environment using the following command:
-
-```bash
-docker compose -f docker-compose.yaml \
-               -f infra/postgres/docker-compose.yaml \
-               -f apps/collection/docker-compose.yaml \
-               -f apps/bebe/docker-compose.yaml \
-                up
-```
-
-### Option 2:
-
-Use option 1 with Dev containers (IDE plugin)
-
-### Option 3:
 
 Run everything locally by following these instructions from the root of the project:
 
@@ -29,13 +11,18 @@ Run everything locally by following these instructions from the root of the proj
 3. `bunx turbo dev --filter="@clients/*"`
 4. `bunx turbo dev --filter="@apps/*"`
 
+## Debugging
+
+It won't be the easiest to debug locally, but each of the apps has a `debug` script that will start the app with the `--inspect` flag.
+You can then attach to the process using the VSCode debugger.
+
 ## Tasks
 
+[ ] Use Docker cache for builds
+[ ] Daily Docker cleanup
 [ ] Add turbo prune with cache between each build (https://turbo.build/repo/docs/guides/tools/docker)
 [ ] Add prometheus metrics everywhere
 [ ] Add tracing to proxy everywhere
-[ ] Separate the docker networks used: proxy for front facing services, internal for internal services
-[ ] Support envs
 [ ] Add healthz endpoint for all services + production docker-compose
 [ ] Solve number handling (no floating points! and Number)
 [ ] Support silent mode for simulation to avoid spamming the console with producer messages
@@ -47,7 +34,6 @@ Run everything locally by following these instructions from the root of the proj
 [ ] Actually set a `correlationId` on messages and propagate it
 [ ] Support pre & post migration scripts (db) => Promise<void>
 [ ] Add Drizzle eslint plugin (https://orm.drizzle.team/docs/eslint-plugin)
-[ ] Running production mode with docker compose
 
 # Drizzle studio theme
 

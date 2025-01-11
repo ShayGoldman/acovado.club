@@ -17,8 +17,7 @@
   "keywords": [
     "cli",
     "simulation",
-    "stock-market",
-    "rabbitmq"
+    "stock-market"
   ],
   "author": "",
   "license": "ISC",
