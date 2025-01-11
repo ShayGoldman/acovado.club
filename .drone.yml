@@ -187,16 +187,12 @@ steps:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      # Keep only the last 3 images for each repository
-      - docker images --format "{{.Repository}}:{{.Tag}}" | grep "${REGISTRY_URL}" | sort -r | awk -F':' '{print $1}' | uniq | while read repo; do
-        images=$(docker images --format "{{.Repository}}:{{.Tag}} {{.CreatedAt}}" | grep "^$repo" | sort -k2 | awk 'NR>3 {print $1}');
-        if [ -n "$images" ]; then
-        docker rmi -f $images || true;
-        fi;
+      - |
+        docker images --format "{{.Repository}}:{{.Tag}}" | grep "${REGISTRY_URL}" | while read image; do
+          if ! docker ps --filter "ancestor=$image" --format "{{.Image}}" | grep -q "$image"; then
+            docker rmi -f $image || true;
+          fi;
         done
-
-      # Remove dangling images
-      - docker image prune -f
     depends_on:
       - deploy
 
