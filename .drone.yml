@@ -115,7 +115,22 @@ steps:
       - build-modules
 
   ##############################################################################
-  # Step 5: Apply version bumps and update CHNAGELOG.md
+  # Step 5: Post build
+  ##############################################################################
+  - name: post-build
+    image: bash
+    commands:
+      - echo "Build complete"
+      - echo "(bebe) $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(collection) $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(ana-liese) $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}"
+    depends_on:
+      - build-bebe
+      - build-collection
+      - build-ana-liese
+
+  ##############################################################################
+  # Step 6: Apply version bumps and update CHNAGELOG.md
   ##############################################################################
   - name: apply-changesets
     image: oven/bun
@@ -134,10 +149,10 @@ steps:
         git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
       - git push origin main
     depends_on:
-      - check-changesets
+      - post-build
 
   ##############################################################################
-  # Step 6: Deploy 🤙
+  # Step 7: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker:27
@@ -164,12 +179,10 @@ steps:
       - docker-compose -f config/compose/docker-compose.clients.yaml -p acovado-clients up --detach --force-recreate
       - docker-compose -f config/compose/docker-compose.apps.yaml -p acovado-apps up --detach --force-recreate
     depends_on:
-      - build-bebe
-      - build-collection
-      - build-ana-liese
+      - post-build
 
   ##############################################################################
-  # Step 7: Cleanup Old Images
+  # Step 8: Cleanup Old Images
   ##############################################################################
   - name: cleanup
     image: docker:27
