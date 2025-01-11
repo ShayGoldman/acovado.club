@@ -132,6 +132,11 @@ steps:
   - name: apply-changesets
     image: oven/bun
     commands:
+      # Install Git because :(
+      - apt-get update
+      - apt-get install -y git
+
+      # Apply version bumps
       - bunx @changesets/cli version
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
