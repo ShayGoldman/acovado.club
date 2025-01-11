@@ -27,14 +27,14 @@ steps:
   ##############################################################################
   # Step 0: Guard against non-merge commits
   ##############################################################################
-  # - name: validate-merge-commit
-  #   image: node:20-bullseye
-  #   commands:
-  #     - |
-  #       if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
-  #         echo "Not a merge commit. Skipping pipeline."
-  #         exit 78
-  #       fi
+  - name: validate-merge-commit
+    image: node:20-bullseye
+    commands:
+      - |
+        if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
+          echo "Not a merge commit. Skipping pipeline."
+          exit 78
+        fi
 
   ##############################################################################
   # Step 1: Build and push shared modules
@@ -43,8 +43,8 @@ steps:
     image: bash
     commands:
       - echo "Preparing to build images..."
-    # depends_on:
-    #   - validate-merge-commit
+    depends_on:
+      - validate-merge-commit
 
   ##############################################################################
   # Step 2: Build and push shared modules
