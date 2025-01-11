@@ -53,8 +53,8 @@ steps:
       - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
       - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${MODULES_IMAGE}:latest
-    depends_on:
-      - validate-merge-commit
+    # depends_on:
+    #   - validate-merge-commit
 
   ##############################################################################
   # Step 2: Build and push bebe
