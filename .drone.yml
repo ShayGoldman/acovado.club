@@ -40,7 +40,7 @@ steps:
   # Step 1: Build and push shared modules
   ##############################################################################
   - name: debig
-    image: docker:20
+    image: docker:20-dind
     environment:
       DOCKER_BUILDKIT: 1
     volumes:
