@@ -1,0 +1,35 @@
+version: '3.9'
+services:
+  grafana:
+    extends:
+      file: ./docker-compose.base.yaml
+      service: grafana
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+
+  otel-collector:
+    extends:
+      file: ./docker-compose.base.yaml
+      service: otel-collector
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - '9090:9090'
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    ports:
+      - '3200:3200'
+    command: [-config.file=/etc/tempo.yaml]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - ./tempo-data:/tmp/tempo
+
+volumes:
+  grafana-data:
+  tempo-data:
