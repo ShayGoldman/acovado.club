@@ -1,10 +1,224 @@
 kind: pipeline
 type: docker
-name: default
+name: acovado
+
+environment:
+  REGISTRY_URL: docker-registry.acovado.club
+  MODULES_IMAGE: docker-registry.acovado.club/modules
+  BEBE_IMAGE: docker-registry.acovado.club/bebe
+  COLLECTION_IMAGE: docker-registry.acovado.club/collection
+  ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
+
+volumes:
+  - name: docker-socket
+    host:
+      path: /var/run/docker.sock
+  - name: docker-cache
+    host:
+      path: /var/lib/docker
+  - name: volumes-root
+    host:
+      path: /srv/volumes
+  - name: env-files-root
+    host:
+      path: /srv/env
 
 steps:
-  - name: greeting
-    image: alpine
+  ##############################################################################
+  # Step 0: Guard against non-merge commits
+  ##############################################################################
+  - name: validate-merge-commit
+    image: node:20-bullseye
     commands:
-      - echo hello
-      - echo world
+      - |
+        if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
+          echo "Not a merge commit. Skipping pipeline."
+          exit 78
+        fi
+
+  ##############################################################################
+  # Step 1: Build and push shared modules
+  ##############################################################################
+  - name: pre-build
+    image: bash
+    commands:
+      - echo "Preparing to build images..."
+    depends_on:
+      - validate-merge-commit
+
+  ##############################################################################
+  # Step 2: Build and push shared modules
+  ##############################################################################
+  - name: build-modules
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target modules-builder -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
+      - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${MODULES_IMAGE}:latest
+    depends_on:
+      - pre-build
+
+  ##############################################################################
+  # Step 3: Build and push bebe
+  ##############################################################################
+  - name: build-bebe
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target production --build-arg APP_PATH=bebe --build-arg APP_NAME=@apps/bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} $${BEBE_IMAGE}:latest
+      - docker push $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${BEBE_IMAGE}:latest
+    depends_on:
+      - build-modules
+
+  ##############################################################################
+  # Step 4: Build and push collection
+  ##############################################################################
+  - name: build-collection
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target production --build-arg APP_PATH=collection --build-arg APP_NAME=@apps/collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} $${COLLECTION_IMAGE}:latest
+      - docker push $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${COLLECTION_IMAGE}:latest
+    depends_on:
+      - build-modules
+
+  ##############################################################################
+  # Step 5: Build and push ana-liese
+  ##############################################################################
+  - name: build-ana-liese
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target production --build-arg APP_PATH=ana-liese --build-arg APP_NAME=@apps/ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA_LIESE_IMAGE}:latest
+      - docker push $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${ANA_LIESE_IMAGE}:latest
+    depends_on:
+      - build-modules
+
+  ##############################################################################
+  # Step 6: Post build
+  ##############################################################################
+  - name: post-build
+    image: bash
+    commands:
+      - echo "Build complete"
+      - echo "(bebe) $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(collection) $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(ana-liese) $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}"
+    depends_on:
+      - build-bebe
+      - build-collection
+      - build-ana-liese
+
+  ##############################################################################
+  # Step 7: Apply version bumps and update CHNAGELOG.md
+  ##############################################################################
+  - name: apply-changesets
+    image: oven/bun
+    commands:
+      # Install Git because :(
+      - apt-get update
+      - apt-get install -y git
+      - apt-get install -y jq
+
+      # Check if there are any changesets
+      - bunx @changesets/cli status --verbose --output changesets.json
+      - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null || exit 0; exit 78
+
+      # Apply version bumps
+      - bunx @changesets/cli version
+      - git config user.name "Drone CI"
+      - git config user.email "ci@acovado.club"
+      - git add CHANGELOG.md
+      - |
+        git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
+      - git push origin main
+    depends_on:
+      - post-build
+
+  ##############################################################################
+  # Step 8: Deploy 🤙
+  ##############################################################################
+  - name: deploy
+    image: docker
+    environment:
+      COMMIT_HASH: ${DRONE_COMMIT_SHA} # Pass the commit hash
+      REGISTRY_URL: ${REGISTRY_URL}
+      PROJECT_ROOT: /drone/src
+      VOLUMES_ROOT: /srv/volumes
+      CONFIG_FILES_ROOT: /srv/volumes/deployment
+      ENV_FILES_ROOT: /srv/env
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: env-files-root
+        path: /srv/env
+      - name: volumes-root
+        path: /srv/volumes
+    commands:
+      # Update current deployment folder
+      - cp -rf /drone/src/infra /srv/volumes/deployment
+
+      # Deploy the new environment
+      - docker-compose -f config/compose/docker-compose.infra.yaml -p acovado-infra up --detach
+      - docker-compose -f config/compose/docker-compose.clients.yaml -p acovado-clients up --detach --force-recreate
+      - docker-compose -f config/compose/docker-compose.apps.yaml -p acovado-apps up --detach --force-recreate
+    depends_on:
+      - post-build
+
+  ##############################################################################
+  # Step 9: Cleanup Old Images
+  ##############################################################################
+  - name: cleanup
+    image: docker
+    environment:
+      REGISTRY_URL: ${REGISTRY_URL}
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    commands:
+      - |
+        docker images --format "{{.Repository}}:{{.Tag}}" | grep "${REGISTRY_URL}" | while read image; do
+          if ! docker ps --filter "ancestor=$image" --format "{{.Image}}" | grep -q "$image"; then
+            docker rmi -f $image || true;
+          fi;
+        done
+    depends_on:
+      - deploy
+
+trigger:
+  branch:
+    - main
+  event:
+    - push

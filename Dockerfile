@@ -2,32 +2,36 @@
 FROM oven/bun:1 AS base
 WORKDIR /usr/src/app
 
-# Stage 1: Install dependencies (including workspace dependencies)
+FROM oven/bun:1-alpine AS base-alpine
+WORKDIR /usr/src/app
+
+# Stage 1: Install dependencies
 FROM base AS dependencies
 COPY . ./
-WORKDIR /usr/src/app
 RUN bun install --frozen-lockfile
 
-# Stage 2: Build the application (for production)
-FROM base AS build
+# Stage 2: Build shared modules
+FROM base-alpine AS modules-builder
 COPY --from=dependencies /usr/src/app ./
 WORKDIR /usr/src/app
-ENV NODE_ENV=production
-RUN bun run build
+RUN bunx turbo build --filter="@modules/*"
 
-# Stage 3: Production runtime
-FROM base AS production
+# Stage 3: Build each app
+FROM base AS app-builder
+ARG APP_NAME
+COPY --from=modules-builder /usr/src/app ./
 WORKDIR /usr/src/app
+RUN bunx turbo build --filter="$APP_NAME"
+
+# Stage 4: Production image
+FROM base-alpine AS production
+WORKDIR /usr/src/app
+ARG APP_PATH
 COPY --from=dependencies /usr/src/app ./
-COPY --from=build /usr/src/app/lib ./lib
+COPY --from=modules-builder /usr/src/app/modules ./modules
+COPY --from=app-builder /usr/src/app/apps/$APP_PATH ./apps/$APP_PATH
+WORKDIR /usr/src/app/apps/$APP_PATH
 ENV NODE_ENV=production
 USER bun
-EXPOSE 3000/tcp
+EXPOSE 3000
 CMD ["bun", "run", "lib/index.js"]
-
-# Stage 4: Development runtime
-FROM base AS development
-WORKDIR /usr/src/app
-COPY --from=dependencies /usr/src/app ./
-EXPOSE 3000/tcp
-CMD ["bun", "dev"]

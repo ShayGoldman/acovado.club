@@ -15,10 +15,10 @@ export function makeTracingLogger(logger: Logger, span: Span): Logger {
 
       // Process args to extract message and attributes
       const { message, attributes } = parseLogArgs(args);
-
+      const spanEventPayload = { _msg: message, ...flattenObject(attributes) };
       // Add an event to the tracing span
       if (span && typeof span.addEvent === 'function') {
-        span.addEvent(message, flattenObject(attributes));
+        span.addEvent(message, spanEventPayload);
       }
     };
   }

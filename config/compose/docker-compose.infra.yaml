@@ -1,0 +1,166 @@
+name: acovado-infra
+
+services:
+  postgres:
+    extends:
+      file: ../../infra/postgres/docker-compose.base.yaml
+      service: postgres
+    env_file:
+      - ${ENV_FILES_ROOT}/postgres.env
+    environment:
+      POSTGRES_DB: production
+    volumes:
+      - ${VOLUMES_ROOT}/postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: '4gb'
+
+  # TODO Drizzle studio maybe?
+
+  rabbitmq:
+    extends:
+      file: ../../infra/rabbitmq/docker-compose.base.yaml
+      service: rabbitmq
+    env_file:
+      - ${ENV_FILES_ROOT}/rabbitmq.env
+    networks:
+      - internal-network
+      - proxy-network
+    restart: unless-stopped
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.acovado.club`)'
+      - 'traefik.http.routers.rabbitmq.entrypoints=websecure'
+      - 'traefik.http.routers.rabbitmq.tls.certresolver=acovado'
+      - 'traefik.http.services.rabbitmq.loadbalancer.server.port=15672'
+      - 'traefik.http.routers.rabbitmq.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: '4gb'
+
+  grafana:
+    extends:
+      file: ../../infra/tracing/docker-compose.base.yaml
+      service: grafana
+    env_file:
+      - ${ENV_FILES_ROOT}/grafana.env
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/tracing/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    ports: []
+    networks:
+      - proxy-network
+      - internal-network
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)'
+      - 'traefik.http.routers.grafana.entrypoints=websecure'
+      - 'traefik.http.routers.grafana.tls.certresolver=acovado'
+      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+      - 'traefik.http.routers.grafana.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
+    restart: unless-stopped
+    depends_on:
+      - tempo
+      - prometheus
+      - otel-collector
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
+
+  otel-collector:
+    extends:
+      file: ../../infra/tracing/docker-compose.base.yaml
+      service: otel-collector
+    env_file:
+      - ${ENV_FILES_ROOT}/otel-collector.env
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports: []
+    networks:
+      - internal-network
+    restart: unless-stopped
+    depends_on:
+      - tempo
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '1gb'
+
+  prometheus:
+    extends:
+      file: ../../infra/tracing/docker-compose.base.yaml
+      service: prometheus
+    env_file:
+      - ${ENV_FILES_ROOT}/prometheus.env
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports: []
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
+
+  tempo:
+    extends:
+      file: ../../infra/tracing/docker-compose.base.yaml
+      service: tempo
+    env_file:
+      - ${ENV_FILES_ROOT}/tempo.env
+    ports: []
+    command: [-config.file=/etc/tempo.yaml]
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/tracing/tempo.yaml:/etc/tempo.yaml
+      - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '2gb'
+
+  stats:
+    image: portainer/portainer-ce:2.25.1-alpine
+    container_name: stats
+    ports: []
+    networks:
+      - proxy-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/volumes/stats:/data
+    restart: always
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.stats.rule=Host(`stats.acovado.club`)'
+      - 'traefik.http.routers.stats.entrypoints=websecure'
+      - 'traefik.http.routers.stats.tls.certresolver=acovado'
+      - 'traefik.http.services.stats.loadbalancer.server.port=9000'
+      - 'traefik.http.routers.stats.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '2gb'
+
+networks:
+  proxy-network:
+    external: true
+  internal-network:
+    external: true

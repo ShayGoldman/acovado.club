@@ -1,5 +1,6 @@
 {
   "name": "@infra/postgres",
+  "version": "0.1.0",
   "packageManager": "bun@1.1.36",
   "scripts": {
     "start": "docker compose up",

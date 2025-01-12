@@ -2,6 +2,7 @@ version: '3.9'
 services:
   grafana:
     image: grafana/grafana:10.1.1
+    container_name: grafana
     volumes:
       - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
     environment:
@@ -12,10 +13,12 @@ services:
     ports:
       - 3000:3000
     depends_on:
-      - jaeger
+      - tempo
+      - prometheus
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
     command: ['--config=/etc/otel-collector-config.yaml']
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
@@ -23,15 +26,9 @@ services:
       - '4317:4317' # OTLP gRPC receiver
       - '4318:4318' # OTLP gRPC receiver
 
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - '6831:6831/udp' # UDP port for Jaeger agent
-      - '16686:16686' # Web UI
-      - '14268:14268' # HTTP port for spans
-
   prometheus:
     image: prom/prometheus:latest
+    container_name: prometheus
     volumes:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
@@ -49,5 +46,4 @@ services:
 
 volumes:
   grafana-data:
-  jaeger-data:
   tempo-data:

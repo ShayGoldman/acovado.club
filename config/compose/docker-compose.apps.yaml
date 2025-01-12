@@ -1,0 +1,58 @@
+name: acovado-apps
+
+services:
+  bebe:
+    container_name: bebe
+    image: ${REGISTRY_URL}/bebe:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/bebe.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+      CRONS_START_ON_INIT: false
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
+
+  collection:
+    container_name: collection
+    image: ${REGISTRY_URL}/collection:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/collection.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '1gb'
+
+  ana-liese:
+    container_name: ana-liese
+    image: ${REGISTRY_URL}/ana-liese:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/ana-liese.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: '2gb'
+
+networks:
+  internal-network:
+    external: true
