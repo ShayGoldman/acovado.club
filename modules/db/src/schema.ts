@@ -121,6 +121,24 @@ export const stories = finance.table('stories', (c) => ({
   createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
 }));
 
+export const bleh = finance.table('stories_bleh', (c) => ({
+  id: c.serial().primaryKey(),
+  type: c.varchar('type', { length: 128 }).notNull(),
+  ticker: c.uuid('ticker_id').notNull(),
+  signal: c.integer('signal_id').notNull(),
+  change: c.doublePrecision('change').notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+}));
+
+export const bbbb = finance.table('bbbbbbbb', (c) => ({
+  id: c.serial().primaryKey(),
+  type: c.varchar('type', { length: 128 }).notNull(),
+  ticker: c.uuid('ticker_id').notNull(),
+  signal: c.integer('signal_id').notNull(),
+  change: c.doublePrecision('change').notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+}));
+
 export const schema = {
   watchLists,
   watchListsRelations,
