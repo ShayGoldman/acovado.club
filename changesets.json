@@ -1,0 +1,53 @@
+{
+  "changesets": [
+    {
+      "releases": [
+        {
+          "name": "@modules/db",
+          "type": "minor"
+        }
+      ],
+      "summary": "support for migration pre/post hooks",
+      "id": "many-clouds-serve"
+    }
+  ],
+  "releases": [
+    {
+      "name": "@modules/db",
+      "type": "minor",
+      "oldVersion": "0.1.0",
+      "changesets": [
+        "many-clouds-serve"
+      ],
+      "newVersion": "0.2.0"
+    },
+    {
+      "name": "@apps/ana-liese",
+      "type": "patch",
+      "oldVersion": "0.1.0",
+      "changesets": [],
+      "newVersion": "0.1.1"
+    },
+    {
+      "name": "@apps/bebe",
+      "type": "patch",
+      "oldVersion": "0.1.0",
+      "changesets": [],
+      "newVersion": "0.1.1"
+    },
+    {
+      "name": "@apps/collection",
+      "type": "patch",
+      "oldVersion": "0.1.0",
+      "changesets": [],
+      "newVersion": "0.1.1"
+    },
+    {
+      "name": "@tests/simulation",
+      "type": "patch",
+      "oldVersion": "0.1.0",
+      "changesets": [],
+      "newVersion": "0.1.1"
+    }
+  ]
+}

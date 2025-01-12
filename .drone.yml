@@ -154,13 +154,13 @@ steps:
 
       # Check if there are any changesets
       - bunx @changesets/cli status --verbose --output changesets.json
-      - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null || exit 0; exit 78
+      - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null && exit 78 || true
 
       # Apply version bumps
       - bunx @changesets/cli version
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
-      - git add CHANGELOG.md
+      - git add .
       - |
         git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
       - git push origin main
