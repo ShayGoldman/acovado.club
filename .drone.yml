@@ -219,8 +219,6 @@ steps:
 
 trigger:
   branch:
-    - ci/setup
+    - main
   event:
     - push
-  # branch:
-  #   - main
