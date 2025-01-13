@@ -1,6 +1,6 @@
 {
   "name": "@tests/simulation",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI tool to simulate stock market signal events by publishing them to RabbitMQ.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
