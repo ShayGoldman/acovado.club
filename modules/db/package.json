@@ -22,6 +22,7 @@
   "license": "ISC",
   "dependencies": {
     "@modules/logger": "workspace:*",
+    "bluebird": "^3.7.2",
     "drizzle-orm": "^0.36.4",
     "drizzle-zod": "^0.5.1",
     "pg": "^8.13.1",
@@ -32,6 +33,7 @@
     "@config/prettier": "workspace:*",
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*",
+    "@types/bluebird": "^3.5.42",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.28.1",
     "drizzle-seed": "^0.1.3",
