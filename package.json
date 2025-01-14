@@ -14,27 +14,24 @@
   "scripts": {
     "build": "bunx turbo run build",
     "clean": "bunx turbo run clean",
-    "format": "bunx turbo run format",
-    "lint": "bunx turbo run lint",
-    "test": "bunx turbo run test"
+    "format": "bunx turbo run format --",
+    "lint": "bunx turbo run lint --",
+    "test": "bunx turbo run test",
+    "commit": "bunx cz",
+    "prepare": "bunx husky"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
     "@config/tsconfig": "workspace:*",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.10",
     "turbo": "^2.3.1"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "bun run lint",
-      "bun run format"
-    ],
-    "*.json": [
-      "bun run format"
-    ]
   }
 }
