@@ -5,49 +5,67 @@
         {
           "name": "@modules/db",
           "type": "minor"
+        },
+        {
+          "name": "@apps/collection",
+          "type": "patch"
+        },
+        {
+          "name": "@apps/ana-liese",
+          "type": "patch"
+        },
+        {
+          "name": "@apps/bebe",
+          "type": "patch"
         }
       ],
-      "summary": "support for migration pre/post hooks",
-      "id": "many-clouds-serve"
+      "summary": "replace database schema name + use tracer for db migrations",
+      "id": "big-wolves-march"
     }
   ],
   "releases": [
     {
       "name": "@modules/db",
       "type": "minor",
-      "oldVersion": "0.1.0",
+      "oldVersion": "0.2.0",
       "changesets": [
-        "many-clouds-serve"
+        "big-wolves-march"
       ],
-      "newVersion": "0.2.0"
-    },
-    {
-      "name": "@apps/ana-liese",
-      "type": "patch",
-      "oldVersion": "0.1.0",
-      "changesets": [],
-      "newVersion": "0.1.1"
-    },
-    {
-      "name": "@apps/bebe",
-      "type": "patch",
-      "oldVersion": "0.1.0",
-      "changesets": [],
-      "newVersion": "0.1.1"
+      "newVersion": "0.3.0"
     },
     {
       "name": "@apps/collection",
       "type": "patch",
-      "oldVersion": "0.1.0",
-      "changesets": [],
-      "newVersion": "0.1.1"
+      "oldVersion": "0.1.1",
+      "changesets": [
+        "big-wolves-march"
+      ],
+      "newVersion": "0.1.2"
+    },
+    {
+      "name": "@apps/ana-liese",
+      "type": "patch",
+      "oldVersion": "0.1.1",
+      "changesets": [
+        "big-wolves-march"
+      ],
+      "newVersion": "0.1.2"
+    },
+    {
+      "name": "@apps/bebe",
+      "type": "patch",
+      "oldVersion": "0.1.1",
+      "changesets": [
+        "big-wolves-march"
+      ],
+      "newVersion": "0.1.2"
     },
     {
       "name": "@tests/simulation",
       "type": "patch",
-      "oldVersion": "0.1.0",
+      "oldVersion": "0.1.1",
       "changesets": [],
-      "newVersion": "0.1.1"
+      "newVersion": "0.1.2"
     }
   ]
 }
