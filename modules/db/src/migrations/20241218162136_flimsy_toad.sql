@@ -1,1 +1,0 @@
-ALTER TABLE "finance"."stories" ADD COLUMN "type" varchar(128) NOT NULL DEFAULT 'unknown';

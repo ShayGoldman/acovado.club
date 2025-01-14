@@ -1,6 +1,6 @@
 {
-  "id": "492424cd-d6c9-4226-95a3-9d71927b6dad",
-  "prevId": "931abcb0-e614-4abc-8147-17a8b1b9aa8d",
+  "id": "6815724a-1817-49e6-b48b-c4d447c56113",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -195,7 +195,7 @@
         },
         "ticker_id": {
           "name": "ticker_id",
-          "type": "varchar(128)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -380,7 +380,8 @@
   },
   "enums": {},
   "schemas": {
-    "finance": "finance"
+    "finance": "finance",
+    "metabase": "metabase"
   },
   "sequences": {},
   "roles": {},

@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1732994765384,
-      "tag": "20241130192605_perfect_cloak",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1733162858994,
-      "tag": "20241202180738_yielding_colossus",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1733960526697,
-      "tag": "20241211234206_past_squadron_sinister",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1734027933358,
-      "tag": "20241212182533_brief_expediter",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1734383135994,
-      "tag": "20241216210535_zippy_dexter_bennett",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1734538896327,
-      "tag": "20241218162136_flimsy_toad",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1734545088779,
-      "tag": "20241218180448_pink_gwen_stacy",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1734547186692,
-      "tag": "20241218183946_silly_talos",
+      "when": 1736882270069,
+      "tag": "20250114191750_clever_silver_samurai",
       "breakpoints": true
     }
   ]

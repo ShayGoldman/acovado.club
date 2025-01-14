@@ -1,1 +1,0 @@
-ALTER TABLE "finance"."stories" ALTER COLUMN "ticker_id" SET DATA TYPE uuid USING ticker_id::uuid;

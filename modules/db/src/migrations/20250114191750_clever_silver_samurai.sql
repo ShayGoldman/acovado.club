@@ -1,18 +1,41 @@
 CREATE SCHEMA "finance";
 --> statement-breakpoint
+CREATE SCHEMA "metabase";
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "finance"."collections" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"type" varchar(64) NOT NULL,
 	"status" varchar(64) NOT NULL,
+	"data" jsonb NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "finance"."kv_store" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"key" varchar(128) NOT NULL,
+	"value" varchar(256) NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "kv_store_key_unique" UNIQUE("key")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "finance"."signal_metrics" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"ticker_id" uuid NOT NULL,
 	"collection_id" integer NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"type" varchar(128) NOT NULL,
+	"metric" numeric(15, 4) NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "finance"."stories" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"type" varchar(128) NOT NULL,
+	"ticker_id" uuid NOT NULL,
+	"signal_id" integer NOT NULL,
+	"change" double precision NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "finance"."tickers" (
