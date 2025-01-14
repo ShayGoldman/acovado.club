@@ -55,6 +55,19 @@ Run everything locally by following these instructions from the root of the proj
 It won't be the easiest to debug locally, but each of the apps has a `debug` script that will start the app with the `--inspect` flag.
 You can then attach to the process using the VSCode debugger.
 
-# Drizzle studio theme
+## Contributing
+
+We welcome contributions to this project! To get started:
+
+- Clone the repository to your message.
+- Create a new branch for your feature or bugfix according to [Conventional Commits](https://www.conventionalcommits.org/) guidelines.
+- Follow our commit and versioning process:
+  - Use `commitizen` for structured and detailed commit messages by running `bun commit` before each commit.
+  - Use `bun changeset` if a version bump is required for your changes.
+  - `husky` hooks execute before a commit is made
+- Submit a pull request with a clear explanation of your changes.
+- Merging to `main` branch deploys the code to production and applies changesets.
+
+#### Drizzle studio theme
 
 https://drizzle.studio/themes/elKOzCWRB2NDOTHL8_f8C/edit?token=0ad6fab842e81f61d5f2d2679526e7a3823b96b4
