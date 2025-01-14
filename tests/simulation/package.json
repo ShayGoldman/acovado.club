@@ -12,7 +12,7 @@
     "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
     "typecheck": "bun tsc --noEmit",
     "lint": "bun eslint --fix .",
-    "format": "bun prettier --write ."
+    "format": "prettier --write ."
   },
   "keywords": [
     "cli",

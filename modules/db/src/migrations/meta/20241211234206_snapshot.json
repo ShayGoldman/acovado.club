@@ -104,12 +104,8 @@
           "tableFrom": "signal_metrics",
           "tableTo": "tickers",
           "schemaTo": "finance",
-          "columnsFrom": [
-            "ticker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ticker_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -118,12 +114,8 @@
           "tableFrom": "signal_metrics",
           "tableTo": "collections",
           "schemaTo": "finance",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -179,9 +171,7 @@
         "tickers_symbol_unique": {
           "name": "tickers_symbol_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "symbol"
-          ]
+          "columns": ["symbol"]
         }
       },
       "policies": {},
@@ -219,12 +209,8 @@
           "tableFrom": "watch_list_to_tickers",
           "tableTo": "watch_lists",
           "schemaTo": "finance",
-          "columnsFrom": [
-            "watch_list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["watch_list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -233,12 +219,8 @@
           "tableFrom": "watch_list_to_tickers",
           "tableTo": "tickers",
           "schemaTo": "finance",
-          "columnsFrom": [
-            "ticker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ticker_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -246,10 +228,7 @@
       "compositePrimaryKeys": {
         "watch_list_to_tickers_watch_list_id_ticker_id_pk": {
           "name": "watch_list_to_tickers_watch_list_id_ticker_id_pk",
-          "columns": [
-            "watch_list_id",
-            "ticker_id"
-          ]
+          "columns": ["watch_list_id", "ticker_id"]
         }
       },
       "uniqueConstraints": {},

@@ -1,0 +1,9 @@
+{
+  "*.{ts,js}": [
+    "bun lint",
+    "bun format"
+  ],
+  "*.json": [
+    "bun format"
+  ]
+}

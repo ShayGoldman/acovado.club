@@ -7,7 +7,7 @@
     "debug": "bun --inspect=localhost:16000/bebe src/index.ts",
     "dev": "bun --watch src/index.ts",
     "lint": "bun eslint --fix .",
-    "format": "bun prettier --write .",
+    "format": "prettier --write .",
     "clean": "rm -rf .turbo && rm -rf lib && rm -rf node_modules"
   },
   "devDependencies": {
