@@ -6,6 +6,7 @@ import { Promise } from 'bluebird';
 import { sql } from 'drizzle-orm';
 
 import { makeDBClient, type DBClient } from '@/client';
+import type { Tracer } from '@modules/tracing';
 
 export interface MigrationOpts {
   migrationsSchema?: string;
@@ -15,7 +16,7 @@ export interface MigrationOpts {
 
 export interface MakeMigrateDBOpts {
   url: string;
-  logger: Logger;
+  tracer: Tracer;
   opts?: MigrationOpts;
 }
 
@@ -142,82 +143,94 @@ async function runSingleMigration(
   logger.info(`Migration completed successfully: ${file}`);
 }
 
-export function makeMigrateDB({ url, logger, opts }: MakeMigrateDBOpts) {
-  const db = makeDBClient({ url, logger });
-
+export function makeMigrateDB({ url, opts, tracer }: MakeMigrateDBOpts) {
   return async () => {
-    const migrationsSchema = opts?.migrationsSchema ?? 'migrations';
-    const migrationsTable = opts?.migrationsTable ?? '__migrations__';
-    const concurrentHashes = opts?.concurrentHashes ?? 10;
+    return tracer.with('Migrate database', async (ctx) => {
+      ctx.log.debug('Instantiating DB client...');
+      const db = makeDBClient({ url, logger: ctx.log });
+      ctx.log.debug('DB client instantiated...');
 
-    const migrationsFolder = path.resolve(__dirname, './migrations');
-    logger.info('Migrating Database...');
+      const migrationsSchema = opts?.migrationsSchema ?? 'migrations';
+      const migrationsTable = opts?.migrationsTable ?? '__migrations__';
+      const concurrentHashes = opts?.concurrentHashes ?? 10;
 
-    logger.debug(
-      { migrationsSchema, migrationsTable, migrationsFolder, concurrentHashes },
-      'Using these options for migration',
-    );
+      const migrationsFolder = path.resolve(__dirname, './migrations');
+      ctx.log.info('Migrating Database...');
 
-    // 1. Ensure migrations table
-    logger.debug('Ensuring migrations table exists...');
-    await ensureMigrationsTable(db, migrationsSchema, migrationsTable);
-    logger.debug('Migrations table verified.');
-
-    // 2. Get applied migrations
-    logger.debug('Fetching applied migrations...');
-    const applied = await getAppliedMigrations(db, migrationsSchema, migrationsTable);
-    logger.debug(
-      `Applied migrations: ${Array.from(applied.keys()).join(', ') || 'None'}`,
-    );
-
-    // 3. Get all SQL files with their checksums
-    logger.debug('Retrieving all SQL migration files...');
-    const migrationFiles = await getSqlFiles(migrationsFolder, concurrentHashes);
-    logger.debug(
-      `Found migration files: ${migrationFiles.map((f) => f.filename).join(', ')}`,
-    );
-
-    // 4. Detect out-of-order migrations
-    logger.debug('Checking for out-of-order migrations...');
-    const appliedFilenames = Array.from(applied.keys());
-    const driftedMigration = migrationFiles.filter(
-      ({ filename }) =>
-        !applied.has(filename) &&
-        appliedFilenames.some((appliedFile) => filename < appliedFile),
-    );
-
-    if (driftedMigration.length > 0) {
-      throw new Error(
-        `Migration drift detected in: ${driftedMigration.map((f) => f.filename).join(', ')}`,
+      ctx.log.debug(
+        { migrationsSchema, migrationsTable, migrationsFolder, concurrentHashes },
+        'Using these options for migration',
       );
-    }
 
-    // 5. Filter out already-applied migrations
-    logger.debug('Filtering out already-applied migrations...');
-    const pending = migrationFiles.filter(
-      ({ filename, checksum }) =>
-        !applied.has(filename) || applied.get(filename) !== checksum,
-    );
-    logger.debug(
-      `Pending migrations: ${pending.map((f) => f.filename).join(', ') || 'None'}`,
-    );
-
-    // 6. Run pending migrations in order
-    for (const { filename, checksum } of pending) {
-      logger.info(`Running migration: ${filename}`);
-      logger.debug(`Checksum for migration ${filename}: ${checksum}`);
-      await runSingleMigration(
-        db,
-        filename,
-        checksum,
-        migrationsFolder,
-        migrationsSchema,
-        migrationsTable,
-        logger,
+      // 1. Ensure migrations table
+      ctx.log.debug('Ensuring migrations table exists...');
+      await ctx.with('Ensure migrations table', () =>
+        ensureMigrationsTable(db, migrationsSchema, migrationsTable),
       );
-      logger.info(`Successfully applied migration: ${filename}`);
-    }
+      ctx.log.debug('Migrations table verified.');
 
-    logger.info('All migrations applied successfully.');
+      // 2. Get applied migrations
+      ctx.log.debug('Fetching applied migrations...');
+      const applied = await ctx.with('Get applied migrations', () =>
+        getAppliedMigrations(db, migrationsSchema, migrationsTable),
+      );
+      ctx.log.debug(
+        `Applied migrations: ${Array.from(applied.keys()).join(', ') || 'None'}`,
+      );
+
+      // 3. Get all SQL files with their checksums
+      ctx.log.debug('Retrieving all SQL migration files...');
+      const migrationFiles = await ctx.with('Get SQL files', () =>
+        getSqlFiles(migrationsFolder, concurrentHashes),
+      );
+      ctx.log.debug(
+        `Found migration files: ${migrationFiles.map((f) => f.filename).join(', ')}`,
+      );
+
+      // 4. Detect out-of-order migrations
+      ctx.log.debug('Checking for out-of-order migrations...');
+      const appliedFilenames = Array.from(applied.keys());
+      const driftedMigration = migrationFiles.filter(
+        ({ filename }) =>
+          !applied.has(filename) &&
+          appliedFilenames.some((appliedFile) => filename < appliedFile),
+      );
+
+      if (driftedMigration.length > 0) {
+        throw new Error(
+          `Migration drift detected in: ${driftedMigration.map((f) => f.filename).join(', ')}`,
+        );
+      }
+
+      // 5. Filter out already-applied migrations
+      ctx.log.debug('Filtering out already-applied migrations...');
+      const pending = migrationFiles.filter(
+        ({ filename, checksum }) =>
+          !applied.has(filename) || applied.get(filename) !== checksum,
+      );
+      ctx.log.debug(
+        `Pending migrations: ${pending.map((f) => f.filename).join(', ') || 'None'}`,
+      );
+
+      // 6. Run pending migrations in order
+      for (const { filename, checksum } of pending) {
+        ctx.log.info(`Running migration: ${filename}`);
+        ctx.log.debug(`Checksum for migration ${filename}: ${checksum}`);
+        await ctx.with(`Run migration: ${filename}`, ({ log }) =>
+          runSingleMigration(
+            db,
+            filename,
+            checksum,
+            migrationsFolder,
+            migrationsSchema,
+            migrationsTable,
+            log,
+          ),
+        );
+        ctx.log.info(`Successfully applied migration: ${filename}`);
+      }
+
+      ctx.log.info('All migrations applied successfully.');
+    });
   };
 }

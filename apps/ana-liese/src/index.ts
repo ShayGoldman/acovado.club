@@ -10,18 +10,18 @@ import { makeOnSignalCreatedService } from './signaling/signal-created.service';
 const logger = makeLogger({
   name: 'ana-liese',
 });
-
-const migrate = makeMigrateDB({
-  url: Env.DATABASE_URL,
-  logger,
-});
-
-await migrate();
 const tracer = makeTracer({
   serviceName: 'ana-liese',
   exporterUrl: Env.TRACE_EXPORTER_URL,
   logger,
 });
+
+const migrate = makeMigrateDB({
+  url: Env.DATABASE_URL,
+  tracer,
+});
+
+await migrate();
 
 const db = makeDB({
   url: Env.DATABASE_URL,
