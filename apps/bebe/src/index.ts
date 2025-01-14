@@ -10,18 +10,18 @@ import { makeCronJobsService } from './entry-points/crons';
 const logger = makeLogger({
   name: 'bebe',
 });
-
-const migrate = makeMigrateDB({
-  url: Env.DATABASE_URL,
-  logger,
-});
-
-await migrate();
 const tracer = makeTracer({
   serviceName: 'bebe',
   exporterUrl: Env.TRACE_EXPORTER_URL,
   logger,
 });
+
+const migrate = makeMigrateDB({
+  url: Env.DATABASE_URL,
+  tracer,
+});
+
+await migrate();
 const producer = makeProducer({
   broker: Env.BROKER_URL,
   logger,

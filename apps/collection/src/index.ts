@@ -10,18 +10,18 @@ import { makeDB } from './db';
 const logger = makeLogger({
   name: 'collection',
 });
-
-const migrate = makeMigrateDB({
-  url: Env.DATABASE_URL,
-  logger,
-});
-
-await migrate();
 const tracer = makeTracer({
   serviceName: 'collection',
   exporterUrl: Env.TRACE_EXPORTER_URL,
   logger,
 });
+
+const migrate = makeMigrateDB({
+  url: Env.DATABASE_URL,
+  tracer,
+});
+
+await migrate();
 
 const db = makeDB({
   url: Env.DATABASE_URL,

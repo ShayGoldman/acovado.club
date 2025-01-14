@@ -1,10 +1,10 @@
 import { sql, relations } from 'drizzle-orm';
 import * as D from 'drizzle-orm/pg-core';
 
-export const finance = D.pgSchema('finance');
+export const acovado = D.pgSchema('acovado');
 export const metabase = D.pgSchema('metabase');
 
-export const watchLists = finance.table('watch_lists', (c) => ({
+export const watchLists = acovado.table('watch_lists', (c) => ({
   id: c
     .uuid()
     .primaryKey()
@@ -22,7 +22,7 @@ export const watchListsRelations = relations(watchLists, ({ many }) => ({
   tickers: many(watchListToTickers),
 }));
 
-export const tickers = finance.table('tickers', (c) => ({
+export const tickers = acovado.table('tickers', (c) => ({
   id: c
     .uuid()
     .primaryKey()
@@ -41,7 +41,7 @@ export const tickersRelations = relations(tickers, ({ many }) => ({
   watchLists: many(watchListToTickers),
 }));
 
-export const watchListToTickers = finance.table(
+export const watchListToTickers = acovado.table(
   'watch_list_to_tickers',
   (c) => ({
     watchListId: c
@@ -72,7 +72,7 @@ export const watchListToTickersRelations = relations(watchListToTickers, ({ one 
   }),
 }));
 
-export const collections = finance.table('collections', (c) => ({
+export const collections = acovado.table('collections', (c) => ({
   id: c.serial().primaryKey(),
   type: c.varchar('type', { length: 64 }).notNull(),
   status: c.varchar('status', { length: 64 }).notNull(),
@@ -85,7 +85,7 @@ export const collections = finance.table('collections', (c) => ({
     .$onUpdateFn(() => new Date().toISOString()),
 }));
 
-export const signalMetrics = finance.table('signal_metrics', (c) => ({
+export const signalMetrics = acovado.table('signal_metrics', (c) => ({
   id: c.serial().primaryKey(),
   tickerId: c
     .uuid('ticker_id')
@@ -100,7 +100,7 @@ export const signalMetrics = finance.table('signal_metrics', (c) => ({
   createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
 }));
 
-export const kvStore = finance.table('kv_store', (c) => ({
+export const kvStore = acovado.table('kv_store', (c) => ({
   id: c.serial().primaryKey(),
   key: c.varchar('key', { length: 128 }).notNull().unique(),
   value: c.varchar('value', { length: 256 }).notNull(),
@@ -112,7 +112,7 @@ export const kvStore = finance.table('kv_store', (c) => ({
     .$onUpdateFn(() => new Date().toISOString()),
 }));
 
-export const stories = finance.table('stories', (c) => ({
+export const stories = acovado.table('stories', (c) => ({
   id: c.serial().primaryKey(),
   type: c.varchar('type', { length: 128 }).notNull(),
   ticker: c.uuid('ticker_id').notNull(),
