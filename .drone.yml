@@ -158,12 +158,15 @@ steps:
 
       # Apply version bumps
       - bunx @changesets/cli version
+      - bunx @changesets/cli tag
+
+      # Push changes
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
       - git add .
       - |
         git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
-      - git push origin main
+      - git push origin main --tags
     depends_on:
       - post-build
 
