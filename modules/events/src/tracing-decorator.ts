@@ -137,6 +137,7 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
     return async (domain, routingKey, messages, opts: SendOpts = {}) => {
       const { headers = {}, baggage = {} } = opts;
       const tracedHeaders = injectTraceContext(headers, baggage);
+
       return tracer.with(
         `Publish Message to ${domain}:${routingKey}`,
         {
