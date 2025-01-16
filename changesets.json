@@ -4,68 +4,95 @@
       "releases": [
         {
           "name": "@modules/db",
-          "type": "minor"
-        },
-        {
-          "name": "@apps/collection",
           "type": "patch"
-        },
+        }
+      ],
+      "summary": "require tracer for db client instead of logger",
+      "id": "little-tomatoes-rule"
+    },
+    {
+      "releases": [
         {
-          "name": "@apps/ana-liese",
+          "name": "@modules/logger",
           "type": "patch"
-        },
+        }
+      ],
+      "summary": "support log levels in logger",
+      "id": "polite-bulldogs-tell"
+    },
+    {
+      "releases": [
         {
           "name": "@apps/bebe",
           "type": "patch"
         }
       ],
-      "summary": "replace database schema name + use tracer for db migrations",
-      "id": "big-wolves-march"
+      "summary": "use parent span for collection created events",
+      "id": "unlucky-mice-fail"
     }
   ],
   "releases": [
     {
       "name": "@modules/db",
-      "type": "minor",
-      "oldVersion": "0.2.0",
+      "type": "patch",
+      "oldVersion": "0.3.0",
       "changesets": [
-        "big-wolves-march"
+        "little-tomatoes-rule"
       ],
-      "newVersion": "0.3.0"
+      "newVersion": "0.3.1"
     },
     {
-      "name": "@apps/collection",
+      "name": "@modules/logger",
       "type": "patch",
-      "oldVersion": "0.1.1",
+      "oldVersion": "0.1.0",
       "changesets": [
-        "big-wolves-march"
+        "polite-bulldogs-tell"
       ],
-      "newVersion": "0.1.2"
-    },
-    {
-      "name": "@apps/ana-liese",
-      "type": "patch",
-      "oldVersion": "0.1.1",
-      "changesets": [
-        "big-wolves-march"
-      ],
-      "newVersion": "0.1.2"
+      "newVersion": "0.1.1"
     },
     {
       "name": "@apps/bebe",
       "type": "patch",
-      "oldVersion": "0.1.1",
+      "oldVersion": "0.1.2",
       "changesets": [
-        "big-wolves-march"
+        "unlucky-mice-fail"
       ],
-      "newVersion": "0.1.2"
+      "newVersion": "0.1.3"
+    },
+    {
+      "name": "@apps/ana-liese",
+      "type": "patch",
+      "oldVersion": "0.1.2",
+      "changesets": [],
+      "newVersion": "0.1.3"
+    },
+    {
+      "name": "@apps/collection",
+      "type": "patch",
+      "oldVersion": "0.1.2",
+      "changesets": [],
+      "newVersion": "0.1.3"
     },
     {
       "name": "@tests/simulation",
       "type": "patch",
-      "oldVersion": "0.1.1",
+      "oldVersion": "0.1.2",
       "changesets": [],
-      "newVersion": "0.1.2"
+      "newVersion": "0.1.3"
+    },
+    {
+      "name": "@modules/events",
+      "type": "patch",
+      "oldVersion": "0.1.0",
+      "changesets": [],
+      "newVersion": "0.1.1"
+    },
+    {
+      "name": "@modules/tracing",
+      "type": "patch",
+      "oldVersion": "0.1.0",
+      "changesets": [],
+      "newVersion": "0.1.1"
     }
   ]
 }
