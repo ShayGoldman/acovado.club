@@ -2,9 +2,8 @@ import Env from '@/env';
 import { makeProducer } from '@modules/events';
 import { makeLogger } from '@modules/logger';
 
-import { makeMigrateDB } from '@modules/db';
+import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeTracer } from '@modules/tracing';
-import { makeDB } from './db';
 import { makeCronJobsService } from './entry-points/crons';
 
 const logger = makeLogger({
@@ -27,9 +26,9 @@ const producer = makeProducer({
   logger,
   tracing: { tracer },
 });
-const db = makeDB({
+const db = makeDBClient({
   url: Env.DATABASE_URL,
-  logger,
+  tracer,
 });
 
 logger.info('Setting up...');
