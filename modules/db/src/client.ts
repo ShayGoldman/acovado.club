@@ -1,9 +1,9 @@
+import schema from '@/schema';
+import { injectTraceContext, type Tracer } from '@modules/tracing';
+import type { DrizzleConfig } from 'drizzle-orm';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import schema from '@/schema';
-import type { DrizzleConfig } from 'drizzle-orm';
 import type { Except } from 'type-fest';
-import type { Logger } from '@modules/logger';
 
 export type Schema = typeof schema;
 
@@ -12,7 +12,7 @@ export type DBClient = NodePgDatabase<Schema>;
 export interface MakeDBClientOpts
   extends Except<DrizzleConfig<typeof schema>, 'casing' | 'schema' | 'logger'> {
   url: string;
-  logger: Logger;
+  tracer: Tracer;
 }
 
 export function makeDBClient(opts: MakeDBClientOpts): DBClient {
@@ -27,7 +27,16 @@ export function makeDBClient(opts: MakeDBClientOpts): DBClient {
     schema,
     logger: {
       logQuery(query: string, params: unknown[]) {
-        opts.logger.debug({ query, params }, 'SQL Query executed');
+        const tracedHeaders = injectTraceContext({});
+        opts.tracer.with('DB query', { headers: tracedHeaders }, async (c) => {
+          const humanizedParams = params
+            .map((p, idx) =>
+              [`${idx + 1}$`, typeof p === 'string' ? `'${p}'` : p].join(': '),
+            )
+            .join(', ');
+
+          c.log.debug({ query, params: humanizedParams }, 'SQL Query executed');
+        });
       },
     },
   });

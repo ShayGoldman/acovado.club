@@ -2,10 +2,9 @@ import Env from '@/env';
 import { makeConsumer, makeProducer } from '@modules/events';
 import { makeLogger } from '@modules/logger';
 
-import { makeMigrateDB } from '@modules/db';
+import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeTracer } from '@modules/tracing';
 import { makeOnCollectionCreatedService } from './collection/collection.created.service';
-import { makeDB } from './db';
 
 const logger = makeLogger({
   name: 'collection',
@@ -23,9 +22,9 @@ const migrate = makeMigrateDB({
 
 await migrate();
 
-const db = makeDB({
+const db = makeDBClient({
   url: Env.DATABASE_URL,
-  logger,
+  tracer,
 });
 
 const producer = makeProducer({ broker: Env.BROKER_URL, logger, tracing: { tracer } });

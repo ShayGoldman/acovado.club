@@ -55,8 +55,10 @@ export function makeWatchListCollectionService(opts: MakeWatchListCollectionServ
               );
 
               const event = makeEvent('collection', 'created', collection);
-              producer.send('collection', 'collection.created', event, {
-                baggage: { 'ticker.id': ticker.id },
+              c.with(`Created collection for: ${ticker.symbol}`, async () => {
+                producer.send('collection', 'collection.created', event, {
+                  baggage: { 'ticker.id': ticker.id },
+                });
               });
             }
           },

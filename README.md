@@ -6,22 +6,22 @@
 
 ## Apps
 
-| Name       | Path                | Description                                                 |
-| ---------- | ------------------- | ----------------------------------------------------------- |
-| bebe       | `./apps/bebe`       | An orchestrator in charge of running background processes   |
-| collection | `./apps/collection` | A worker in charge of collecting information                |
-| ana-liese  | `./apps/ana-liese`  | A worker in charge of analyzing data and generating stories |
+| Name       | Path                | Description                                                 | Changelog                                                                                                         |
+| ---------- | ------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| bebe       | `./apps/bebe`       | An orchestrator in charge of running background processes   | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./apps/bebe/CHANGELOG.md)       |
+| collection | `./apps/collection` | A worker in charge of collecting information                | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./apps/collection/CHANGELOG.md) |
+| ana-liese  | `./apps/ana-liese`  | A worker in charge of analyzing data and generating stories | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./apps/ana-liese/CHANGELOG.md)  |
 
 ## Modules
 
-| Name    | Path                | Description                                                 |
-| ------- | ------------------- | ----------------------------------------------------------- |
-| db      | `./modules/db`      | Data access, schema management and model validations        |
-| events  | `./modules/events`  | Message broker client both for producing and consuming      |
-| ids     | `./modules/ids`     | Simple module for generating ids                            |
-| logger  | `./modules/logger`  | Pino based logger                                           |
-| tracing | `./modules/tracing` | Tracing library aimed for ease-of-use                       |
-| types   | `./modules/types`   | Utility library used for type-coherence in apps and modules |
+| Name    | Path                | Description                                                 | Changelog                                                                                                         |
+| ------- | ------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| db      | `./modules/db`      | Data access, schema management and model validations        | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/db/CHANGELOG.md)      |
+| events  | `./modules/events`  | Message broker client both for producing and consuming      | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/events/CHANGELOG.md)  |
+| ids     | `./modules/ids`     | Simple module for generating ids                            | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/ids/CHANGELOG.md)     |
+| logger  | `./modules/logger`  | Pino based logger                                           | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/logger/CHANGELOG.md)  |
+| tracing | `./modules/tracing` | Tracing library aimed for ease-of-use                       | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/tracing/CHANGELOG.md) |
+| types   | `./modules/types`   | Utility library used for type-coherence in apps and modules | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/types/CHANGELOG.md)   |
 
 ## Infrastrcture
 
@@ -33,13 +33,13 @@
 
 ## Config
 
-| Name       | Path                  | Description                          |
-| ---------- | --------------------- | ------------------------------------ |
-| compose    | `./config/compose`    | Production deployment configurations |
-| eslint     | `./config/eslint`     | -                                    |
-| prettier   | `./config/prettier`   | -                                    |
-| tsconfig   | `./config/tsconfig`   | -                                    |
-| typescript | `./config/typescript` | -                                    |
+| Name       | Path                  | Description                          | Changelog                                                                                                           |
+| ---------- | --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| compose    | `./config/compose`    | Production deployment configurations | -                                                                                                                   |
+| eslint     | `./config/eslint`     | Shared eslint configurations         | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/eslint/CHANGELOG.md)     |
+| prettier   | `./config/prettier`   | Shared prettier configurations       | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/prettier/CHANGELOG.md)   |
+| tsconfig   | `./config/tsconfig`   | Shared tsconfig configurations       | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/tsconfig/CHANGELOG.md)   |
+| typescript | `./config/typescript` | Shared typescript configurations     | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/typescript/CHANGELOG.md) |
 
 ## Local Development
 

@@ -147,7 +147,7 @@ export function makeMigrateDB({ url, opts, tracer }: MakeMigrateDBOpts) {
   return async () => {
     return tracer.with('Migrate database', async (ctx) => {
       ctx.log.debug('Instantiating DB client...');
-      const db = makeDBClient({ url, logger: ctx.log });
+      const db = makeDBClient({ url, tracer });
       ctx.log.debug('DB client instantiated...');
 
       const migrationsSchema = opts?.migrationsSchema ?? 'migrations';
