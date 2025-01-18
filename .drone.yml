@@ -145,21 +145,28 @@ steps:
   # Step 7: Check for and release new versions
   ##############################################################################
   - name: release-versions
-    image: oven/bun
+    image: debian:bookworm-slim
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
     commands:
-      # Install deps
+      # Install Node.js, gh, and necessary tools
       - apt-get update
-      - apt-get install -y git jq curl gh
+      - apt-get install -y --no-install-recommends git jq curl gh
+      - curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+      - apt-get install -y nodejs
+
+      # Verify installations
+      - node --version
+      - npm --version
+      - gh --version
 
       # Check if there are any changesets, if no changesets then exit
-      - bunx @changesets/cli status --verbose --output changesets.json
+      - npx changeset status --verbose --output changesets.json
       - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null && exit 78 || true
 
       # Apply version bumps
-      - bunx @changesets/cli version
+      - npx changeset version
 
       # Commit changelogs
       - git config user.name "Drone CI"
@@ -169,7 +176,7 @@ steps:
         git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
 
       # Tag the new versions
-      - bunx @changesets/cli tag
+      - npx changeset tag
 
       # Create GitHub release for the new tags
       - |
