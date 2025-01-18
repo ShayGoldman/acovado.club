@@ -142,31 +142,44 @@ steps:
       - build-ana-liese
 
   ##############################################################################
-  # Step 7: Apply version bumps and update CHNAGELOG.md
+  # Step 7: Check for and release new versions
   ##############################################################################
-  - name: apply-changesets
+  - name: release-versions
     image: oven/bun
+    environment:
+      GITHUB_TOKEN:
+        from_secret: github_token
     commands:
-      # Install Git because :(
+      # Install deps
       - apt-get update
-      - apt-get install -y git
-      - apt-get install -y jq
+      - apt-get install -y git jq curl gh
 
-      # Check if there are any changesets
+      # Check if there are any changesets, if no changesets then exit
       - bunx @changesets/cli status --verbose --output changesets.json
       - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null && exit 78 || true
 
       # Apply version bumps
       - bunx @changesets/cli version
-      - bunx @changesets/cli tag
 
-      # Push changes
+      # Commit changelogs
       - git config user.name "Drone CI"
       - git config user.email "ci@acovado.club"
       - git add .
       - |
         git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
+
+      # Tag the new versions
+      - bunx @changesets/cli tag
+
+      # Create GitHub release for the new tags
+      - |
+        for tag in $(git tag --points-at HEAD); do
+          gh release create "$tag" --title "$tag" --notes "Automated release via Drone CI"
+        done
+
+      # Push changes
       - git push origin main --tags
+
     depends_on:
       - post-build
 
