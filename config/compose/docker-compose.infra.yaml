@@ -46,94 +46,127 @@ services:
           cpus: 2
           memory: "4gb"
 
-  grafana:
+  zookeeper:
     extends:
-      file: ../../infra/tracing/docker-compose.base.yaml
-      service: grafana
-    env_file:
-      - ${ENV_FILES_ROOT}/grafana.env
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: zookeeper
     volumes:
-      - ${CONFIG_FILES_ROOT}/infra/tracing/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ${VOLUMES_ROOT}/signoz-zookeeper:/bitnami/zookeeper
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512mb"
+
+  clickhouse:
+    extends:
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: clickhouse
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/observability/clickhouse/config.xml:/etc/clickhouse-server/config.xml
+      - ${CONFIG_FILES_ROOT}/infra/observability/clickhouse/users.xml:/etc/clickhouse-server/users.xml
+      - ${CONFIG_FILES_ROOT}/infra/observability/clickhouse/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+      - ${CONFIG_FILES_ROOT}/infra/observability/clickhouse/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+      - ${VOLUMES_ROOT}/signoz-clickhouse:/var/lib/clickhouse/
+    networks:
+      - internal-network
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: "4gb"
+
+  signoz:
+    extends:
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: signoz
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/observability/signoz/prometheus.yml:/root/config/prometheus.yml
+      - ${VOLUMES_ROOT}/signoz-sqlite:/var/lib/signoz/
     ports: []
     networks:
       - proxy-network
       - internal-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=acovado"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      - "traefik.http.routers.grafana.middlewares=auth"
+      - "traefik.http.routers.signoz.rule=Host(`signoz.acovado.club`)"
+      - "traefik.http.routers.signoz.entrypoints=websecure"
+      - "traefik.http.routers.signoz.tls.certresolver=acovado"
+      - "traefik.http.services.signoz.loadbalancer.server.port=8080"
+      - "traefik.http.routers.signoz.middlewares=auth"
       - "traefik.docker.network=proxy-network"
-    restart: unless-stopped
     depends_on:
-      - tempo
-      - prometheus
-      - otel-collector
-    deploy:
-      resources:
-        limits:
-          cpus: 1
-          memory: "1gb"
-
-  otel-collector:
-    extends:
-      file: ../../infra/tracing/docker-compose.base.yaml
-      service: otel-collector
-    env_file:
-      - ${ENV_FILES_ROOT}/otel-collector.env
-    volumes:
-      - ${CONFIG_FILES_ROOT}/infra/tracing/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports: []
-    networks:
-      - internal-network
-    restart: unless-stopped
-    depends_on:
-      - tempo
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "1gb"
-
-  prometheus:
-    extends:
-      file: ../../infra/tracing/docker-compose.base.yaml
-      service: prometheus
-    env_file:
-      - ${ENV_FILES_ROOT}/prometheus.env
-    volumes:
-      - ${CONFIG_FILES_ROOT}/infra/tracing/prometheus.yaml:/etc/prometheus/prometheus.yml
-    ports: []
-    restart: unless-stopped
-    networks:
-      - internal-network
-    deploy:
-      resources:
-        limits:
-          cpus: 1
-          memory: "1gb"
-
-  tempo:
-    extends:
-      file: ../../infra/tracing/docker-compose.base.yaml
-      service: tempo
-    env_file:
-      - ${ENV_FILES_ROOT}/tempo.env
-    ports: []
-    command: [-config.file=/etc/tempo.yaml]
-    volumes:
-      - ${CONFIG_FILES_ROOT}/infra/tracing/tempo.yaml:/etc/tempo.yaml
-      - ${VOLUMES_ROOT}/tempo-data:/tmp/tempo
-    restart: unless-stopped
-    networks:
-      - internal-network
+      clickhouse:
+        condition: service_healthy
+      schema-migrator-sync:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
           cpus: 1
           memory: "2gb"
+
+  otel-collector:
+    extends:
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: otel-collector
+    volumes:
+      - ${CONFIG_FILES_ROOT}/infra/observability/otel-collector-signoz-config.yaml:/etc/otel-collector-config.yaml
+      - ${CONFIG_FILES_ROOT}/infra/observability/signoz/otel-collector-opamp-config.yaml:/etc/manager-config.yaml
+    ports: []
+    networks:
+      - internal-network
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      signoz:
+        condition: service_healthy
+      schema-migrator-sync:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: "2gb"
+
+  schema-migrator-sync:
+    extends:
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: schema-migrator-sync
+    networks:
+      - internal-network
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512mb"
+
+  schema-migrator-async:
+    extends:
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: schema-migrator-async
+    networks:
+      - internal-network
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      signoz:
+        condition: service_healthy
+      schema-migrator-sync:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512mb"
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
@@ -159,7 +192,6 @@ services:
           cpus: 1
           memory: "2gb"
 
-networks:
   proxy-network:
     external: true
   internal-network:
