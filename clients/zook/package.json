@@ -1,6 +1,6 @@
 {
   "name": "@clients/zook",
-  "version": "0.1.0",
+  "private": true,
   "description": "",
   "packageManager": "bun@1.1.36",
   "scripts": {
@@ -12,8 +12,6 @@
   "license": "ISC",
   "dependencies": {},
   "devDependencies": {
-    "@config/eslint": "workspace:*",
-    "@config/prettier": "workspace:*",
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*"
   }

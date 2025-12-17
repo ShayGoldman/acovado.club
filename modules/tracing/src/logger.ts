@@ -32,10 +32,7 @@ export function makeTracingLogger(logger: Logger, span: Span): Logger {
  * @param prefix Optional prefix for nested keys (used in recursive calls)
  * @returns A flat object with dot-notation keys
  */
-function flattenObject(
-  obj: Record<string, any>,
-  prefix: string = '',
-): Record<string, any> {
+function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
   return Object.keys(obj).reduce((acc, key) => {
     const prefixedKey = prefix ? `${prefix}.${key}` : key;
 

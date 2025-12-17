@@ -1,10 +1,10 @@
 import type { Identified, KebabCase, Paths, SupporteIds } from '@modules/types';
 import type {
   BasePayload,
+  LifecycleStage,
   ModelCreatedEvent,
   ModelDeletedEvent,
   ModelUpdatedEvent,
-  LifecycleStage,
 } from './types';
 
 export function makeModelCreatedEvent<

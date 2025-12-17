@@ -4,5 +4,14 @@
   "access": "restricted",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": ["@apps/*", "@modules/*", "@clients/*", "@tests/*", "@infra/*", "@config/*"],
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "ShayGoldman/acovado.club"
+    }
+  ],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  }
 }

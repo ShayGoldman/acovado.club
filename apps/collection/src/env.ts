@@ -6,7 +6,9 @@ const environmentSchema = Z.object({
   NODE_ENV: Z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: Z.string().url(),
   BROKER_URL: Z.string().url(),
-  TRACE_EXPORTER_URL: Z.string().url(),
+  TRACE_EXPORTER_URLS: Z.string()
+    .transform((val) => val.split(',').map((url) => url.trim()))
+    .pipe(Z.array(Z.string().url())),
 });
 
 export default environmentSchema.parse(process.env);

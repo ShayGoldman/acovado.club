@@ -1,7 +1,7 @@
 // @modules/tracing/src/tracer.ts
 
 import type { Attributes, Span } from '@opentelemetry/api';
-import { context, SpanStatusCode, trace } from '@opentelemetry/api';
+import { SpanStatusCode, context, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import {
   CompositePropagator,
@@ -17,16 +17,17 @@ import { extractTraceContext } from './propagation';
 import type { Context as ContextType, Tracer, TracerOptions } from './types';
 
 export function makeTracer(options: TracerOptions): Tracer {
-  const { serviceName, exporterUrl, logger } = options;
+  const { serviceName, exporterUrls, logger } = options;
+
+  const spanProcessors = exporterUrls.map(
+    (url) => new BatchSpanProcessor(new OTLPTraceExporter({ url })),
+  );
 
   const tracerProvider = new NodeTracerProvider({
     resource: new Resource({
       'service.name': serviceName,
     }),
-
-    spanProcessors: exporterUrl
-      ? [new BatchSpanProcessor(new OTLPTraceExporter({ url: exporterUrl }))]
-      : [],
+    spanProcessors,
   });
 
   tracerProvider.register({
@@ -40,7 +41,9 @@ export function makeTracer(options: TracerOptions): Tracer {
 
   function makeContext(span: Span): ContextType {
     const tracingLogger = makeTracingLogger(logger, span);
-    const container = { annotations: new Map<string, string | number | boolean>() };
+    const container = {
+      annotations: new Map<string, string | number | boolean>(),
+    };
 
     return {
       with: withSpan,
@@ -97,7 +100,11 @@ export function makeTracer(options: TracerOptions): Tracer {
       }
     }
 
-    const span = otelTracer.startSpan(name, { attributes }, parentContext);
+    const span = otelTracer.startSpan(
+      name,
+      attributes ? { attributes } : {},
+      parentContext,
+    );
 
     return context.with(trace.setSpan(context.active(), span), async () => {
       try {

@@ -1,0 +1,27 @@
+{
+  "name": "@apps/reddit-processor",
+  "version": "0.1.0",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "debug": "bun --inspect=localhost:16003/reddit-processor src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write .",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/bun": "^1.1.13"
+  },
+  "dependencies": {
+    "@modules/db": "workspace:*",
+    "@modules/events": "workspace:*",
+    "@modules/logger": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "env-var": "^7.5.0",
+    "zod": "^4.0.0"
+  }
+}

@@ -1,9 +1,9 @@
 {
   "*.{ts,js}": [
-    "bun lint",
-    "bun format"
+    "bunx biome lint --write",
+    "bunx biome format --write"
   ],
   "*.json": [
-    "bun format"
+    "bunx biome format --write"
   ]
 }

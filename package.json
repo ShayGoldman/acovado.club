@@ -3,35 +3,37 @@
   "description": "",
   "private": true,
   "packageManager": "bun@1.1.36",
-  "workspaces": [
-    "config/*",
-    "infra/*",
-    "modules/*",
-    "apps/*",
-    "clients/*",
-    "tests/*"
-  ],
+  "workspaces": ["config/*", "infra/*", "modules/*", "apps/*", "clients/*", "tests/*"],
   "scripts": {
     "build": "bunx turbo run build",
     "clean": "bunx turbo run clean",
-    "format": "bunx turbo run format --",
-    "lint": "bunx turbo run lint --",
+    "format": "bunx biome format --write .",
+    "lint": "bunx biome lint --write .",
+    "check": "bunx biome check --write .",
     "test": "bunx turbo run test",
     "commit": "bunx cz",
-    "prepare": "bunx husky"
+    "prepare": "bunx husky",
+    "changeset": "bunx changeset",
+    "changeset:version": "bunx changeset version",
+    "changeset:publish": "bunx changeset publish"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@changesets/cli": "^2.27.11",
-    "@commitlint/cli": "^19.6.1",
-    "@commitlint/config-conventional": "^19.6.0",
+    "@biomejs/biome": "^1.9.4",
+    "@changesets/cli": "^2.29.8",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@config/tsconfig": "workspace:*",
     "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.2.10",
-    "turbo": "^2.3.1"
+    "lint-staged": "^15.5.2",
+    "turbo": "^2.6.3",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.7.2"
   }
 }

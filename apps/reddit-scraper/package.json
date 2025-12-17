@@ -1,0 +1,28 @@
+{
+  "name": "@apps/reddit-scraper",
+  "version": "0.1.0",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "debug": "bun --inspect=localhost:16002/reddit-scraper src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write .",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/bun": "^1.1.13"
+  },
+  "dependencies": {
+    "@modules/db": "workspace:*",
+    "@modules/events": "workspace:*",
+    "@modules/logger": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "cron": "^3.2.1",
+    "env-var": "^7.5.0",
+    "zod": "^4.0.0"
+  }
+}

@@ -1,13 +1,12 @@
 import schema from '@/schema';
-import { injectTraceContext, type Tracer } from '@modules/tracing';
+import { type Tracer, injectTraceContext } from '@modules/tracing';
 import type { DrizzleConfig } from 'drizzle-orm';
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { type BunSQLDatabase, drizzle } from 'drizzle-orm/bun-sql';
 import type { Except } from 'type-fest';
 
 export type Schema = typeof schema;
 
-export type DBClient = NodePgDatabase<Schema>;
+export type DBClient = BunSQLDatabase<Schema>;
 
 export interface MakeDBClientOpts
   extends Except<DrizzleConfig<typeof schema>, 'casing' | 'schema' | 'logger'> {
@@ -16,13 +15,8 @@ export interface MakeDBClientOpts
 }
 
 export function makeDBClient(opts: MakeDBClientOpts): DBClient {
-  // TODO validate dis
-  const pool = new Pool({
-    connectionString: opts.url,
-  });
-
-  return drizzle<Schema>({
-    client: pool,
+  return drizzle({
+    connection: opts.url,
     casing: 'snake_case',
     schema,
     logger: {

@@ -1,8 +1,8 @@
 import {
+  type BaggageEntry,
+  type Context,
   context,
   propagation,
-  type Context,
-  type BaggageEntry,
 } from '@opentelemetry/api';
 
 function toBaggageEntries(

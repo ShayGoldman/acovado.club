@@ -1,11 +1,11 @@
-import type { Logger } from '@modules/logger';
-import crypto from 'crypto';
-import path from 'path';
+import crypto from 'node:crypto';
 import { readdir } from 'node:fs/promises';
-import { Promise } from 'bluebird';
+import path from 'node:path';
+import type { Logger } from '@modules/logger';
+import { Promise as BluebirdPromise } from 'bluebird';
 import { sql } from 'drizzle-orm';
 
-import { makeDBClient, type DBClient } from '@/client';
+import { type DBClient, makeDBClient } from '@/client';
 import type { Tracer } from '@modules/tracing';
 
 export interface MigrationOpts {
@@ -46,10 +46,10 @@ async function getAppliedMigrations(
   table: string,
 ): Promise<Map<string, string>> {
   const query = `SELECT filename, checksum FROM ${schema}.${table}`;
-  const result = await db.execute<{ filename: string; checksum: string }>(query);
+  const rows = (await db.execute(query)) as Array<{ filename: string; checksum: string }>;
 
   const applied = new Map<string, string>();
-  for (const row of result.rows) {
+  for (const row of rows) {
     applied.set(row.filename, row.checksum);
   }
 
@@ -64,7 +64,7 @@ async function getSqlFiles(
 
   const sqlFiles = entries.filter((entry) => entry.endsWith('.sql'));
 
-  const result = await Promise.map(
+  const result = await BluebirdPromise.map(
     sqlFiles,
     async (file) => {
       const filePath = path.join(folder, file);

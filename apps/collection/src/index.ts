@@ -11,7 +11,7 @@ const logger = makeLogger({
 });
 const tracer = makeTracer({
   serviceName: 'collection',
-  exporterUrl: Env.TRACE_EXPORTER_URL,
+  exporterUrls: Env.TRACE_EXPORTER_URLS,
   logger,
 });
 
@@ -27,7 +27,11 @@ const db = makeDBClient({
   tracer,
 });
 
-const producer = makeProducer({ broker: Env.BROKER_URL, logger, tracing: { tracer } });
+const producer = makeProducer({
+  broker: Env.BROKER_URL,
+  logger,
+  tracing: { tracer },
+});
 await producer.connect();
 
 const consumers = makeConsumer({

@@ -1,8 +1,8 @@
 import { customAlphabet } from 'nanoid';
 import type { ExtractIdPrefix, MessageId } from './types';
 
-const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789');
-const hexId = customAlphabet('0123456789abcdef');
+export const nanoId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789');
+export const hexId = customAlphabet('0123456789abcdef');
 
 export * from './types';
 
@@ -18,7 +18,7 @@ export interface GenerateIdOpts {
 }
 
 export function makeId(opts: GenerateIdOpts = {}) {
-  const { prefix = '', length = 24, delimiter = '_', idGeneration = nanoid } = opts;
+  const { prefix = '', length = 24, delimiter = '_', idGeneration = nanoId } = opts;
 
   return [prefix, idGeneration(length - prefix.length)].join(delimiter);
 }

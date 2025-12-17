@@ -1,5 +1,5 @@
-import { makeCollection, schema, type DBClient } from '@modules/db';
-import { makeEvent, type Producer } from '@modules/events';
+import { type DBClient, makeCollection, schema } from '@modules/db';
+import { type Producer, makeEvent } from '@modules/events';
 import type { Tracer } from '@modules/tracing';
 
 export interface MakeWatchListCollectionServiceOpts {

@@ -6,24 +6,24 @@
 
 ## Apps
 
-| Name       | Path                | Description                                                 | Changelog                                                                                                         |
-| ---------- | ------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| bebe       | `./apps/bebe`       | An orchestrator in charge of running background processes   | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./apps/bebe/CHANGELOG.md)       |
-| collection | `./apps/collection` | A worker in charge of collecting information                | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./apps/collection/CHANGELOG.md) |
-| ana-liese  | `./apps/ana-liese`  | A worker in charge of analyzing data and generating stories | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./apps/ana-liese/CHANGELOG.md)  |
+| Name       | Path                | Description                                                 |
+| ---------- | ------------------- | ----------------------------------------------------------- |
+| bebe       | `./apps/bebe`       | An orchestrator in charge of running background processes   |
+| collection | `./apps/collection` | A worker in charge of collecting information                |
+| ana-liese  | `./apps/ana-liese`  | A worker in charge of analyzing data and generating stories |
 
 ## Modules
 
-| Name    | Path                | Description                                                 | Changelog                                                                                                         |
-| ------- | ------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| db      | `./modules/db`      | Data access, schema management and model validations        | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/db/CHANGELOG.md)      |
-| events  | `./modules/events`  | Message broker client both for producing and consuming      | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/events/CHANGELOG.md)  |
-| ids     | `./modules/ids`     | Simple module for generating ids                            | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/ids/CHANGELOG.md)     |
-| logger  | `./modules/logger`  | Pino based logger                                           | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/logger/CHANGELOG.md)  |
-| tracing | `./modules/tracing` | Tracing library aimed for ease-of-use                       | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/tracing/CHANGELOG.md) |
-| types   | `./modules/types`   | Utility library used for type-coherence in apps and modules | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./modules/types/CHANGELOG.md)   |
+| Name    | Path                | Description                                                 |
+| ------- | ------------------- | ----------------------------------------------------------- |
+| db      | `./modules/db`      | Data access, schema management and model validations        |
+| events  | `./modules/events`  | Message broker client both for producing and consuming      |
+| ids     | `./modules/ids`     | Simple module for generating ids                            |
+| logger  | `./modules/logger`  | Pino based logger                                           |
+| tracing | `./modules/tracing` | Tracing library aimed for ease-of-use                       |
+| types   | `./modules/types`   | Utility library used for type-coherence in apps and modules |
 
-## Infrastrcture
+## Infrastructure
 
 | Name     | Path               | Description                                                                |
 | -------- | ------------------ | -------------------------------------------------------------------------- |
@@ -33,22 +33,35 @@
 
 ## Config
 
-| Name       | Path                  | Description                          | Changelog                                                                                                           |
-| ---------- | --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| compose    | `./config/compose`    | Production deployment configurations | -                                                                                                                   |
-| eslint     | `./config/eslint`     | Shared eslint configurations         | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/eslint/CHANGELOG.md)     |
-| prettier   | `./config/prettier`   | Shared prettier configurations       | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/prettier/CHANGELOG.md)   |
-| tsconfig   | `./config/tsconfig`   | Shared tsconfig configurations       | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/tsconfig/CHANGELOG.md)   |
-| typescript | `./config/typescript` | Shared typescript configurations     | [![View changelog](https://img.shields.io/badge/Explore%20Changelog-brightgreen)](./config/typescript/CHANGELOG.md) |
+| Name       | Path                  | Description                          |
+| ---------- | --------------------- | ------------------------------------ |
+| compose    | `./config/compose`    | Production deployment configurations |
+| tsconfig   | `./config/tsconfig`   | Shared tsconfig configurations       |
+| typescript | `./config/typescript` | Shared typescript configurations     |
+
+## Clients
+
+| Name | Path             | Description                                      |
+| ---- | ---------------- | ------------------------------------------------ |
+| nano | `./clients/nano` | Drizzle Studio client for database management    |
+| zook | `./clients/zook` | Metabase analytics dashboard for data visualization |
+
+## Tests
+
+| Name                    | Path                                  | Description                                            |
+| ----------------------- | ------------------------------------- | ------------------------------------------------------ |
+| e2e                     | `./tests/e2e`                         | End-to-end tests                                       |
+| stock-events-simulation | `./tests/stock-events-simulation`     | CLI tool for simulating stock market signal events     |
 
 ## Local Development
 
 Run everything locally by following these instructions from the root of the project:
 
-1. `bunx turbo start --filter="@infra/*"`
-2. `bunx turbo dev --filter="@modules/*"`
-3. `bunx turbo dev --filter="@clients/*"`
-4. `bunx turbo dev --filter="@apps/*"`
+1. `bunx turbo start --filter="@infra/*"` - Start infrastructure (PostgreSQL, RabbitMQ, Tracing stack)
+2. `bunx turbo dev --filter="@modules/*"` - Build modules in watch mode
+3. `bunx turbo dev --filter="@clients/*"` - Start clients (Drizzle Studio, Metabase)
+4. `bunx turbo dev --filter="@apps/*"` - Start all applications
+5. `bunx turbo test --filter="@tests/*"` - Run tests (optional)
 
 ## Debugging
 
@@ -59,12 +72,20 @@ You can then attach to the process using the VSCode debugger.
 
 We welcome contributions to this project! To get started:
 
-- Clone the repository to your message.
+- Clone the repository to your machine.
 - Create a new branch for your feature or bugfix according to [Conventional Commits](https://www.conventionalcommits.org/) guidelines.
 - Follow our commit and versioning process:
   - Use `commitizen` for structured and detailed commit messages by running `bun commit` before each commit.
-  - Use `bun changeset` if a version bump is required for your changes.
+  - Use `bun changeset` to document changes that should appear in the changelog (managed at the monorepo level).
   - `husky` hooks execute before a commit is made
+- Changesets workflow:
+  - Run `bun changeset` to create a new changeset describing your changes
+  - Changesets are tracked in the root `CHANGELOG.md` file
+  - All packages are private and unversioned - we use changesets for documentation only
+- Code quality:
+  - Run `bun check` to lint and format your code with Biome
+  - Run `bun lint` for linting only
+  - Run `bun format` for formatting only
 - Submit a pull request with a clear explanation of your changes.
 - Merging to `main` branch deploys the code to production and applies changesets.
 

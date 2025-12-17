@@ -1,17 +1,26 @@
 {
   "name": "@modules/types",
-  "version": "0.1.0",
+  "private": true,
   "description": "",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "packageManager": "bun@1.1.36",
   "scripts": {
-    "build": "bunx tsup src/index.ts --dts-only --out-dir dist",
+    "build": "bunx tsup src/index.ts --dts-only --out-dir dist --format esm",
     "dev": "bun run build --watch",
     "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
     "typecheck": "bun tsc --noEmit",
-    "lint": "bun eslint --fix .",
-    "format": "prettier --write ."
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write ."
   },
   "keywords": [],
   "author": "",
@@ -20,8 +29,6 @@
     "nanoid": "^5.0.9"
   },
   "devDependencies": {
-    "@config/eslint": "workspace:*",
-    "@config/prettier": "workspace:*",
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*",
     "type-fest": "^4.28.1",

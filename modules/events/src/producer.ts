@@ -1,16 +1,16 @@
 // producer.ts
 
+import type { Logger } from '@modules/logger';
+import type { Tracer } from '@modules/tracing'; // Use custom Tracing
+import type { Primitive } from '@modules/types';
+import type amqp from 'amqplib';
+import { makeTracingDecorator } from './tracing-decorator';
 import {
   connectToBroker,
-  safeClose,
-  makeMessageMetadata,
   makeBoundLogger,
+  makeMessageMetadata,
+  safeClose,
 } from './utils';
-import type { Logger } from '@modules/logger';
-import amqp from 'amqplib';
-import { type Tracer } from '@modules/tracing'; // Use custom Tracing
-import { makeTracingDecorator } from './tracing-decorator';
-import type { Primitive } from '@modules/types';
 
 interface MakeEventsProducerOpts {
   broker: string;

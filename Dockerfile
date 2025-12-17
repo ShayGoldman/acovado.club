@@ -34,4 +34,4 @@ WORKDIR /usr/src/app/apps/$APP_PATH
 ENV NODE_ENV=production
 USER bun
 EXPOSE 3000
-CMD ["bun", "run", "lib/index.js"]
+CMD ["bun", "run", "dist/index.js"]

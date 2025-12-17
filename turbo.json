@@ -4,16 +4,9 @@
     "build": {
       "cache": true,
       "persistent": false,
-      "inputs": [
-        "$TURBO_DEFAULT",
-        ".env*"
-      ],
-      "outputs": [
-        "dist/**"
-      ],
-      "dependsOn": [
-        "^build"
-      ]
+      "inputs": ["$TURBO_DEFAULT", ".env*"],
+      "outputs": ["dist/**"],
+      "dependsOn": ["^build"]
     },
     "test": {
       "cache": false

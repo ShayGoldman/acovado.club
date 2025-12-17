@@ -1,6 +1,6 @@
 import { makePriceAnomalyDetectionService } from '@/anomaly-detection/price-anomaly-detection.service';
 import { makeVolumeAnomalyDetectionService } from '@/anomaly-detection/volume-anomaly-detection.service';
-import { type DBClient, type SignalMetric } from '@modules/db';
+import type { DBClient, SignalMetric } from '@modules/db';
 import type { BasePayload, Message } from '@modules/events';
 import type { Context } from '@modules/tracing';
 

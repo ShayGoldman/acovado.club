@@ -2,7 +2,7 @@
 
 import type { Logger } from '@modules/logger';
 import type { Context, Tracer } from '@modules/tracing'; // Use custom Tracer
-import amqp from 'amqplib';
+import type amqp from 'amqplib';
 import type { KebabCase } from 'type-fest';
 import { makeTracingDecorator } from './tracing-decorator';
 import type { Message } from './types';
@@ -14,7 +14,7 @@ import {
   safeClose,
 } from './utils';
 
-export interface EventHandler<T = any> {
+export interface EventHandler<T = Record<string, unknown>> {
   domain: string;
   queue: KebabCase<string>;
   routingKey?: string; // Defaults to `#` if not provided
@@ -52,7 +52,11 @@ export function makeConsumer({
     connection = await connectToBroker(broker, boundLogger);
 
     for (const handler of handlerList) {
-      const { channel, exchange, queue } = await initializeChannel(
+      const {
+        channel,
+        exchange: _exchange,
+        queue,
+      } = await initializeChannel(
         connection,
         handler.domain,
         handler.queue,

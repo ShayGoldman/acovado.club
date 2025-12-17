@@ -3,7 +3,7 @@ import type { Attributes } from '@opentelemetry/api';
 
 export interface TracerOptions {
   serviceName: string;
-  exporterUrl?: string;
+  exporterUrls: string[];
   logger: Logger;
 }
 

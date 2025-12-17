@@ -1,6 +1,6 @@
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import S from '@/schema';
-import Z from 'zod';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import type Z from 'zod';
 
 const insertSignalMetricSchema = createInsertSchema(S.signalMetrics);
 

@@ -11,7 +11,7 @@ const logger = makeLogger({
 });
 const tracer = makeTracer({
   serviceName: 'ana-liese',
-  exporterUrl: Env.TRACE_EXPORTER_URL,
+  exporterUrls: Env.TRACE_EXPORTER_URLS,
   logger,
 });
 

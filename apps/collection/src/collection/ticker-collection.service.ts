@@ -1,13 +1,13 @@
 import {
-  makeSignalMetric,
-  schema,
   type Collection,
   type DBClient,
   type SignalMetric,
+  makeSignalMetric,
+  schema,
 } from '@modules/db';
+import { type Producer, makeEvent } from '@modules/events';
 import type { Context } from '@modules/tracing';
 import { collectTickerData } from './ticker';
-import { makeEvent, type Producer } from '@modules/events';
 
 export interface MakeTickerCollectionServiceOpts {
   db: DBClient;

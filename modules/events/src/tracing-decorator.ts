@@ -1,10 +1,10 @@
 import type { Logger } from '@modules/logger';
 import type { Context } from '@modules/tracing';
 import {
+  type Tracer,
   extractTraceContext,
   fromBaggageEntries,
   injectTraceContext,
-  type Tracer,
 } from '@modules/tracing';
 import type { Primitive } from '@modules/types';
 import { propagation } from '@opentelemetry/api';
@@ -14,7 +14,7 @@ function makeNoopContext(log: Logger): Context {
   const container = { annotations: new Map<string, string | number | boolean>() };
 
   const withFn = <T>(
-    name: string,
+    _name: string,
     optsOrFn: any,
     maybeFn?: (context: Context) => Promise<T>,
   ): Promise<T> => {
@@ -29,7 +29,7 @@ function makeNoopContext(log: Logger): Context {
     log.setBindings({ [key]: value });
   };
 
-  const setName = (name: string) => {
+  const setName = (_name: string) => {
     // Noop
   };
 
@@ -45,7 +45,7 @@ function makeNoopContext(log: Logger): Context {
 }
 
 export interface MakeTracingDecoratorOpts {
-  tracer?: Tracer;
+  tracer?: Tracer | undefined;
   logger: Logger;
 }
 

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     extends:
@@ -10,4 +8,4 @@ services:
       POSTGRES_PASSWORD: development
       POSTGRES_DB: development
     ports:
-      - '5432:5432'
+      - "5432:5432"

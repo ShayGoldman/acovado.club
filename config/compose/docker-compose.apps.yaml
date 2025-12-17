@@ -8,7 +8,7 @@ services:
       - ${ENV_FILES_ROOT}/bebe.env
     environment:
       NODE_ENV: production
-      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+      TRACE_EXPORTER_URLS: http://localhost:14318/v1/traces,http://localhost:4318/v1/traces
       CRONS_START_ON_INIT: false
     restart: unless-stopped
     networks:
@@ -17,7 +17,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: '1gb'
+          memory: "1gb"
 
   collection:
     container_name: collection
@@ -26,7 +26,7 @@ services:
       - ${ENV_FILES_ROOT}/collection.env
     environment:
       NODE_ENV: production
-      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+      TRACE_EXPORTER_URLS: http://localhost:14318/v1/traces,http://localhost:4318/v1/traces
     restart: unless-stopped
     networks:
       - internal-network
@@ -34,7 +34,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: '1gb'
+          memory: "1gb"
 
   ana-liese:
     container_name: ana-liese
@@ -43,7 +43,7 @@ services:
       - ${ENV_FILES_ROOT}/ana-liese.env
     environment:
       NODE_ENV: production
-      TRACE_EXPORTER_URL: http://otel-collector:4318/v1/traces
+      TRACE_EXPORTER_URLS: http://localhost:14318/v1/traces,http://localhost:4318/v1/traces
     restart: unless-stopped
     networks:
       - internal-network
@@ -51,7 +51,7 @@ services:
       resources:
         limits:
           cpus: 2
-          memory: '2gb'
+          memory: "2gb"
 
 networks:
   internal-network:

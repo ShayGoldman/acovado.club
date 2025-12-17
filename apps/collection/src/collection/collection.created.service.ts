@@ -1,4 +1,4 @@
-import { eq, schema, type Collection, type DBClient } from '@modules/db';
+import { type Collection, type DBClient, eq, schema } from '@modules/db';
 import type { BasePayload, Message, Producer } from '@modules/events';
 import type { Context } from '@modules/tracing';
 import { makeTickerCollectionService } from './ticker-collection.service';

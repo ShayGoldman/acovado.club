@@ -1,7 +1,7 @@
-import { trace, context } from '@opentelemetry/api';
-import amqp from 'amqplib';
-import type { Logger } from '@modules/logger';
 import { makeMessageId } from '@modules/ids';
+import type { Logger } from '@modules/logger';
+import { context, trace } from '@opentelemetry/api';
+import amqp from 'amqplib';
 import type { MessageMetadata } from './types';
 
 export async function connectToBroker(

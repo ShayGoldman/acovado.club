@@ -1,14 +1,11 @@
-import { sql, relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import * as D from 'drizzle-orm/pg-core';
 
 export const acovado = D.pgSchema('acovado');
 export const metabase = D.pgSchema('metabase');
 
 export const watchLists = acovado.table('watch_lists', (c) => ({
-  id: c
-    .uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
+  id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
   name: c.varchar('name', { length: 128 }).notNull(),
   createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: c
@@ -23,10 +20,7 @@ export const watchListsRelations = relations(watchLists, ({ many }) => ({
 }));
 
 export const tickers = acovado.table('tickers', (c) => ({
-  id: c
-    .uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
+  id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
   name: c.varchar('name', { length: 64 }).notNull(),
   symbol: c.varchar('symbol', { length: 8 }).notNull().unique(),
   createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
@@ -121,6 +115,28 @@ export const stories = acovado.table('stories', (c) => ({
   createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
 }));
 
+export const redditThreads = acovado.table('reddit_threads', (c) => ({
+  id: c.serial().primaryKey(),
+  redditId: c.varchar('reddit_id', { length: 64 }).notNull().unique(),
+  subreddit: c.varchar('subreddit', { length: 128 }).notNull(),
+  title: c.varchar('title', { length: 512 }).notNull(),
+  author: c.varchar('author', { length: 128 }).notNull(),
+  selftext: c.text('selftext').notNull(),
+  url: c.varchar('url', { length: 512 }).notNull(),
+  permalink: c.varchar('permalink', { length: 512 }).notNull(),
+  score: c.integer('score').notNull(),
+  numComments: c.integer('num_comments').notNull(),
+  createdUtc: c.timestamp('created_utc', { mode: 'string' }).notNull(),
+  status: c.varchar('status', { length: 32 }).notNull(),
+  data: c.jsonb('data').notNull(),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: c
+    .timestamp('updated_at', { mode: 'string' })
+    .defaultNow()
+    .notNull()
+    .$onUpdateFn(() => new Date().toISOString()),
+}));
+
 export const schema = {
   watchLists,
   watchListsRelations,
@@ -132,6 +148,7 @@ export const schema = {
   signalMetrics,
   kvStore,
   stories,
+  redditThreads,
 };
 
 // required so client is easily created

@@ -18,7 +18,7 @@ services:
       resources:
         limits:
           cpus: 2
-          memory: '4gb'
+          memory: "4gb"
 
   # TODO Drizzle studio maybe?
 
@@ -33,18 +33,18 @@ services:
       - proxy-network
     restart: unless-stopped
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.acovado.club`)'
-      - 'traefik.http.routers.rabbitmq.entrypoints=websecure'
-      - 'traefik.http.routers.rabbitmq.tls.certresolver=acovado'
-      - 'traefik.http.services.rabbitmq.loadbalancer.server.port=15672'
-      - 'traefik.http.routers.rabbitmq.middlewares=auth'
-      - 'traefik.docker.network=proxy-network'
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.acovado.club`)"
+      - "traefik.http.routers.rabbitmq.entrypoints=websecure"
+      - "traefik.http.routers.rabbitmq.tls.certresolver=acovado"
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+      - "traefik.http.routers.rabbitmq.middlewares=auth"
+      - "traefik.docker.network=proxy-network"
     deploy:
       resources:
         limits:
           cpus: 2
-          memory: '4gb'
+          memory: "4gb"
 
   grafana:
     extends:
@@ -59,13 +59,13 @@ services:
       - proxy-network
       - internal-network
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)'
-      - 'traefik.http.routers.grafana.entrypoints=websecure'
-      - 'traefik.http.routers.grafana.tls.certresolver=acovado'
-      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
-      - 'traefik.http.routers.grafana.middlewares=auth'
-      - 'traefik.docker.network=proxy-network'
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.acovado.club`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=acovado"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.grafana.middlewares=auth"
+      - "traefik.docker.network=proxy-network"
     restart: unless-stopped
     depends_on:
       - tempo
@@ -75,7 +75,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: '1gb'
+          memory: "1gb"
 
   otel-collector:
     extends:
@@ -94,8 +94,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '1gb'
+          cpus: "0.5"
+          memory: "1gb"
 
   prometheus:
     extends:
@@ -113,7 +113,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: '1gb'
+          memory: "1gb"
 
   tempo:
     extends:
@@ -133,7 +133,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: '2gb'
+          memory: "2gb"
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
@@ -146,18 +146,18 @@ services:
       - /srv/volumes/stats:/data
     restart: always
     labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.stats.rule=Host(`stats.acovado.club`)'
-      - 'traefik.http.routers.stats.entrypoints=websecure'
-      - 'traefik.http.routers.stats.tls.certresolver=acovado'
-      - 'traefik.http.services.stats.loadbalancer.server.port=9000'
-      - 'traefik.http.routers.stats.middlewares=auth'
-      - 'traefik.docker.network=proxy-network'
+      - "traefik.enable=true"
+      - "traefik.http.routers.stats.rule=Host(`stats.acovado.club`)"
+      - "traefik.http.routers.stats.entrypoints=websecure"
+      - "traefik.http.routers.stats.tls.certresolver=acovado"
+      - "traefik.http.services.stats.loadbalancer.server.port=9000"
+      - "traefik.http.routers.stats.middlewares=auth"
+      - "traefik.docker.network=proxy-network"
     deploy:
       resources:
         limits:
           cpus: 1
-          memory: '2gb'
+          memory: "2gb"
 
 networks:
   proxy-network:
