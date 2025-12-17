@@ -1,0 +1,249 @@
+---
+description: Code style, structure, logging, tracing, and error handling patterns for clean, observable TypeScript services.
+globs: "*.ts, *.tsx"
+alwaysApply: true
+---
+
+# Code Style & Quality Guidelines
+
+## Code Structure & Organization
+
+Keep code clean and self-documenting through proper structure:
+
+- Extract business logic into well-named functions
+- Keep main/orchestration functions clean and focused on data flow
+- Each function should have a single responsibility
+- Use descriptive, verb-based function names: `fetch`, `find`, `save`, `process`, `emit`
+- Avoid inline comments - prefer self-documenting code through proper naming
+
+```ts#good-example.ts
+// Good: Clean orchestration function with extracted business logic
+async function processSubreddit(subreddit: string, ...deps): Promise<void> {
+  return tracer.with(`Process /r/${subreddit}`, async (ctx) => {
+    const posts = await fetchThreadsFromReddit(subreddit, redditClient, tracer);
+    if (posts.length === 0) {
+      ctx.log.info({ subreddit }, 'No threads found');
+      return;
+    }
+
+    const newPosts = await findNewThreads(posts, db, tracer);
+    if (newPosts.length === 0) {
+      return;
+    }
+
+    await processNewThreads(newPosts, db, producer, tracer);
+  });
+}
+```
+
+## Function Extraction Guidelines
+
+Extract operations that:
+
+- Perform a distinct business operation
+- Would benefit from separate tracing/logging
+- Can be tested independently
+- Improve readability of the main function
+
+```ts#extraction-example.ts
+// Extract: fetching data from external source
+async function fetchThreadsFromReddit(
+  subreddit: string,
+  redditClient: RedditClient,
+  tracer: Tracer,
+): Promise<RedditPost[]> {
+  return tracer.with(`Fetch threads from /r/${subreddit}`, async (ctx) => {
+    const posts = await redditClient.fetchSubredditPosts(subreddit);
+    ctx.log.info({ subreddit, count: posts.length }, `Fetched ${posts.length} threads`);
+    return posts;
+  });
+}
+
+// Extract: database lookup/filtering
+async function findNewThreads(
+  posts: RedditPost[],
+  db: DBClient,
+  tracer: Tracer,
+): Promise<RedditPost[]> {
+  return tracer.with('Find new threads', async (ctx) => {
+    // ... implementation
+  });
+}
+
+// Extract: persistence operation
+async function saveThreadToDB(
+  post: RedditPost,
+  db: DBClient,
+  tracer: Tracer,
+): Promise<RedditThread> {
+  return tracer.with(`Save thread ${post.id}`, async (ctx) => {
+    // ... implementation
+  });
+}
+```
+
+## Logging Practices
+
+Always use `ctx.log` from the tracing context. Use structured logging with context object first, message second.
+
+### Log Levels
+
+- `debug`: Detailed information for debugging (state, intermediate values)
+- `info`: Important business events (fetched X items, processing started/completed)
+- `error`: Errors with full context
+
+```ts#logging-example.ts
+// Good: Structured logging with context
+ctx.log.info({ subreddit, count: posts.length }, `Fetched ${posts.length} threads`);
+ctx.log.debug({ threadId: insertedThread.id, redditId: post.id }, 'Thread saved to database');
+ctx.log.error({ error, subreddit }, `Failed to fetch threads from /r/${subreddit}`);
+
+// Bad: Unstructured logging
+ctx.log.info(`Fetched ${posts.length} threads from ${subreddit}`);
+ctx.log.error('Something went wrong');
+```
+
+### Logging Guidelines
+
+- Include relevant context in log objects (IDs, counts, relevant state)
+- Log at function entry/exit for important operations
+- Use descriptive, action-oriented log messages
+- Don't log sensitive data
+
+## Tracing Practices
+
+All business logic functions must use `tracer.with()` or `ctx.with()` for observability.
+
+```ts#tracing-example.ts
+// Top-level function uses tracer.with()
+async function fetchThreadsFromReddit(subreddit: string, tracer: Tracer) {
+  return tracer.with(`Fetch threads from /r/${subreddit}`, async (ctx) => {
+    // ... implementation
+  });
+}
+
+// Nested operations use ctx.with()
+async function detect(signal: SignalMetric, ctx: Context): Promise<void> {
+  await ctx.with('Price spike detection', async (c) => {
+    c.annotate('signal.id', signal.id);
+    c.annotate('signal.type', signal.type);
+    // ... implementation
+  });
+}
+```
+
+### Tracing Guidelines
+
+- Use descriptive span names that explain what the operation does
+- Use `ctx.annotate()` to add important metadata to spans
+- Use `ctx.setName()` to update span names dynamically when context is known
+- Span names should be clear and concise
+
+## Error Handling
+
+Wrap orchestration functions in try-catch blocks. Log errors with full context before throwing.
+
+```ts#error-handling-example.ts
+async function processSubreddit(subreddit: string, ...deps): Promise<void> {
+  return tracer.with(`Process /r/${subreddit}`, async (ctx) => {
+    try {
+      const posts = await fetchThreadsFromReddit(subreddit, redditClient, tracer);
+      // ... rest of processing
+    } catch (error) {
+      ctx.log.error({ error, subreddit }, `Failed to process /r/${subreddit}`);
+      throw error;
+    }
+  });
+}
+```
+
+## TypeScript Patterns
+
+```ts#typescript-patterns.ts
+// Use type imports for type-only imports
+import type { DBClient, RedditThread } from '@modules/db';
+import { makeRedditThread, schema } from '@modules/db';
+
+// Prefer explicit return types for extracted functions
+async function findNewThreads(
+  posts: RedditPost[],
+  db: DBClient,
+  tracer: Tracer,
+): Promise<RedditPost[]> {
+  // ...
+}
+
+// Use assertion functions for runtime validation
+function ensureExists<T>(
+  value: T | undefined | null,
+  ctx: Context,
+  message?: string,
+): asserts value is T {
+  if (value === undefined || value === null) {
+    const errorMessage = message || 'Expected value to exist';
+    ctx.log.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+}
+```
+
+## Service Factory Pattern
+
+Use the `makeXService` pattern for creating services with dependencies:
+
+```ts#service-factory.ts
+export interface MakeThreadFetcherServiceOpts {
+  db: DBClient;
+  tracer: Tracer;
+  producer: Producer;
+}
+
+export function makeThreadFetcherService(opts: MakeThreadFetcherServiceOpts) {
+  const { db, tracer, producer } = opts;
+  const redditClient = makeRedditClient();
+
+  return {
+    async fetchThreads() {
+      for (const subreddit of SUBREDDITS) {
+        await processSubreddit(subreddit, redditClient, db, producer, tracer);
+      }
+    },
+  };
+}
+```
+
+## Code Comments
+
+Avoid comments that explain "what" - code should be self-documenting. Only use comments for:
+
+- Complex algorithms that need explanation
+- "Why" explanations for non-obvious decisions
+- JSDoc for exported functions/interfaces when needed
+
+```ts#comments-example.ts
+// Bad: Comment explains what the code does
+// Check if posts array is empty and return early
+if (posts.length === 0) {
+  return;
+}
+
+// Good: Self-documenting code, no comment needed
+const newPosts = await findNewThreads(posts, db, tracer);
+if (newPosts.length === 0) {
+  return;
+}
+
+// Good: Comment explains WHY (non-obvious decision)
+// Using ZLEMA instead of SMA for faster response to price changes
+const lag = 2 / (1 + alpha);
+```
+
+## Formatting
+
+Follow Biome configuration:
+
+- Single quotes for strings
+- 2-space indentation
+- Semicolons always
+- Trailing commas
+- 90 character line width
