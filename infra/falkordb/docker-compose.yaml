@@ -1,0 +1,12 @@
+services:
+  falkordb:
+    extends:
+      file: ./docker-compose.base.yaml
+      service: falkordb
+    environment:
+      REDIS_ARGS: --requirepass development
+      FALKORDB_ARGS: THREAD_COUNT 4
+      FALKORDB_PASSWORD: development
+    ports:
+      - "3000:3000"
+      - "6379:6379"

@@ -1,0 +1,41 @@
+{
+  "name": "@modules/graph-db",
+  "private": true,
+  "description": "FalkorDB graph database client module",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build:code": "bun build src/index.ts --outdir dist --target bun",
+    "build:declarations": "bunx tsup src/index.ts --dts-only --out-dir dist --format esm",
+    "build": "bun run build:code && bun run build:declarations",
+    "dev": "bun run build:code --watch & bun run build:declarations --watch",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
+    "typecheck": "bun tsc --noEmit",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modules/tracing": "workspace:*",
+    "redis": "^4.7.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "tsup": "^8.3.5",
+    "type-fest": "^4.30.1"
+  }
+}

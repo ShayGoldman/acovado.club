@@ -192,6 +192,26 @@ services:
           cpus: 1
           memory: "2gb"
 
+  falkordb:
+    extends:
+      file: ../../infra/falkordb/docker-compose.base.yaml
+      service: falkordb
+    env_file:
+      - ${ENV_FILES_ROOT}/falkordb.env
+    environment:
+      FALKORDB_ARGS: THREAD_COUNT 8
+    volumes:
+      - ${VOLUMES_ROOT}/falkordb-data:/data
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: "2gb"
+
+networks:
   proxy-network:
     external: true
   internal-network:
