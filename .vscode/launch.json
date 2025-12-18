@@ -24,6 +24,22 @@
       "name": "Acovado: Ana-liese (attach)",
       "url": "ws://localhost:16000/ana-liese",
       "stopOnEntry": false
+    },
+    {
+      "type": "bun",
+      "internalConsoleOptions": "neverOpen",
+      "request": "attach",
+      "name": "Acovado: Reddit Scraper (attach)",
+      "url": "ws://localhost:16003/reddit-scraper",
+      "stopOnEntry": false
+    },
+    {
+      "type": "bun",
+      "internalConsoleOptions": "neverOpen",
+      "request": "attach",
+      "name": "Acovado: Reddit Processor (attach)",
+      "url": "ws://localhost:16004/reddit-processor",
+      "stopOnEntry": false
     }
   ]
 }

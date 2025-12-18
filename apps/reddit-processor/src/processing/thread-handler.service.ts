@@ -1,11 +1,18 @@
-import type { DBClient } from '@modules/db';
+import type { DBClient, RedditThread } from '@modules/db';
 import { schema } from '@modules/db';
 import type { Message } from '@modules/events';
-import type { Context } from '@modules/tracing';
+import type { GraphClient } from '@modules/graph-db';
+import type { Context, Tracer } from '@modules/tracing';
 import { eq } from 'drizzle-orm';
+import type { TickerExtractorService } from '@/inference/ticker-extractor.service';
+
+const GRAPH_NAME = 'reddit';
 
 export interface MakeThreadHandlerServiceOpts {
   db: DBClient;
+  graphClient: GraphClient;
+  tracer: Tracer;
+  tickerExtractor: TickerExtractorService;
 }
 
 interface ThreadFetchedPayload {
@@ -20,8 +27,70 @@ interface ThreadFetchedPayload {
   timestamp: Date;
 }
 
+interface ThreadData {
+  id: number;
+  redditId: string;
+  title: string;
+  subreddit: string;
+  author: string;
+  score: number;
+  createdUtc: string;
+}
+
+async function saveThreadToGraph(
+  thread: ThreadData,
+  tickers: string[],
+  graphClient: GraphClient,
+  tracer: Tracer,
+): Promise<void> {
+  return tracer.with(`Save thread ${thread.id} to graph`, async (ctx) => {
+    const graph = graphClient.selectGraph(GRAPH_NAME);
+
+    await graph.mergeNode('Subreddit', { name: thread.subreddit });
+    ctx.log.debug({ subreddit: thread.subreddit }, 'Subreddit node merged');
+
+    await graph.mergeNode('Author', { username: thread.author });
+    ctx.log.debug({ author: thread.author }, 'Author node merged');
+
+    // TODO add a layer of type safety for the client (nodes & edges)
+    await graph.createRelationship(
+      'Subreddit',
+      { name: thread.subreddit },
+      'POSTED_IN',
+      'Author',
+      { username: thread.author },
+    );
+    ctx.log.debug(
+      { subreddit: thread.subreddit, author: thread.author },
+      'POSTED_IN relationship from subreddit to author created',
+    );
+
+    for (const ticker of tickers) {
+      const normalizedTicker = ticker.trim().toUpperCase();
+      if (normalizedTicker.length === 0) {
+        continue;
+      }
+
+      await graph.mergeNode('Ticker', { symbol: normalizedTicker });
+      ctx.log.debug({ ticker: normalizedTicker }, 'Ticker node merged');
+
+      await graph.createRelationship(
+        'Author',
+        { username: thread.author },
+        'TALKED_ABOUT',
+        'Ticker',
+        { symbol: normalizedTicker },
+      );
+      ctx.log.debug(
+        { author: thread.author, ticker: normalizedTicker },
+        'TALKED_ABOUT relationship created',
+      );
+    }
+  });
+}
+
 export function makeThreadHandlerService(opts: MakeThreadHandlerServiceOpts) {
-  const { db } = opts;
+  const { db, graphClient, tracer, tickerExtractor } = opts;
 
   return {
     async onThreadFetched(message: Message<ThreadFetchedPayload>, context: Context) {
@@ -34,7 +103,6 @@ export function makeThreadHandlerService(opts: MakeThreadHandlerServiceOpts) {
         );
 
         try {
-          // Fetch full thread data from DB
           const [thread] = await db
             .select()
             .from(schema.redditThreads)
@@ -58,27 +126,21 @@ export function makeThreadHandlerService(opts: MakeThreadHandlerServiceOpts) {
             'Processing thread',
           );
 
-          // POC: Just log the thread for now
-          c.log.info(
-            {
-              thread: {
-                id: thread.id,
-                redditId: thread.redditId,
-                subreddit: thread.subreddit,
-                title: thread.title,
-                author: thread.author,
-                selftext: thread.selftext.substring(0, 100), // Log first 100 chars
-                url: thread.url,
-                permalink: thread.permalink,
-                score: thread.score,
-                numComments: thread.numComments,
-                createdUtc: thread.createdUtc,
-              },
-            },
-            '📝 Thread details (POC)',
-          );
+          const tickers = await tickerExtractor
+            .extractTickers(thread as RedditThread, c)
+            .catch(() => []);
+          c.log.info({ threadId: thread.id, tickers }, 'Tickers extracted from thread');
 
-          // Mark as processed
+          try {
+            await saveThreadToGraph(thread, tickers, graphClient, tracer);
+            c.log.info({ threadId: thread.id }, 'Thread saved to graph');
+          } catch (graphError) {
+            c.log.error(
+              { error: graphError, threadId: thread.id },
+              'Failed to save thread to graph (non-blocking)',
+            );
+          }
+
           await db
             .update(schema.redditThreads)
             .set({
@@ -91,7 +153,6 @@ export function makeThreadHandlerService(opts: MakeThreadHandlerServiceOpts) {
         } catch (error) {
           c.log.error({ error, threadId: id }, 'Failed to process thread');
 
-          // Mark as error
           try {
             await db
               .update(schema.redditThreads)

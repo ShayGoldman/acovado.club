@@ -4,8 +4,7 @@
   "packageManager": "bun@1.1.36",
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node",
-    "debug": "bun --inspect=localhost:16003/reddit-processor src/index.ts",
-    "dev": "bun --watch src/index.ts",
+    "dev": "bun --watch --inspect=localhost:16004/reddit-processor src/index.ts",
     "lint": "bunx biome lint --write .",
     "format": "bunx biome format --write .",
     "check": "bunx biome check --write .",
@@ -17,8 +16,11 @@
     "@types/bun": "^1.1.13"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.6",
+    "@langchain/ollama": "^1.1.0",
     "@modules/db": "workspace:*",
     "@modules/events": "workspace:*",
+    "@modules/graph-db": "workspace:*",
     "@modules/logger": "workspace:*",
     "@modules/tracing": "workspace:*",
     "env-var": "^7.5.0",

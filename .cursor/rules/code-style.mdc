@@ -85,6 +85,7 @@ async function saveThreadToDB(
 ## Logging Practices
 
 Always use `ctx.log` from the tracing context. Use structured logging with context object first, message second.
+Use log level `info` before an operation with relevant context, and `debug` level after an operation with crucial response values and relevant context.
 
 ### Log Levels
 

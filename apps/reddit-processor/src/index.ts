@@ -1,12 +1,15 @@
 import Env from '@/env';
+import { makeTickerExtractorService } from '@/inference/ticker-extractor.service';
 import { makeThreadHandlerService } from '@/processing/thread-handler.service';
 import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
+import { makeGraphClient } from '@modules/graph-db';
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
 
 const logger = makeLogger({
   name: 'reddit-processor',
+  level: 'debug',
 });
 
 const tracer = makeTracer({
@@ -27,7 +30,24 @@ const db = makeDBClient({
   tracer,
 });
 
-const threadHandler = makeThreadHandlerService({ db });
+const graphClient = makeGraphClient({
+  url: Env.GRAPH_DB_URL,
+  tracer,
+});
+
+logger.info('Setting up...');
+await graphClient.connect();
+
+const tickerExtractor = makeTickerExtractorService({
+  ollamaBaseUrl: Env.OLLAMA_BASE_URL,
+});
+
+const threadHandler = makeThreadHandlerService({
+  db,
+  graphClient,
+  tracer,
+  tickerExtractor,
+});
 
 const consumer = makeConsumer({
   broker: Env.BROKER_URL,
@@ -43,7 +63,6 @@ const consumer = makeConsumer({
   ],
 });
 
-logger.info('Setting up...');
 await consumer.connect();
 
 logger.info('Reddit processor is running');

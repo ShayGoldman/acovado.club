@@ -1,0 +1,21 @@
+services:
+  inference-model:
+    extends:
+      file: ./docker-compose.base.yaml
+      service: inference-model
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        sleep 10
+        ollama run gemma3:1b || echo "Model pull failed or already exists"
+        wait
+    volumes:
+      - inference-model-data:/root/.ollama
+
+volumes:
+  inference-model-data:

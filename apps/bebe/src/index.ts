@@ -41,4 +41,4 @@ const crons = await makeCronJobsService({
   env: Env,
 });
 
-await crons.start();
+// await crons.start();

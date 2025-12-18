@@ -211,6 +211,30 @@ services:
           cpus: 1
           memory: "2gb"
 
+  inference-model:
+    extends:
+      file: ../../infra/inference-model/docker-compose.base.yaml
+      service: inference-model
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    volumes:
+      - ${VOLUMES_ROOT}/inference-model-data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - internal-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        sleep 10
+        ollama run gemma3:1b || echo "Model pull failed or already exists"
+        wait
+    deploy:
+      resources:
+        limits:
+          cpus: 4
+          memory: "8gb"
+
 networks:
   proxy-network:
     external: true

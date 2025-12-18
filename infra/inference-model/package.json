@@ -1,0 +1,11 @@
+{
+  "name": "@infra/inference-model",
+  "version": "0.1.0",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "start": "docker compose up",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "status": "docker compose ps"
+  }
+}

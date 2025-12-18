@@ -50,7 +50,7 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
 
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch posts from r/${subreddit}: ${response.status} ${response.statusText}`,
+        `Failed to fetch posts from /r/${subreddit}: ${response.status} ${response.statusText}`,
       );
     }
 
