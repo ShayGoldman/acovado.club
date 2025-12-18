@@ -188,6 +188,33 @@ function ensureExists<T>(
 }
 ```
 
+## Database Patterns
+
+Typed enums should be derived from the database column definition itself, not duplicated in model files.
+
+```ts#enum-pattern.ts
+// Good: Define enum values in schema, export them, use in both pgEnum and zod schemas
+// schema.ts
+const redditStatusEnum = D.pgEnum('enum_reddit_status', ['pending', 'processed', 'error']);
+
+export const redditThreads = acovado.table('reddit_threads', (c) => ({
+  // ...
+  status: redditStatusEnum('status').notNull(),
+  // ...
+}));
+
+// model.ts
+import S from '@/schema';
+const statusEnumSchema = Z.enum(redditStatusValues);
+
+const selectSchema = createSelectSchema(S.redditThreads);
+const insertSchema = createInsertSchema(S.redditThreads);
+const statusSchema = insertSchema.shape.status;
+
+type RedditThread = Z.infer<typeof selectSchema>;
+type RedditThreadStatus = RedditThread['status'];
+```
+
 ## Service Factory Pattern
 
 Use the `makeXService` pattern for creating services with dependencies:

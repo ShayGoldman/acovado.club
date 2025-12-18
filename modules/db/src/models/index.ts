@@ -5,3 +5,4 @@ export * from './watch-list-to-ticker';
 export * from './signal-metric';
 export * from './story';
 export * from './reddit-thread';
+export * from './reddit-reply';

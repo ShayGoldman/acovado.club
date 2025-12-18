@@ -1,4 +1,5 @@
 import Env from '@/env';
+import { makeReplyFetcherService } from '@/scraping/reply-fetcher.service';
 import { makeThreadFetcherService } from '@/scraping/thread-fetcher.service';
 import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeProducer } from '@modules/events';
@@ -37,10 +38,17 @@ const producer = makeProducer({
 logger.info('Setting up...');
 await producer.connect();
 
+const replyFetcher = makeReplyFetcherService({
+  db,
+  tracer,
+  producer,
+});
+
 const threadFetcher = makeThreadFetcherService({
   db,
   tracer,
   producer,
+  replyFetcher,
 });
 
 // Cron job: every 10 minutes

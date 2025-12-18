@@ -2,16 +2,12 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import S from '@/schema';
 import Z from 'zod';
 
-const statusEnumSchema = Z.enum(['pending', 'processed', 'error']);
-
 const insertRedditThreadSchema = createInsertSchema(S.redditThreads, {
-  status: statusEnumSchema,
-  data: Z.any(),
+  data: Z.record(Z.string(), Z.any()),
 });
 
 const selectRedditThreadSchema = createSelectSchema(S.redditThreads, {
-  status: statusEnumSchema,
-  data: Z.any(),
+  data: Z.record(Z.string(), Z.any()),
 });
 
 export type RedditThread = Z.infer<typeof selectRedditThreadSchema>;

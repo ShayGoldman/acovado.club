@@ -2,9 +2,10 @@ import type { DBClient, RedditThread } from '@modules/db';
 import { makeRedditThread, schema } from '@modules/db';
 import { makeEvent, type Producer } from '@modules/events';
 import type { Context, Tracer } from '@modules/tracing';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { RedditThread as RawRedditThread } from './reddit-client';
 import { makeRedditClient } from './reddit-client';
+import type { makeReplyFetcherService } from './reply-fetcher.service';
 
 const SUBREDDITS = ['ValueInvesting'] as const;
 
@@ -29,6 +30,7 @@ export interface MakeThreadFetcherServiceOpts {
   db: DBClient;
   tracer: Tracer;
   producer: Producer;
+  replyFetcher?: ReturnType<typeof makeReplyFetcherService>;
 }
 
 /**
@@ -90,7 +92,7 @@ async function saveThreadToDB(
       .values(
         makeRedditThread({
           redditId: thread.id,
-          subreddit: `/r/${thread.subreddit}`,
+          subreddit: thread.subreddit,
           title: thread.title,
           author: thread.author,
           selftext: thread.selftext,
@@ -163,12 +165,58 @@ async function processNewThreads(
   }
 }
 
+async function fetchAndProcessReplies(
+  thread: RawRedditThread,
+  replyFetcher: ReturnType<typeof makeReplyFetcherService>,
+  db: DBClient,
+  tracer: Tracer,
+): Promise<void> {
+  return tracer.with(`Fetch replies for thread ${thread.id}`, async (ctx) => {
+    const [dbThread] = await db
+      .select({ id: schema.redditThreads.id })
+      .from(schema.redditThreads)
+      .where(eq(schema.redditThreads.redditId, thread.id))
+      .limit(1);
+
+    if (!dbThread) {
+      ctx.log.warn(
+        { redditId: thread.id },
+        'Thread not found in database, skipping reply fetch',
+      );
+      return;
+    }
+
+    const shouldFetch = await replyFetcher.shouldFetchRepliesForThread(dbThread.id);
+    if (!shouldFetch) {
+      return;
+    }
+
+    const redditClient = makeRedditClient();
+    const subreddit = thread.subreddit.replace('/r/', '');
+    const newReplyCount = await replyFetcher.fetchRepliesForThread(
+      thread.id,
+      subreddit,
+      dbThread.id,
+      redditClient,
+    );
+
+    if (newReplyCount > 0) {
+      await replyFetcher.updateThreadLastReplyFetch(dbThread.id);
+      ctx.log.info(
+        { threadId: dbThread.id, newReplyCount },
+        `Fetched ${newReplyCount} new replies for thread`,
+      );
+    }
+  });
+}
+
 async function processSubreddit(
   subreddit: string,
   redditClient: ReturnType<typeof makeRedditClient>,
   db: DBClient,
   producer: Producer,
   tracer: Tracer,
+  replyFetcher?: ReturnType<typeof makeReplyFetcherService>,
 ): Promise<void> {
   return tracer.with(`Process /r/${subreddit}`, async (ctx) => {
     try {
@@ -181,11 +229,15 @@ async function processSubreddit(
 
       const newThreads = await findNewThreads(threads, db, tracer);
 
-      if (newThreads.length === 0) {
-        return;
+      if (newThreads.length > 0) {
+        await processNewThreads(newThreads, db, producer, tracer);
       }
 
-      await processNewThreads(newThreads, db, producer, tracer);
+      if (replyFetcher) {
+        for (const thread of threads) {
+          await fetchAndProcessReplies(thread, replyFetcher, db, tracer);
+        }
+      }
     } catch (error) {
       ctx.log.error({ error, subreddit }, `Failed to fetch threads from /r/${subreddit}`);
       throw error;
@@ -194,13 +246,20 @@ async function processSubreddit(
 }
 
 export function makeThreadFetcherService(opts: MakeThreadFetcherServiceOpts) {
-  const { db, tracer, producer } = opts;
+  const { db, tracer, producer, replyFetcher } = opts;
   const redditClient = makeRedditClient();
 
   return {
     async fetchThreads() {
       for (const subreddit of SUBREDDITS) {
-        await processSubreddit(subreddit, redditClient, db, producer, tracer);
+        await processSubreddit(
+          subreddit,
+          redditClient,
+          db,
+          producer,
+          tracer,
+          replyFetcher,
+        );
       }
     },
   };

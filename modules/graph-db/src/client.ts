@@ -161,7 +161,7 @@ export function makeGraphClient(opts: MakeGraphClientOpts) {
           const setString = Object.entries(setProps)
             .map(([key, value]) => `n.${key} = ${JSON.stringify(value)}`)
             .join(', ');
-          cypherQuery += ` ON CREATE SET ${setString}`;
+          cypherQuery += ` ON CREATE SET ${setString} ON MATCH SET ${setString}`;
         }
 
         cypherQuery += ' RETURN n';
@@ -186,6 +186,39 @@ export function makeGraphClient(opts: MakeGraphClientOpts) {
           graphName,
           `MATCH (a:${fromLabel} {${fromMatch}}), (b:${toLabel} {${toMatch}}) MERGE (a)-[r:${relationType}]->(b) RETURN r`,
         );
+      },
+
+      async mergeRelationshipWithProperties(
+        fromLabel: string,
+        fromProps: Record<string, unknown>,
+        relationType: string,
+        toLabel: string,
+        toProps: Record<string, unknown>,
+        edgeProps: Record<string, unknown>,
+        updateCondition?: string,
+      ): Promise<GraphQueryResult> {
+        const fromMatch = Object.entries(fromProps)
+          .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+          .join(', ');
+        const toMatch = Object.entries(toProps)
+          .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+          .join(', ');
+
+        const onCreateProps = Object.entries(edgeProps)
+          .map(([key, value]) => `r.${key} = ${JSON.stringify(value)}`)
+          .join(', ');
+
+        let onMatchClause = '';
+        if (updateCondition) {
+          const onMatchProps = Object.entries(edgeProps)
+            .map(([key, value]) => `r.${key} = ${JSON.stringify(value)}`)
+            .join(', ');
+          onMatchClause = ` ON MATCH WHERE ${updateCondition} SET ${onMatchProps}`;
+        }
+
+        const cypherQuery = `MATCH (a:${fromLabel} {${fromMatch}}), (b:${toLabel} {${toMatch}}) MERGE (a)-[r:${relationType}]->(b) ON CREATE SET ${onCreateProps}${onMatchClause} RETURN r`;
+
+        return query(graphName, cypherQuery);
       },
     };
   }

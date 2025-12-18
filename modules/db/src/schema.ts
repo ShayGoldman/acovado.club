@@ -4,6 +4,12 @@ import * as D from 'drizzle-orm/pg-core';
 export const acovado = D.pgSchema('acovado');
 export const metabase = D.pgSchema('metabase');
 
+export const redditStatusEnum = D.pgEnum('reddit_status', [
+  'pending',
+  'processed',
+  'error',
+]);
+
 export const watchLists = acovado.table('watch_lists', (c) => ({
   id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
   name: c.varchar('name', { length: 128 }).notNull(),
@@ -127,7 +133,30 @@ export const redditThreads = acovado.table('reddit_threads', (c) => ({
   score: c.integer('score').notNull(),
   numComments: c.integer('num_comments').notNull(),
   createdUtc: c.timestamp('created_utc', { mode: 'string' }).notNull(),
-  status: c.varchar('status', { length: 32 }).notNull(),
+  status: redditStatusEnum('status').notNull(),
+  data: c.jsonb('data').notNull(),
+  lastReplyFetchAt: c.timestamp('last_reply_fetch_at', { mode: 'string' }),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: c
+    .timestamp('updated_at', { mode: 'string' })
+    .defaultNow()
+    .notNull()
+    .$onUpdateFn(() => new Date().toISOString()),
+}));
+
+export const redditReplies = acovado.table('reddit_replies', (c) => ({
+  id: c.serial().primaryKey(),
+  redditId: c.varchar('reddit_id', { length: 64 }).notNull().unique(),
+  threadId: c
+    .integer('thread_id')
+    .notNull()
+    .references(() => redditThreads.id, { onDelete: 'cascade' }),
+  parentRedditId: c.varchar('parent_reddit_id', { length: 64 }),
+  author: c.varchar('author', { length: 128 }).notNull(),
+  body: c.text('body').notNull(),
+  score: c.integer('score').notNull(),
+  createdUtc: c.timestamp('created_utc', { mode: 'string' }).notNull(),
+  status: redditStatusEnum('status').notNull(),
   data: c.jsonb('data').notNull(),
   createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: c
@@ -149,6 +178,7 @@ export const schema = {
   kvStore,
   stories,
   redditThreads,
+  redditReplies,
 };
 
 // required so client is easily created

@@ -14,7 +14,7 @@ import {
   safeClose,
 } from './utils';
 
-export interface EventHandler<T = Record<string, unknown>> {
+export interface EventHandler<T = any> {
   domain: string;
   queue: KebabCase<string>;
   routingKey?: string; // Defaults to `#` if not provided
@@ -30,6 +30,7 @@ export interface MakeEventsConsumerOpts {
   tracing?: {
     tracer: Tracer;
   };
+  prefetch?: number;
 }
 
 export function makeConsumer({
@@ -37,6 +38,7 @@ export function makeConsumer({
   logger,
   handlers,
   tracing,
+  prefetch,
 }: MakeEventsConsumerOpts) {
   let connection: amqp.Connection | null = null;
   const handlerList = Array.isArray(handlers) ? handlers : [handlers];
@@ -64,6 +66,8 @@ export function makeConsumer({
         boundLogger,
       );
       channels.set(queue, channel);
+
+      await channel.prefetch(prefetch || 1);
 
       const decoratedHandler = tracingDecorator.decorateHandler(handler.onMessage, {
         domain: handler.domain,
