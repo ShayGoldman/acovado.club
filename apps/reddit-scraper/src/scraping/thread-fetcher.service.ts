@@ -3,7 +3,7 @@ import { makeRedditThread, schema } from '@modules/db';
 import { makeEvent, type Producer } from '@modules/events';
 import type { Context, Tracer } from '@modules/tracing';
 import { inArray } from 'drizzle-orm';
-import type { RedditPost } from './reddit-client';
+import type { RedditThread as RawRedditThread } from './reddit-client';
 import { makeRedditClient } from './reddit-client';
 
 const SUBREDDITS = ['ValueInvesting'] as const;
@@ -38,14 +38,14 @@ async function fetchThreadsFromReddit(
   subreddit: string,
   redditClient: ReturnType<typeof makeRedditClient>,
   tracer: Tracer,
-): Promise<RedditPost[]> {
+): Promise<RawRedditThread[]> {
   return tracer.with(`Fetch threads from /r/${subreddit}`, async (ctx) => {
-    const posts = await redditClient.fetchSubredditPosts(subreddit);
+    const threads = await redditClient.fetchSubredditThreads(subreddit);
     ctx.log.info(
-      { subreddit, count: posts.length },
-      `Fetched ${posts.length} threads from /r/${subreddit}`,
+      { subreddit, count: threads.length },
+      `Fetched ${threads.length} threads from /r/${subreddit}`,
     );
-    return posts;
+    return threads;
   });
 }
 
@@ -53,26 +53,26 @@ async function fetchThreadsFromReddit(
  * Finds which threads are new (not already in the database)
  */
 async function findNewThreads(
-  posts: RedditPost[],
+  threads: RawRedditThread[],
   db: DBClient,
   tracer: Tracer,
-): Promise<RedditPost[]> {
+): Promise<RawRedditThread[]> {
   return tracer.with('Find new threads', async (ctx) => {
-    const redditIds = posts.map((p) => p.id);
+    const redditIds = threads.map((t) => t.id);
     const existingThreads = await db
       .select({ redditId: schema.redditThreads.redditId })
       .from(schema.redditThreads)
       .where(inArray(schema.redditThreads.redditId, redditIds));
 
     const existingRedditIds = new Set(existingThreads.map((t) => t.redditId));
-    const newPosts = posts.filter((p) => !existingRedditIds.has(p.id));
+    const newThreads = threads.filter((t) => !existingRedditIds.has(t.id));
 
     ctx.log.info(
-      { new: newPosts.length, existing: existingRedditIds.size },
-      `Found ${newPosts.length} new threads, ${existingRedditIds.size} already exist`,
+      { new: newThreads.length, existing: existingRedditIds.size },
+      `Found ${newThreads.length} new threads, ${existingRedditIds.size} already exist`,
     );
 
-    return newPosts;
+    return newThreads;
   });
 }
 
@@ -80,27 +80,27 @@ async function findNewThreads(
  * Saves a thread to the database
  */
 async function saveThreadToDB(
-  post: RedditPost,
+  thread: RawRedditThread,
   db: DBClient,
   tracer: Tracer,
 ): Promise<RedditThread> {
-  return tracer.with(`Save thread ${post.id}`, async (ctx) => {
+  return tracer.with(`Save thread ${thread.id}`, async (ctx) => {
     const [insertedThread] = await db
       .insert(schema.redditThreads)
       .values(
         makeRedditThread({
-          redditId: post.id,
-          subreddit: `/r/${post.subreddit}`,
-          title: post.title,
-          author: post.author,
-          selftext: post.selftext,
-          url: post.url,
-          permalink: post.permalink,
-          score: post.score,
-          numComments: post.num_comments,
-          createdUtc: new Date(post.created_utc * 1000).toISOString(),
+          redditId: thread.id,
+          subreddit: `/r/${thread.subreddit}`,
+          title: thread.title,
+          author: thread.author,
+          selftext: thread.selftext,
+          url: thread.url,
+          permalink: thread.permalink,
+          score: thread.score,
+          numComments: thread.num_comments,
+          createdUtc: new Date(thread.created_utc * 1000).toISOString(),
           status: 'pending',
-          data: post,
+          data: thread,
         }),
       )
       .returning();
@@ -108,11 +108,11 @@ async function saveThreadToDB(
     ensureExists(
       insertedThread,
       ctx,
-      `Failed to insert thread with reddit_id: ${post.id}`,
+      `Failed to insert thread with reddit_id: ${thread.id}`,
     );
 
     ctx.log.debug(
-      { threadId: insertedThread.id, redditId: post.id },
+      { threadId: insertedThread.id, redditId: thread.id },
       'Thread saved to database',
     );
 
@@ -147,17 +147,17 @@ async function emitThreadFetchedEvent(
 }
 //
 async function processNewThreads(
-  newPosts: RedditPost[],
+  newThreads: RawRedditThread[],
   db: DBClient,
   producer: Producer,
   tracer: Tracer,
 ): Promise<void> {
-  for (const post of newPosts) {
+  for (const thread of newThreads) {
     tracer.with('Process thread', async (ctx) => {
-      ctx.annotate('thread.id', post.id);
-      ctx.annotate('thread.subreddit', post.subreddit);
+      ctx.annotate('thread.id', thread.id);
+      ctx.annotate('thread.subreddit', thread.subreddit);
 
-      const insertedThread = await saveThreadToDB(post, db, tracer);
+      const insertedThread = await saveThreadToDB(thread, db, tracer);
       await emitThreadFetchedEvent(insertedThread, producer, tracer);
     });
   }
@@ -172,20 +172,20 @@ async function processSubreddit(
 ): Promise<void> {
   return tracer.with(`Process /r/${subreddit}`, async (ctx) => {
     try {
-      const posts = await fetchThreadsFromReddit(subreddit, redditClient, tracer);
+      const threads = await fetchThreadsFromReddit(subreddit, redditClient, tracer);
 
-      if (posts.length === 0) {
+      if (threads.length === 0) {
         ctx.log.info({ subreddit }, 'No threads found');
         return;
       }
 
-      const newPosts = await findNewThreads(posts, db, tracer);
+      const newThreads = await findNewThreads(threads, db, tracer);
 
-      if (newPosts.length === 0) {
+      if (newThreads.length === 0) {
         return;
       }
 
-      await processNewThreads(newPosts, db, producer, tracer);
+      await processNewThreads(newThreads, db, producer, tracer);
     } catch (error) {
       ctx.log.error({ error, subreddit }, `Failed to fetch threads from /r/${subreddit}`);
       throw error;

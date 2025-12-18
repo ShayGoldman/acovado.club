@@ -1,6 +1,6 @@
 import Z from 'zod';
 
-const redditPostSchema = Z.object({
+const redditThreadSchema = Z.object({
   id: Z.string(),
   title: Z.string(),
   author: Z.string(),
@@ -19,13 +19,13 @@ const redditListingSchema = Z.object({
     children: Z.array(
       Z.object({
         kind: Z.string(),
-        data: redditPostSchema,
+        data: redditThreadSchema,
       }),
     ),
   }),
 });
 
-export type RedditPost = Z.infer<typeof redditPostSchema>;
+export type RedditThread = Z.infer<typeof redditThreadSchema>;
 
 export interface RedditClientOpts {
   userAgent?: string;
@@ -36,10 +36,10 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
     opts.userAgent ||
     'Mozilla/5.0 (compatible; RedditScraper/1.0; +https://acovado.club)';
 
-  async function fetchSubredditPosts(
+  async function fetchSubredditThreads(
     subreddit: string,
     limit = 25,
-  ): Promise<RedditPost[]> {
+  ): Promise<RedditThread[]> {
     const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
 
     const response = await fetch(url, {
@@ -50,7 +50,7 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
 
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch posts from /r/${subreddit}: ${response.status} ${response.statusText}`,
+        `Failed to fetch threads from /r/${subreddit}: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -61,7 +61,7 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
   }
 
   return {
-    fetchSubredditPosts,
+    fetchSubredditThreads,
   };
 }
 
