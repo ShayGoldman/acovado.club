@@ -46,19 +46,27 @@ async function saveThreadToGraph(
   return tracer.with(`Save thread ${thread.id} to graph`, async (ctx) => {
     const graph = graphClient.selectGraph(GRAPH_NAME);
 
-    await graph.mergeNode('Subreddit', { name: thread.subreddit });
+    await graph.mergeNode(
+      'Subreddit',
+      { name: thread.subreddit },
+      { title: `r/${thread.subreddit}` },
+    );
     ctx.log.debug({ subreddit: thread.subreddit }, 'Subreddit node merged');
 
-    await graph.mergeNode('Author', { username: thread.author });
+    await graph.mergeNode(
+      'Author',
+      { username: thread.author },
+      { title: thread.author },
+    );
     ctx.log.debug({ author: thread.author }, 'Author node merged');
 
     // TODO add a layer of type safety for the client (nodes & edges)
     await graph.createRelationship(
-      'Subreddit',
-      { name: thread.subreddit },
-      'POSTED_IN',
       'Author',
       { username: thread.author },
+      'POSTED_IN',
+      'Subreddit',
+      { name: thread.subreddit },
     );
     ctx.log.debug(
       { subreddit: thread.subreddit, author: thread.author },
@@ -71,7 +79,11 @@ async function saveThreadToGraph(
         continue;
       }
 
-      await graph.mergeNode('Ticker', { symbol: normalizedTicker });
+      await graph.mergeNode(
+        'Ticker',
+        { symbol: normalizedTicker },
+        { title: normalizedTicker },
+      );
       ctx.log.debug({ ticker: normalizedTicker }, 'Ticker node merged');
 
       await graph.createRelationship(

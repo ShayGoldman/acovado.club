@@ -24,6 +24,7 @@
     "@modules/logger": "workspace:*",
     "@modules/tracing": "workspace:*",
     "env-var": "^7.5.0",
+    "es-toolkit": "^1.43.0",
     "zod": "^4.0.0"
   }
 }

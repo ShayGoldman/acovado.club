@@ -1,5 +1,7 @@
 import Env from '@/env';
 import { makeTickerExtractorService } from '@/inference/ticker-extractor.service';
+import { makeReplyContextService } from '@/processing/reply-context.service';
+import { makeReplyHandlerService } from '@/processing/reply-handler.service';
 import { makeThreadHandlerService } from '@/processing/thread-handler.service';
 import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
@@ -9,7 +11,7 @@ import { makeTracer } from '@modules/tracing';
 
 const logger = makeLogger({
   name: 'reddit-processor',
-  level: 'debug',
+  level: 'info',
 });
 
 const tracer = makeTracer({
@@ -42,6 +44,11 @@ const tickerExtractor = makeTickerExtractorService({
   ollamaBaseUrl: Env.OLLAMA_BASE_URL,
 });
 
+const replyContextService = makeReplyContextService({
+  db,
+  tracer,
+});
+
 const threadHandler = makeThreadHandlerService({
   db,
   graphClient,
@@ -49,16 +56,31 @@ const threadHandler = makeThreadHandlerService({
   tickerExtractor,
 });
 
+const replyHandler = makeReplyHandlerService({
+  db,
+  graphClient,
+  tracer,
+  tickerExtractor,
+  replyContextService,
+});
+
 const consumer = makeConsumer({
   broker: Env.BROKER_URL,
   logger,
   tracing: { tracer },
+  prefetch: 20,
   handlers: [
     {
       domain: 'reddit',
       queue: 'reddit.thread.fetched',
       routingKey: 'reddit.thread.fetched',
       onMessage: threadHandler.onThreadFetched,
+    },
+    {
+      domain: 'reddit',
+      queue: 'reddit.reply.fetched',
+      routingKey: 'reddit.reply.fetched',
+      onMessage: replyHandler.onReplyFetched,
     },
   ],
 });
