@@ -56,9 +56,6 @@ async function discoverSubredditsFromText(
     );
 
     const existingNames = new Set(existingSubreddits.map((s) => s.name));
-    const ignoredNames = new Set(
-      existingSubreddits.filter((s) => s.status === 'ignored').map((s) => s.name),
-    );
 
     if (undiscoveredSubreddits.length === 0) {
       ctx.log.debug(

@@ -5,6 +5,8 @@ export interface TracerOptions {
   serviceName: string;
   exporterUrls: string[];
   logger: Logger;
+  logExporterUrls?: string[];
+  logExportEnabled?: boolean;
 }
 
 export interface Context {

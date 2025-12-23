@@ -1,29 +1,83 @@
 import util from 'util';
 import type { Logger } from '@modules/logger';
+import { context, trace } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/api';
+import type { Logger as OtelLogger } from '@opentelemetry/api-logs';
+import { SeverityNumber } from '@opentelemetry/api-logs';
 
-export function makeTracingLogger(logger: Logger, span: Span): Logger {
+export function makeTracingLogger(
+  logger: Logger,
+  span: Span,
+  otelLogger?: OtelLogger,
+): Logger {
   const levels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'];
 
   const tracingLogger = logger.child({});
 
   for (const level of levels) {
     tracingLogger[level] = (...args: any[]) => {
-      // TODO find a way to add bindings to the logger
-      // Log the message using the original logger
-      (logger as any)[level](...args);
-
-      // Process args to extract message and attributes
+      const severity = levelToSeverity(level);
       const { message, attributes } = parseLogArgs(args);
-      const spanEventPayload = { _msg: message, ...flattenObject(attributes) };
-      // Add an event to the tracing span
+      const flattenedAttributes = flattenObject(attributes);
+      const spanEventPayload = Object.fromEntries(
+        Object.entries(flattenedAttributes).filter(([key]) => key !== 'name'),
+      );
+
       if (span && typeof span.addEvent === 'function') {
         span.addEvent(message, spanEventPayload);
       }
+
+      if (otelLogger && severity) {
+        // Get the active span from context (could be a child span)
+        const activeSpan = trace.getActiveSpan();
+        const spanToLink = activeSpan || span;
+
+        if (spanToLink) {
+          const spanContext = spanToLink.spanContext();
+          const linkedAttributes = {
+            ...spanEventPayload,
+            'span.link.trace_id': spanContext.traceId,
+            'span.link.span_id': spanContext.spanId,
+          };
+
+          // Use the active context which already has the correct span set
+          const activeContext = context.active();
+          otelLogger.emit({
+            body: message,
+            attributes: linkedAttributes,
+            severityNumber: severity.number,
+            severityText: severity.text,
+            context: activeContext,
+          });
+        }
+      }
+
+      (logger as any)[level](...args);
     };
   }
 
   return tracingLogger;
+}
+
+function levelToSeverity(
+  level: string,
+): { number: SeverityNumber; text: string } | undefined {
+  switch (level) {
+    case 'fatal':
+      return { number: SeverityNumber.FATAL, text: 'FATAL' };
+    case 'error':
+      return { number: SeverityNumber.ERROR, text: 'ERROR' };
+    case 'warn':
+      return { number: SeverityNumber.WARN, text: 'WARN' };
+    case 'info':
+      return { number: SeverityNumber.INFO, text: 'INFO' };
+    case 'debug':
+      return { number: SeverityNumber.DEBUG, text: 'DEBUG' };
+    case 'trace':
+      return { number: SeverityNumber.TRACE, text: 'TRACE' };
+    default:
+      return undefined;
+  }
 }
 
 /**

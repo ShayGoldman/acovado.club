@@ -2,14 +2,18 @@
 
 import type { Attributes, Span } from '@opentelemetry/api';
 import { SpanStatusCode, context, trace } from '@opentelemetry/api';
+import type { Logger as OtelLogger } from '@opentelemetry/api-logs';
+import { logs } from '@opentelemetry/api-logs';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import {
   CompositePropagator,
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
+import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { makeTracingLogger } from './logger';
@@ -17,16 +21,24 @@ import { extractTraceContext } from './propagation';
 import type { Context as ContextType, Tracer, TracerOptions } from './types';
 
 export function makeTracer(options: TracerOptions): Tracer {
-  const { serviceName, exporterUrls, logger } = options;
+  const {
+    serviceName,
+    exporterUrls,
+    logger,
+    logExporterUrls,
+    logExportEnabled = true,
+  } = options;
+
+  const resource = new Resource({
+    'service.name': serviceName,
+  });
 
   const spanProcessors = exporterUrls.map(
     (url) => new BatchSpanProcessor(new OTLPTraceExporter({ url })),
   );
 
   const tracerProvider = new NodeTracerProvider({
-    resource: new Resource({
-      'service.name': serviceName,
-    }),
+    resource,
     spanProcessors,
   });
 
@@ -38,9 +50,12 @@ export function makeTracer(options: TracerOptions): Tracer {
   });
 
   const otelTracer = tracerProvider.getTracer(serviceName);
+  const otelLogger = logExportEnabled
+    ? makeOtelLogger(resource, logExporterUrls ?? exporterUrls, serviceName)
+    : undefined;
 
   function makeContext(span: Span): ContextType {
-    const tracingLogger = makeTracingLogger(logger, span);
+    const tracingLogger = makeTracingLogger(logger, span, otelLogger);
     const container = {
       annotations: new Map<string, string | number | boolean>(),
     };
@@ -127,4 +142,22 @@ export function makeTracer(options: TracerOptions): Tracer {
   return {
     with: withSpan,
   };
+}
+
+function makeOtelLogger(
+  resource: Resource,
+  exporterUrls: string[],
+  serviceName: string,
+): OtelLogger {
+  const loggerProvider = new LoggerProvider({ resource });
+
+  for (const url of exporterUrls) {
+    // Convert trace URLs to log URLs (e.g., /v1/traces -> /v1/logs)
+    const logUrl = url.replace(/\/v1\/traces\/?$/, '/v1/logs');
+    const exporter = new OTLPLogExporter({ url: logUrl });
+    loggerProvider.addLogRecordProcessor(new BatchLogRecordProcessor(exporter));
+  }
+
+  logs.setGlobalLoggerProvider(loggerProvider);
+  return loggerProvider.getLogger(serviceName);
 }
