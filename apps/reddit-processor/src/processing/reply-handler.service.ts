@@ -1,13 +1,30 @@
 import type { DBClient, RedditReply } from '@modules/db';
+import { makeRedditReply } from '@modules/db';
 import { schema } from '@modules/db';
-import type { Message } from '@modules/events';
+import type { Message, Producer } from '@modules/events';
 import type { GraphClient } from '@modules/graph-db';
 import type { Context, Tracer } from '@modules/tracing';
-import { eq } from 'drizzle-orm';
-import type { TickerExtractorService } from '@/inference/ticker-extractor.service';
-import type { ReplyContextService } from '@/processing/reply-context.service';
+import { eq } from '@modules/db';
+import type {
+  TickerExtractorService,
+  TickerReference,
+  TickerClassification,
+} from '@/inference/ticker-extractor.service';
+import { normalizeContextTree } from '@/inference/ticker-extractor.service';
+import type { ReplyContextService, ReplyTree } from '@/processing/reply-context.service';
+import { makeTrackedSubredditDiscoveryService } from './tracked-subreddit-discovery.service';
 
 const GRAPH_NAME = 'reddit';
+
+function classificationToRelationshipType(classification: TickerClassification): string {
+  const mapping: Record<TickerClassification, string> = {
+    has_position: 'HAS_POSITION',
+    recommends: 'RECOMMENDS',
+    warns_against: 'WARNS_AGAINST',
+    sold_position: 'SOLD_POSITION',
+  };
+  return mapping[classification];
+}
 
 export interface MakeReplyHandlerServiceOpts {
   db: DBClient;
@@ -15,6 +32,7 @@ export interface MakeReplyHandlerServiceOpts {
   tracer: Tracer;
   tickerExtractor: TickerExtractorService;
   replyContextService: ReplyContextService;
+  producer: Producer;
 }
 
 interface ReplyFetchedPayload {
@@ -30,9 +48,20 @@ interface ReplyFetchedPayload {
 }
 
 export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
-  const { db, graphClient, tracer, tickerExtractor, replyContextService } = opts;
+  const { db, graphClient, tracer, tickerExtractor, replyContextService, producer } =
+    opts;
 
-  async function saveReplyToGraph(reply: RedditReply, tickers: string[]): Promise<void> {
+  const trackedSubredditDiscovery = makeTrackedSubredditDiscoveryService({
+    db,
+    producer,
+    tracer,
+  });
+
+  async function saveReplyToGraph(
+    reply: RedditReply,
+    references: TickerReference[],
+    contextTree: ReplyTree,
+  ): Promise<void> {
     return tracer.with(`Save reply ${reply.id} to graph`, async (ctx) => {
       const graph = graphClient.selectGraph(GRAPH_NAME);
 
@@ -43,10 +72,8 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
       );
       ctx.log.debug({ author: reply.author }, 'Author node merged');
 
-      const today = new Date().toISOString().split('T')[0];
-
-      for (const ticker of tickers) {
-        const normalizedTicker = ticker.trim().toUpperCase();
+      for (const ref of references) {
+        const normalizedTicker = ref.ticker.trim().toUpperCase();
         if (normalizedTicker.length === 0) {
           continue;
         }
@@ -58,38 +85,31 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
         );
         ctx.log.debug({ ticker: normalizedTicker }, 'Ticker node merged');
 
-        const fromMatch = `username: ${JSON.stringify(reply.author)}`;
-        const toMatch = `symbol: ${JSON.stringify(normalizedTicker)}`;
+        const relationshipType = classificationToRelationshipType(ref.classification);
 
-        const result = await graph.query(`
-          MATCH (a:Author {${fromMatch}}), (t:Ticker {${toMatch}})
-          MERGE (a)-[r:TALKED_ABOUT]->(t)
-          ON CREATE SET r.lastUpdated = '${today}', r.firstSeen = '${today}', r.updateCount = 1
-          RETURN r.lastUpdated as lastUpdated
-        `);
+        const threadTree = normalizeContextTree(contextTree);
 
-        if (result.data.length > 0) {
-          const row = result.data[0];
-          const lastUpdated = row?.[0] as string | null | undefined;
-
-          if (lastUpdated) {
-            const lastUpdatedDate = new Date(lastUpdated);
-            const todayDate = new Date(`${today}T00:00:00`);
-
-            if (lastUpdatedDate < todayDate) {
-              await graph.query(`
-                MATCH (a:Author {${fromMatch}}), (t:Ticker {${toMatch}})
-                MATCH (a)-[r:TALKED_ABOUT]->(t)
-                SET r.lastUpdated = '${today}', r.updateCount = COALESCE(r.updateCount, 0) + 1
-                RETURN r
-              `);
-            }
-          }
-        }
-
+        await graph.mergeRelationshipWithProperties(
+          'Author',
+          { username: reply.author },
+          relationshipType,
+          'Ticker',
+          { symbol: normalizedTicker },
+          {
+            reference: ref.reference,
+            source: reply.body,
+            reasoning: ref.reasoning,
+            threadTree,
+          },
+        );
         ctx.log.debug(
-          { author: reply.author, ticker: normalizedTicker },
-          'TALKED_ABOUT relationship created/updated',
+          {
+            author: reply.author,
+            ticker: normalizedTicker,
+            classification: ref.classification,
+            relationshipType,
+          },
+          'Classification-based relationship created',
         );
       }
     });
@@ -117,34 +137,48 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
             return;
           }
 
+          const redditReply = makeRedditReply(reply);
+
           c.log.info(
             {
-              replyId: reply.id,
-              redditId: reply.redditId,
-              author: reply.author,
-              threadId: reply.threadId,
+              replyId: redditReply.id,
+              redditId: redditReply.redditId,
+              author: redditReply.author,
+              threadId: redditReply.threadId,
             },
             'Processing reply',
           );
 
-          const contextTree = await replyContextService.buildReplyTree(reply.id);
-          c.log.debug({ replyId: reply.id }, 'Reply context tree built');
+          const contextTree = await replyContextService.buildReplyTree(redditReply.id);
+          c.log.debug({ replyId: redditReply.id }, 'Reply context tree built');
 
-          const tickers = await tickerExtractor
-            .extractTickersFromReply(reply as RedditReply, contextTree, c)
+          const references = await tickerExtractor
+            .extractTickersFromReply(redditReply, contextTree, c)
             .catch(() => []);
-          c.log.info({ replyId: reply.id, tickers }, 'Tickers extracted from reply');
+          c.log.info(
+            { replyId: redditReply.id, referenceCount: references.length },
+            'Ticker references extracted from reply',
+          );
 
-          if (tickers.length > 0) {
+          if (references.length > 0) {
             try {
-              await saveReplyToGraph(reply as RedditReply, tickers);
-              c.log.info({ replyId: reply.id }, 'Reply saved to graph');
+              await saveReplyToGraph(redditReply, references, contextTree);
+              c.log.info({ replyId: redditReply.id }, 'Reply saved to graph');
             } catch (graphError) {
               c.log.error(
                 { error: graphError, replyId: reply.id },
                 'Failed to save reply to graph (non-blocking)',
               );
             }
+          }
+
+          try {
+            await trackedSubredditDiscovery.discoverSubredditsFromReply(redditReply);
+          } catch (discoveryError) {
+            c.log.error(
+              { error: discoveryError, replyId: redditReply.id },
+              'Failed to discover tracked subreddits (non-blocking)',
+            );
           }
 
           await db

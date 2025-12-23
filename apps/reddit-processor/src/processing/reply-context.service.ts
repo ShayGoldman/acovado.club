@@ -1,7 +1,7 @@
 import type { DBClient, RedditReply, RedditThread } from '@modules/db';
 import { schema } from '@modules/db';
 import type { Tracer } from '@modules/tracing';
-import { eq } from 'drizzle-orm';
+import { eq } from '@modules/db';
 
 export interface ReplyTree {
   reply: RedditReply;

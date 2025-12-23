@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "packageManager": "bun@1.1.36",
   "scripts": {
-    "start": "docker compose up",
-    "stop": "docker compose down",
-    "logs": "docker compose logs -f",
-    "status": "docker compose ps"
+    "start": "pkill -f ollama || true && sleep 1 && ollama serve & sleep 3 && ollama run gemma3:4b",
+    "stop": "pkill -f ollama || true",
+    "logs": "echo 'Ollama logs are not available when running from CLI. Check system logs or ollama output.'",
+    "status": "pgrep -f ollama > /dev/null && echo 'Ollama is running' || echo 'Ollama is not running'"
   }
 }

@@ -6,3 +6,6 @@ export * from './signal-metric';
 export * from './story';
 export * from './reddit-thread';
 export * from './reddit-reply';
+export * from './inference-log';
+export * from './grading-log';
+export * from './tracked-subreddit';

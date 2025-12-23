@@ -1,4 +1,4 @@
-import schema from '@/schema';
+import schema from './schema';
 import { type Tracer, injectTraceContext } from '@modules/tracing';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { type BunSQLDatabase, drizzle } from 'drizzle-orm/bun-sql';

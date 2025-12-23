@@ -1,6 +1,6 @@
-export * from 'drizzle-orm/expressions';
+export * from 'drizzle-orm';
 
-export * from '@/schema';
-export * from '@/client';
-export * from '@/models';
-export * from '@/migrate';
+export * from './schema';
+export * from './client';
+export * from './models';
+export * from './migrate';

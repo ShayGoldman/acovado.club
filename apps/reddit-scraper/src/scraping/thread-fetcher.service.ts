@@ -1,13 +1,15 @@
 import type { DBClient, RedditThread } from '@modules/db';
-import { makeRedditThread, schema } from '@modules/db';
+import { makeRedditThreadInsertValue, schema, eq, inArray } from '@modules/db';
 import { makeEvent, type Producer } from '@modules/events';
 import type { Context, Tracer } from '@modules/tracing';
-import { eq, inArray } from 'drizzle-orm';
-import type { RedditThread as RawRedditThread } from './reddit-client';
-import { makeRedditClient } from './reddit-client';
+import type { RedditThread as RawRedditThread } from '@modules/reddit-client';
+import { makeRedditClient } from '@modules/reddit-client';
 import type { makeReplyFetcherService } from './reply-fetcher.service';
 
-const SUBREDDITS = ['ValueInvesting'] as const;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+let cachedSubreddits: string[] | null = null;
+let cacheTimestamp = 0;
 
 // TODO extract this to a module
 // TODO Add type safety to the function so that non-null or undefined values are not allowed
@@ -31,6 +33,38 @@ export interface MakeThreadFetcherServiceOpts {
   tracer: Tracer;
   producer: Producer;
   replyFetcher?: ReturnType<typeof makeReplyFetcherService>;
+}
+
+async function fetchEnabledSubreddits(db: DBClient, tracer: Tracer): Promise<string[]> {
+  return tracer.with('Fetch enabled subreddits', async (ctx) => {
+    const now = Date.now();
+    const isCacheStale = !cachedSubreddits || now - cacheTimestamp >= CACHE_TTL_MS;
+
+    if (!isCacheStale && cachedSubreddits) {
+      ctx.log.debug(
+        { count: cachedSubreddits.length, cacheAgeMs: now - cacheTimestamp },
+        'Using cached enabled subreddits',
+      );
+      return cachedSubreddits;
+    }
+
+    const subreddits = await db
+      .select({ name: schema.trackedSubreddits.name })
+      .from(schema.trackedSubreddits)
+      .where(eq(schema.trackedSubreddits.status, 'enabled'));
+
+    const subredditNames = subreddits.map((s) => s.name);
+
+    cachedSubreddits = subredditNames;
+    cacheTimestamp = now;
+
+    ctx.log.info(
+      { count: subredditNames.length },
+      `Fetched ${subredditNames.length} enabled subreddits from database`,
+    );
+
+    return subredditNames;
+  });
 }
 
 /**
@@ -90,7 +124,7 @@ async function saveThreadToDB(
     const [insertedThread] = await db
       .insert(schema.redditThreads)
       .values(
-        makeRedditThread({
+        makeRedditThreadInsertValue({
           redditId: thread.id,
           subreddit: thread.subreddit,
           title: thread.title,
@@ -251,7 +285,16 @@ export function makeThreadFetcherService(opts: MakeThreadFetcherServiceOpts) {
 
   return {
     async fetchThreads() {
-      for (const subreddit of SUBREDDITS) {
+      const enabledSubreddits = await fetchEnabledSubreddits(db, tracer);
+
+      if (enabledSubreddits.length === 0) {
+        tracer.with('No enabled subreddits', async (ctx) => {
+          ctx.log.info('No enabled subreddits found, skipping thread fetch');
+        });
+        return;
+      }
+
+      for (const subreddit of enabledSubreddits) {
         await processSubreddit(
           subreddit,
           redditClient,

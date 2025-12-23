@@ -4,10 +4,20 @@ import * as D from 'drizzle-orm/pg-core';
 export const acovado = D.pgSchema('acovado');
 export const metabase = D.pgSchema('metabase');
 
-export const redditStatusEnum = D.pgEnum('reddit_status', [
+export const redditStatusEnum = acovado.enum('reddit_status', [
   'pending',
   'processed',
   'error',
+]);
+
+export const inferenceStatusEnum = acovado.enum('inference_status', ['success', 'error']);
+
+export const gradingStatusEnum = acovado.enum('grading_status', ['success', 'error']);
+
+export const trackedSubredditStatusEnum = acovado.enum('tracked_subreddit_status', [
+  'enabled',
+  'disabled',
+  'ignored',
 ]);
 
 export const watchLists = acovado.table('watch_lists', (c) => ({
@@ -166,6 +176,52 @@ export const redditReplies = acovado.table('reddit_replies', (c) => ({
     .$onUpdateFn(() => new Date().toISOString()),
 }));
 
+export const inferenceLogs = acovado.table('inference_logs', (c) => ({
+  id: c.serial().primaryKey(),
+  name: c.varchar('name', { length: 256 }),
+  model: c.varchar('model', { length: 128 }).notNull(),
+  config: c.jsonb('config').notNull(),
+  prompt: c.jsonb('prompt').notNull(),
+  response: c.jsonb('response'),
+  durationMs: c.numeric('duration_ms', { precision: 10, scale: 2 }).notNull(),
+  status: inferenceStatusEnum('status').notNull(),
+  error: c.text('error'),
+  retryCount: c.integer('retry_count').notNull().default(0),
+  metadata: c.jsonb('metadata'),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+}));
+
+export const gradingLogs = acovado.table('grading_logs', (c) => ({
+  id: c.serial().primaryKey(),
+  inferenceLogId: c
+    .integer('inference_log_id')
+    .notNull()
+    .references(() => inferenceLogs.id, { onDelete: 'cascade' }),
+  graderModel: c.varchar('grader_model', { length: 128 }).notNull(),
+  graderConfig: c.jsonb('grader_config').notNull(),
+  graderPrompt: c.jsonb('grader_prompt').notNull(),
+  confidence: c.varchar('confidence', { length: 32 }),
+  passed: c.boolean('passed'),
+  feedback: c.text('feedback'),
+  reasoning: c.text('reasoning'),
+  durationMs: c.numeric('duration_ms', { precision: 10, scale: 2 }).notNull(),
+  status: gradingStatusEnum('status').notNull(),
+  error: c.text('error'),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+}));
+
+export const trackedSubreddits = acovado.table('tracked_subreddits', (c) => ({
+  id: c.serial().primaryKey(),
+  name: c.varchar('name', { length: 128 }).notNull().unique(),
+  status: trackedSubredditStatusEnum('status').notNull().default('disabled'),
+  createdAt: c.timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: c
+    .timestamp('updated_at', { mode: 'string' })
+    .defaultNow()
+    .notNull()
+    .$onUpdateFn(() => new Date().toISOString()),
+}));
+
 export const schema = {
   watchLists,
   watchListsRelations,
@@ -179,6 +235,9 @@ export const schema = {
   stories,
   redditThreads,
   redditReplies,
+  inferenceLogs,
+  gradingLogs,
+  trackedSubreddits,
 };
 
 // required so client is easily created

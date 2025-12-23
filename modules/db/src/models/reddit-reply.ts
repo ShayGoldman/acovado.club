@@ -1,6 +1,6 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import Z from 'zod';
-import S from '@/schema';
+import S from '../schema';
 
 const insertRedditReplySchema = createInsertSchema(S.redditReplies, {
   data: Z.record(Z.string(), Z.any()),
@@ -12,7 +12,7 @@ const selectRedditReplySchema = createSelectSchema(S.redditReplies, {
 
 export type RedditReply = Z.infer<typeof selectRedditReplySchema>;
 
-const makeRedditReplySchema = insertRedditReplySchema
+const makeRedditReplyInsertSchema = insertRedditReplySchema
   .pick({
     redditId: true,
     threadId: true,
@@ -26,12 +26,20 @@ const makeRedditReplySchema = insertRedditReplySchema
   })
   .strict();
 
-const makeRedditReplyUpdateSchema = makeRedditReplySchema.partial().strict();
+const makeRedditReplyUpdateSchema = makeRedditReplyInsertSchema.partial().strict();
 
-export function makeRedditReply(data: Z.infer<typeof makeRedditReplySchema>) {
-  return makeRedditReplySchema.parse(data);
+export function makeRedditReply(data: unknown): RedditReply {
+  return selectRedditReplySchema.parse(data);
 }
 
-export function makeRedditReplyUpdate(data: Z.infer<typeof makeRedditReplyUpdateSchema>) {
+export function makeRedditReplyInsertValue(
+  data: Z.infer<typeof makeRedditReplyInsertSchema>,
+) {
+  return makeRedditReplyInsertSchema.parse(data);
+}
+
+export function makeRedditReplyUpdateValue(
+  data: Z.infer<typeof makeRedditReplyUpdateSchema>,
+) {
   return makeRedditReplyUpdateSchema.parse(data);
 }

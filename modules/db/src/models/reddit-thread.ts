@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import S from '@/schema';
+import S from '../schema';
 import Z from 'zod';
 
 const insertRedditThreadSchema = createInsertSchema(S.redditThreads, {
@@ -12,7 +12,7 @@ const selectRedditThreadSchema = createSelectSchema(S.redditThreads, {
 
 export type RedditThread = Z.infer<typeof selectRedditThreadSchema>;
 
-const makeRedditThreadSchema = insertRedditThreadSchema
+const makeRedditThreadInsertSchema = insertRedditThreadSchema
   .pick({
     redditId: true,
     subreddit: true,
@@ -29,13 +29,19 @@ const makeRedditThreadSchema = insertRedditThreadSchema
   })
   .strict();
 
-const makeRedditThreadUpdateSchema = makeRedditThreadSchema.partial().strict();
+const makeRedditThreadUpdateSchema = makeRedditThreadInsertSchema.partial().strict();
 
-export function makeRedditThread(data: Z.infer<typeof makeRedditThreadSchema>) {
-  return makeRedditThreadSchema.parse(data);
+export function makeRedditThread(data: unknown): RedditThread {
+  return selectRedditThreadSchema.parse(data);
 }
 
-export function makeRedditThreadUpdate(
+export function makeRedditThreadInsertValue(
+  data: Z.infer<typeof makeRedditThreadInsertSchema>,
+) {
+  return makeRedditThreadInsertSchema.parse(data);
+}
+
+export function makeRedditThreadUpdateValue(
   data: Z.infer<typeof makeRedditThreadUpdateSchema>,
 ) {
   return makeRedditThreadUpdateSchema.parse(data);

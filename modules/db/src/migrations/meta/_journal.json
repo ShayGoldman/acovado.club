@@ -1,26 +1,26 @@
 {
-  "version": "7",
+  "version": "1",
   "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
       "version": "7",
-      "when": 1736883087947,
-      "tag": "20250114193127_common_leader",
+      "when": 1766409897930,
+      "tag": "20251222132457_luxuriant_sunset_bain",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1765974103589,
-      "tag": "20251217122143_icy_kat_farrell",
+      "when": 1766440713710,
+      "tag": "20251222215833_glorious_black_tarantula",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1766070160372,
-      "tag": "20251218150240_thankful_matthew_murdock",
+      "when": 1766478233206,
+      "tag": "20251223082353_sparkling_leper_queen",
       "breakpoints": true
     }
   ]

@@ -1,10 +1,8 @@
 import type { DBClient, RedditReply } from '@modules/db';
-import { makeRedditReply, schema } from '@modules/db';
+import { makeRedditReplyInsertValue, schema, eq, inArray } from '@modules/db';
 import { makeEvent, type Producer } from '@modules/events';
 import type { Context, Tracer } from '@modules/tracing';
-import { eq, inArray } from 'drizzle-orm';
-import type { RedditReply as RawRedditReply } from './reddit-client';
-import type { RedditClient } from './reddit-client';
+import type { RedditReply as RawRedditReply, RedditClient } from '@modules/reddit-client';
 
 function ensureExists<T>(
   value: T | undefined | null,
@@ -79,7 +77,7 @@ export function makeReplyFetcherService(opts: MakeReplyFetcherServiceOpts) {
       const [insertedReply] = await db
         .insert(schema.redditReplies)
         .values(
-          makeRedditReply({
+          makeRedditReplyInsertValue({
             redditId: reply.id,
             threadId,
             parentRedditId,

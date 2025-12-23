@@ -1,6 +1,6 @@
 {
-  "id": "6142472d-8a46-4208-a626-7c1532777f9d",
-  "prevId": "c9674482-debc-46d4-b40f-56548c265cf4",
+  "id": "b700db2d-e613-4d33-bc16-16cd40738cae",
+  "prevId": "cab407f6-fcae-4f2b-acd6-7723250612b3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -41,6 +41,198 @@
         },
         "updated_at": {
           "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "acovado.grading_logs": {
+      "name": "grading_logs",
+      "schema": "acovado",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "inference_log_id": {
+          "name": "inference_log_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grader_model": {
+          "name": "grader_model",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grader_config": {
+          "name": "grader_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grader_prompt": {
+          "name": "grader_prompt",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "passed": {
+          "name": "passed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feedback": {
+          "name": "feedback",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasoning": {
+          "name": "reasoning",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "grading_status",
+          "typeSchema": "acovado",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "grading_logs_inference_log_id_inference_logs_id_fk": {
+          "name": "grading_logs_inference_log_id_inference_logs_id_fk",
+          "tableFrom": "grading_logs",
+          "tableTo": "inference_logs",
+          "schemaTo": "acovado",
+          "columnsFrom": ["inference_log_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "acovado.inference_logs": {
+      "name": "inference_logs",
+      "schema": "acovado",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response": {
+          "name": "response",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "inference_status",
+          "typeSchema": "acovado",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retry_count": {
+          "name": "retry_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
@@ -160,7 +352,8 @@
         },
         "status": {
           "name": "status",
-          "type": "varchar(32)",
+          "type": "reddit_status",
+          "typeSchema": "acovado",
           "primaryKey": false,
           "notNull": true
         },
@@ -282,7 +475,8 @@
         },
         "status": {
           "name": "status",
-          "type": "varchar(32)",
+          "type": "reddit_status",
+          "typeSchema": "acovado",
           "primaryKey": false,
           "notNull": true
         },
@@ -599,7 +793,23 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "acovado.grading_status": {
+      "name": "grading_status",
+      "schema": "acovado",
+      "values": ["success", "error"]
+    },
+    "acovado.inference_status": {
+      "name": "inference_status",
+      "schema": "acovado",
+      "values": ["success", "error"]
+    },
+    "acovado.reddit_status": {
+      "name": "reddit_status",
+      "schema": "acovado",
+      "values": ["pending", "processed", "error"]
+    }
+  },
   "schemas": {
     "acovado": "acovado",
     "metabase": "metabase"

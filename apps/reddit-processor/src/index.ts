@@ -2,10 +2,12 @@ import Env from '@/env';
 import { makeTickerExtractorService } from '@/inference/ticker-extractor.service';
 import { makeReplyContextService } from '@/processing/reply-context.service';
 import { makeReplyHandlerService } from '@/processing/reply-handler.service';
+import { makeTrackedSubredditCandidateHandlerService } from '@/processing/tracked-subreddit-candidate-handler.service';
 import { makeThreadHandlerService } from '@/processing/thread-handler.service';
 import { makeDBClient, makeMigrateDB } from '@modules/db';
-import { makeConsumer } from '@modules/events';
+import { makeConsumer, makeProducer } from '@modules/events';
 import { makeGraphClient } from '@modules/graph-db';
+import { makeInferenceClient } from '@modules/inference';
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
 
@@ -40,8 +42,14 @@ const graphClient = makeGraphClient({
 logger.info('Setting up...');
 await graphClient.connect();
 
+const inference = makeInferenceClient({
+  db,
+  tracer,
+});
+
 const tickerExtractor = makeTickerExtractorService({
   ollamaBaseUrl: Env.OLLAMA_BASE_URL,
+  inference,
 });
 
 const replyContextService = makeReplyContextService({
@@ -49,11 +57,20 @@ const replyContextService = makeReplyContextService({
   tracer,
 });
 
+const producer = makeProducer({
+  broker: Env.BROKER_URL,
+  logger,
+  tracing: { tracer },
+});
+
+await producer.connect();
+
 const threadHandler = makeThreadHandlerService({
   db,
   graphClient,
   tracer,
   tickerExtractor,
+  producer,
 });
 
 const replyHandler = makeReplyHandlerService({
@@ -62,13 +79,21 @@ const replyHandler = makeReplyHandlerService({
   tracer,
   tickerExtractor,
   replyContextService,
+  producer,
+});
+
+const trackedSubredditCandidateHandler = makeTrackedSubredditCandidateHandlerService({
+  db,
+  tracer,
+  inference,
+  ollamaBaseUrl: Env.OLLAMA_BASE_URL,
 });
 
 const consumer = makeConsumer({
   broker: Env.BROKER_URL,
   logger,
   tracing: { tracer },
-  prefetch: 20,
+  prefetch: 10,
   handlers: [
     {
       domain: 'reddit',
@@ -76,11 +101,17 @@ const consumer = makeConsumer({
       routingKey: 'reddit.thread.fetched',
       onMessage: threadHandler.onThreadFetched,
     },
+    // {
+    //   domain: 'reddit',
+    //   queue: 'reddit.reply.fetched',
+    //   routingKey: 'reddit.reply.fetched',
+    //   onMessage: replyHandler.onReplyFetched,
+    // },
     {
       domain: 'reddit',
-      queue: 'reddit.reply.fetched',
-      routingKey: 'reddit.reply.fetched',
-      onMessage: replyHandler.onReplyFetched,
+      queue: 'reddit.tracked-subreddit.candidate-discovered',
+      routingKey: 'reddit.tracked-subreddit.candidate-discovered',
+      onMessage: trackedSubredditCandidateHandler.onTrackedSubredditCandidateDiscovered,
     },
   ],
 });

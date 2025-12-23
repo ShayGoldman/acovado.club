@@ -19,6 +19,7 @@
     "@modules/db": "workspace:*",
     "@modules/events": "workspace:*",
     "@modules/logger": "workspace:*",
+    "@modules/reddit-client": "workspace:*",
     "@modules/tracing": "workspace:*",
     "cron": "^3.2.1",
     "env-var": "^7.5.0",

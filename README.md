@@ -41,27 +41,26 @@
 
 ## Clients
 
-| Name | Path             | Description                                      |
-| ---- | ---------------- | ------------------------------------------------ |
-| nano | `./clients/nano` | Drizzle Studio client for database management    |
+| Name | Path             | Description                                         |
+| ---- | ---------------- | --------------------------------------------------- |
+| nano | `./clients/nano` | Drizzle Studio client for database management       |
 | zook | `./clients/zook` | Metabase analytics dashboard for data visualization |
 
 ## Tests
 
-| Name                    | Path                                  | Description                                            |
-| ----------------------- | ------------------------------------- | ------------------------------------------------------ |
-| e2e                     | `./tests/e2e`                         | End-to-end tests                                       |
-| stock-events-simulation | `./tests/stock-events-simulation`     | CLI tool for simulating stock market signal events     |
+| Name                    | Path                              | Description                                        |
+| ----------------------- | --------------------------------- | -------------------------------------------------- |
+| e2e                     | `./tests/e2e`                     | End-to-end tests                                   |
+| stock-events-simulation | `./tests/stock-events-simulation` | CLI tool for simulating stock market signal events |
 
 ## Local Development
 
 Run everything locally by following these instructions from the root of the project:
 
-1. `bunx turbo start --filter="@infra/*"` - Start infrastructure (PostgreSQL, RabbitMQ, Tracing stack)
-2. `bunx turbo dev --filter="@modules/*"` - Build modules in watch mode
-3. `bunx turbo dev --filter="@clients/*"` - Start clients (Drizzle Studio, Metabase)
-4. `bunx turbo dev --filter="@apps/*"` - Start all applications
-5. `bunx turbo test --filter="@tests/*"` - Run tests (optional)
+1. `bunx turbo start --filter="@infra/*"` - Start infrastructure (PostgreSQL, FalkorDB, RabbitMQ, Observability stack)
+2. `bunx turbo dev --filter="@clients/*"` - Start clients (Drizzle Studio, Metabase)
+3. `bunx turbo dev --filter="@apps/*"` - Start all applications
+4. `bunx turbo test --filter="@tests/*"` - Run tests (optional)
 
 ## Debugging
 

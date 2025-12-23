@@ -266,6 +266,101 @@ if (newPosts.length === 0) {
 const lag = 2 / (1 + alpha);
 ```
 
+## Model Factory Pattern
+
+Each database model should have three factory functions for type-safe validation:
+
+1. **`makeX`**: Validates raw database query results using the select schema
+2. **`makeXInsertValue`**: Validates insert data using the insert schema
+3. **`makeXUpdateValue`**: Validates update data using the update schema
+
+### Factory Function Structure
+
+```ts#model-factory-example.ts
+// Define schemas
+const insertRedditThreadSchema = createInsertSchema(S.redditThreads, {
+  data: Z.record(Z.string(), Z.any()),
+});
+
+const selectRedditThreadSchema = createSelectSchema(S.redditThreads, {
+  data: Z.record(Z.string(), Z.any()),
+});
+
+export type RedditThread = Z.infer<typeof selectRedditThreadSchema>;
+
+const makeRedditThreadInsertSchema = insertRedditThreadSchema
+  .pick({
+    redditId: true,
+    subreddit: true,
+    // ... other required fields
+  })
+  .strict();
+
+const makeRedditThreadUpdateSchema = makeRedditThreadInsertSchema.partial().strict();
+
+// Factory functions
+export function makeRedditThread(data: unknown): RedditThread {
+  return selectRedditThreadSchema.parse(data);
+}
+
+export function makeRedditThreadInsertValue(
+  data: Z.infer<typeof makeRedditThreadInsertSchema>,
+) {
+  return makeRedditThreadInsertSchema.parse(data);
+}
+
+export function makeRedditThreadUpdateValue(
+  data: Z.infer<typeof makeRedditThreadUpdateSchema>,
+) {
+  return makeRedditThreadUpdateSchema.parse(data);
+}
+```
+
+### Usage
+
+```ts#factory-usage-example.ts
+// Validating DB query results
+const [thread] = await db
+  .select()
+  .from(schema.redditThreads)
+  .where(eq(schema.redditThreads.id, id))
+  .limit(1);
+
+if (!thread) {
+  return;
+}
+
+const redditThread = makeRedditThread(thread);
+// redditThread is now validated and typed as RedditThread
+
+// Inserting new records
+await db.insert(schema.redditThreads).values(
+  makeRedditThreadInsertValue({
+    redditId: 'abc123',
+    subreddit: 'stocks',
+    // ... other fields
+  }),
+);
+
+// Updating records
+await db
+  .update(schema.redditThreads)
+  .set(
+    makeRedditThreadUpdateValue({
+      status: 'processed',
+    }),
+  )
+  .where(eq(schema.redditThreads.id, id));
+```
+
+### Guidelines
+
+- Always use factory functions instead of type assertions (`as Type`)
+- `makeX` accepts `unknown` to validate any database query result
+- `makeXInsertValue` validates data before insertion
+- `makeXUpdateValue` validates partial data for updates
+- Factory functions provide runtime validation and type safety
+
 ## Formatting
 
 Follow Biome configuration:

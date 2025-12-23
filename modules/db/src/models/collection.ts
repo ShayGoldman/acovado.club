@@ -1,4 +1,4 @@
-import S from '@/schema';
+import S from '../schema';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import Z from 'zod';
 

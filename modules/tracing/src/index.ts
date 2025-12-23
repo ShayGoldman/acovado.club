@@ -1,3 +1,3 @@
-export * from '@/types';
-export * from '@/tracer';
-export * from '@/propagation';
+export * from './types';
+export * from './tracer';
+export * from './propagation';

@@ -14,13 +14,13 @@ import {
   safeClose,
 } from './utils';
 
-export interface EventHandler<T = any> {
+export interface EventHandler {
   domain: string;
   queue: KebabCase<string>;
   routingKey?: string; // Defaults to `#` if not provided
-  onMessage: (message: Message<T>, context: Context) => Promise<void>;
+  onMessage: (message: Message<any>, context: Context) => Promise<void>;
 }
-
+//
 export type Consumer = ReturnType<typeof makeConsumer>;
 
 export interface MakeEventsConsumerOpts {

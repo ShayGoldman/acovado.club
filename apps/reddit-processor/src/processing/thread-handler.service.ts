@@ -1,18 +1,36 @@
 import type { DBClient, RedditThread } from '@modules/db';
+import { makeRedditThread } from '@modules/db';
 import { schema } from '@modules/db';
-import type { Message } from '@modules/events';
+import type { Message, Producer } from '@modules/events';
 import type { GraphClient } from '@modules/graph-db';
 import type { Context, Tracer } from '@modules/tracing';
-import { eq } from 'drizzle-orm';
-import type { TickerExtractorService } from '@/inference/ticker-extractor.service';
+import { eq } from '@modules/db';
+import type {
+  TickerExtractorService,
+  TickerReference,
+  TickerClassification,
+} from '@/inference/ticker-extractor.service';
+import { makeTrackedSubredditDiscoveryService } from './tracked-subreddit-discovery.service';
 
 const GRAPH_NAME = 'reddit';
+
+function classificationToRelationshipType(classification: TickerClassification): string {
+  const mapping: Record<TickerClassification, string> = {
+    has_position: 'HAS_POSITION',
+    recommends: 'RECOMMENDS',
+    warns_against: 'WARNS_AGAINST',
+    considering: 'CONSIDERING',
+    sold_position: 'SOLD_POSITION',
+  };
+  return mapping[classification];
+}
 
 export interface MakeThreadHandlerServiceOpts {
   db: DBClient;
   graphClient: GraphClient;
   tracer: Tracer;
   tickerExtractor: TickerExtractorService;
+  producer: Producer;
 }
 
 interface ThreadFetchedPayload {
@@ -27,19 +45,9 @@ interface ThreadFetchedPayload {
   timestamp: Date;
 }
 
-interface ThreadData {
-  id: number;
-  redditId: string;
-  title: string;
-  subreddit: string;
-  author: string;
-  score: number;
-  createdUtc: string;
-}
-
 async function saveThreadToGraph(
-  thread: ThreadData,
-  tickers: string[],
+  thread: RedditThread,
+  references: TickerReference[],
   graphClient: GraphClient,
   tracer: Tracer,
 ): Promise<void> {
@@ -60,7 +68,6 @@ async function saveThreadToGraph(
     );
     ctx.log.debug({ author: thread.author }, 'Author node merged');
 
-    // TODO add a layer of type safety for the client (nodes & edges)
     await graph.createRelationship(
       'Author',
       { username: thread.author },
@@ -70,11 +77,11 @@ async function saveThreadToGraph(
     );
     ctx.log.debug(
       { subreddit: thread.subreddit, author: thread.author },
-      'POSTED_IN relationship from subreddit to author created',
+      'POSTED_IN relationship from author to subreddit created',
     );
 
-    for (const ticker of tickers) {
-      const normalizedTicker = ticker.trim().toUpperCase();
+    for (const ref of references) {
+      const normalizedTicker = ref.ticker.trim().toUpperCase();
       if (normalizedTicker.length === 0) {
         continue;
       }
@@ -86,23 +93,41 @@ async function saveThreadToGraph(
       );
       ctx.log.debug({ ticker: normalizedTicker }, 'Ticker node merged');
 
-      await graph.createRelationship(
+      const relationshipType = classificationToRelationshipType(ref.classification);
+
+      await graph.mergeRelationshipWithProperties(
         'Author',
         { username: thread.author },
-        'TALKED_ABOUT',
+        relationshipType,
         'Ticker',
         { symbol: normalizedTicker },
+        {
+          reference: ref.reference,
+          source: thread.selftext || thread.title,
+          reasoning: ref.reasoning,
+        },
       );
       ctx.log.debug(
-        { author: thread.author, ticker: normalizedTicker },
-        'TALKED_ABOUT relationship created',
+        {
+          author: thread.author,
+          ticker: normalizedTicker,
+          classification: ref.classification,
+          relationshipType,
+        },
+        'Classification-based relationship created',
       );
     }
   });
 }
 
 export function makeThreadHandlerService(opts: MakeThreadHandlerServiceOpts) {
-  const { db, graphClient, tracer, tickerExtractor } = opts;
+  const { db, graphClient, tracer, tickerExtractor, producer } = opts;
+
+  const trackedSubredditDiscovery = makeTrackedSubredditDiscoveryService({
+    db,
+    producer,
+    tracer,
+  });
 
   return {
     async onThreadFetched(message: Message<ThreadFetchedPayload>, context: Context) {
@@ -126,30 +151,44 @@ export function makeThreadHandlerService(opts: MakeThreadHandlerServiceOpts) {
             return;
           }
 
+          const redditThread = makeRedditThread(thread);
+
           c.log.info(
             {
-              threadId: thread.id,
-              redditId: thread.redditId,
-              title: thread.title,
-              author: thread.author,
-              score: thread.score,
-              numComments: thread.numComments,
+              threadId: redditThread.id,
+              redditId: redditThread.redditId,
+              title: redditThread.title,
+              author: redditThread.author,
+              score: redditThread.score,
+              numComments: redditThread.numComments,
             },
             'Processing thread',
           );
 
-          const tickers = await tickerExtractor
-            .extractTickers(thread as RedditThread, c)
+          const references = await tickerExtractor
+            .extractTickers(redditThread, c)
             .catch(() => []);
-          c.log.info({ threadId: thread.id, tickers }, 'Tickers extracted from thread');
+          c.log.info(
+            { threadId: redditThread.id, referenceCount: references.length },
+            'Ticker references extracted from thread',
+          );
 
           try {
-            await saveThreadToGraph(thread, tickers, graphClient, tracer);
-            c.log.info({ threadId: thread.id }, 'Thread saved to graph');
+            await saveThreadToGraph(redditThread, references, graphClient, tracer);
+            c.log.info({ threadId: redditThread.id }, 'Thread saved to graph');
           } catch (graphError) {
             c.log.error(
-              { error: graphError, threadId: thread.id },
+              { error: graphError, threadId: redditThread.id },
               'Failed to save thread to graph (non-blocking)',
+            );
+          }
+
+          try {
+            await trackedSubredditDiscovery.discoverSubreddits(redditThread);
+          } catch (discoveryError) {
+            c.log.error(
+              { error: discoveryError, threadId: redditThread.id },
+              'Failed to discover tracked subreddits (non-blocking)',
             );
           }
 

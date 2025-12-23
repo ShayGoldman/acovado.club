@@ -2,6 +2,7 @@ CREATE SCHEMA "acovado";
 --> statement-breakpoint
 CREATE SCHEMA "metabase";
 --> statement-breakpoint
+CREATE TYPE "acovado"."reddit_status" AS ENUM('pending', 'processed', 'error');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "acovado"."collections" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"type" varchar(64) NOT NULL,
@@ -18,6 +19,42 @@ CREATE TABLE IF NOT EXISTS "acovado"."kv_store" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "kv_store_key_unique" UNIQUE("key")
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "acovado"."reddit_replies" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"reddit_id" varchar(64) NOT NULL,
+	"thread_id" integer NOT NULL,
+	"parent_reddit_id" varchar(64),
+	"author" varchar(128) NOT NULL,
+	"body" text NOT NULL,
+	"score" integer NOT NULL,
+	"created_utc" timestamp NOT NULL,
+	"status" "acovado"."reddit_status" NOT NULL,
+	"data" jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "reddit_replies_reddit_id_unique" UNIQUE("reddit_id")
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "acovado"."reddit_threads" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"reddit_id" varchar(64) NOT NULL,
+	"subreddit" varchar(128) NOT NULL,
+	"title" varchar(512) NOT NULL,
+	"author" varchar(128) NOT NULL,
+	"selftext" text NOT NULL,
+	"url" varchar(512) NOT NULL,
+	"permalink" varchar(512) NOT NULL,
+	"score" integer NOT NULL,
+	"num_comments" integer NOT NULL,
+	"created_utc" timestamp NOT NULL,
+	"status" "acovado"."reddit_status" NOT NULL,
+	"data" jsonb NOT NULL,
+	"last_reply_fetch_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "reddit_threads_reddit_id_unique" UNIQUE("reddit_id")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "acovado"."signal_metrics" (
@@ -60,6 +97,12 @@ CREATE TABLE IF NOT EXISTS "acovado"."watch_lists" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "acovado"."reddit_replies" ADD CONSTRAINT "reddit_replies_thread_id_reddit_threads_id_fk" FOREIGN KEY ("thread_id") REFERENCES "acovado"."reddit_threads"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "acovado"."signal_metrics" ADD CONSTRAINT "signal_metrics_ticker_id_tickers_id_fk" FOREIGN KEY ("ticker_id") REFERENCES "acovado"."tickers"("id") ON DELETE cascade ON UPDATE no action;

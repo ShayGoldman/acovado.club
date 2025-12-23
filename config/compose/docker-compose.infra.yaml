@@ -227,7 +227,7 @@ services:
       - |
         ollama serve &
         sleep 10
-        ollama run gemma3:1b || echo "Model pull failed or already exists"
+        ollama run gemma3:4b || echo "Model pull failed or already exists"
         wait
     deploy:
       resources:
