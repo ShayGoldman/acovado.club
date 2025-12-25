@@ -7,7 +7,8 @@ import {
   injectTraceContext,
 } from '@modules/tracing';
 import type { Primitive } from '@modules/types';
-import { propagation } from '@opentelemetry/api';
+import type { Attributes } from '@opentelemetry/api';
+import { propagation, trace } from '@opentelemetry/api';
 import type { Message } from './types';
 
 function makeNoopContext(log: Logger): Context {
@@ -87,29 +88,57 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
         propagation.getBaggage(currentBaggage)?.getAllEntries() || [],
       );
 
-      return tracer.with(
-        `Consume message from ${queue}`,
-        {
-          headers,
+      // Extract span context from headers to create a span link
+      // This links the consumer span to the producer span without nesting
+      let spanLink:
+        | { context: import('@opentelemetry/api').SpanContext; attributes?: Attributes }
+        | undefined;
+      const extractedSpanContext = trace.getSpanContext(extractedContext);
+      if (extractedSpanContext && trace.isSpanContextValid(extractedSpanContext)) {
+        spanLink = {
+          context: extractedSpanContext,
           attributes: {
-            ...inheritedAttributes,
-            'messaging.system': 'rabbitmq',
-            'messaging.domain': domain,
-            'messaging.destination': queue,
-            'messaging.destination_kind': 'queue',
-            'messaging.message_id': messageId,
-            'messaging.routing_key': routingKey,
+            'messaging.operation': 'receive',
           },
+        };
+      }
+
+      const opts: {
+        attach: boolean;
+        links?: Array<{
+          context: import('@opentelemetry/api').SpanContext;
+          attributes?: Attributes;
+        }>;
+        attributes: Attributes;
+        // Don't pass headers when attach: false to avoid using extracted context as parent
+        // The span link will connect the spans without creating parent-child relationship
+      } = {
+        attach: false, // Don't nest under current span, create sibling
+        attributes: {
+          ...inheritedAttributes,
+          'messaging.system': 'rabbitmq',
+          'messaging.domain': domain,
+          'messaging.destination': queue,
+          'messaging.destination_kind': 'queue',
+          'messaging.message_id': messageId,
+          'messaging.routing_key': routingKey,
         },
-        async (context) => {
-          try {
-            await handler(message, context);
-          } catch (error: any) {
-            context.log.error('Error processing message', { error: error.message });
-            throw error;
-          }
-        },
-      );
+        // Explicitly don't pass headers - we want root context as parent, not extracted context
+        // The span link will connect to the producer span
+      };
+
+      if (spanLink) {
+        opts.links = [spanLink]; // Link to producer span
+      }
+
+      return tracer.with(`Consume message from ${queue}`, opts, async (context) => {
+        try {
+          await handler(message, context);
+        } catch (error: any) {
+          context.log.error('Error processing message', { error: error.message });
+          throw error;
+        }
+      });
     };
   }
 
@@ -141,7 +170,7 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
       return tracer.with(
         `Publish Message to ${domain}:${routingKey}`,
         {
-          attach: true,
+          attach: false, // Don't nest under current span, create sibling
           attributes: {
             'messaging.system': 'rabbitmq',
             'messaging.destination': `${domain}.exchange`,

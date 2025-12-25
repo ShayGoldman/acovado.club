@@ -63,14 +63,25 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
     contextTree: ReplyTree,
   ): Promise<void> {
     return tracer.with(`Save reply ${reply.id} to graph`, async (ctx) => {
+      ctx.annotate('reply.id', reply.id);
+      ctx.annotate('reply.redditId', reply.redditId);
+      ctx.annotate('thread.id', reply.threadId);
+      ctx.annotate('graph.node.author.username', reply.author);
+
       const graph = graphClient.selectGraph(GRAPH_NAME);
 
-      await graph.mergeNode(
+      const authorResult = await graph.mergeNode(
         'Author',
         { username: reply.author },
         { title: reply.author },
       );
+      if (authorResult.node) {
+        ctx.annotate('graph.node.author.id', authorResult.node.id);
+      }
       ctx.log.debug({ author: reply.author }, 'Author node merged');
+
+      const relationshipIds: number[] = [];
+      const tickerSymbols: string[] = [];
 
       for (const ref of references) {
         const normalizedTicker = ref.ticker.trim().toUpperCase();
@@ -78,18 +89,23 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
           continue;
         }
 
-        await graph.mergeNode(
+        tickerSymbols.push(normalizedTicker);
+
+        const tickerResult = await graph.mergeNode(
           'Ticker',
           { symbol: normalizedTicker },
           { title: normalizedTicker },
         );
+        if (tickerResult.node) {
+          ctx.annotate('graph.node.ticker.id', tickerResult.node.id);
+        }
         ctx.log.debug({ ticker: normalizedTicker }, 'Ticker node merged');
 
         const relationshipType = classificationToRelationshipType(ref.classification);
 
         const threadTree = normalizeContextTree(contextTree);
 
-        await graph.mergeRelationshipWithProperties(
+        const relationshipResult = await graph.mergeRelationshipWithProperties(
           'Author',
           { username: reply.author },
           relationshipType,
@@ -102,6 +118,14 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
             threadTree,
           },
         );
+        if (relationshipResult.relationship) {
+          relationshipIds.push(relationshipResult.relationship.id);
+          ctx.annotate(
+            `graph.relationship.${normalizedTicker}.id`,
+            relationshipResult.relationship.id,
+          );
+          ctx.annotate(`graph.relationship.${normalizedTicker}.type`, relationshipType);
+        }
         ctx.log.debug(
           {
             author: reply.author,
@@ -111,6 +135,12 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
           },
           'Classification-based relationship created',
         );
+      }
+
+      ctx.annotate('graph.node.ticker.count', tickerSymbols.length);
+      ctx.annotate('graph.relationship.count', relationshipIds.length);
+      if (tickerSymbols.length > 0) {
+        ctx.annotate('graph.node.ticker.symbols', tickerSymbols.join(','));
       }
     });
   }
@@ -137,7 +167,18 @@ export function makeReplyHandlerService(opts: MakeReplyHandlerServiceOpts) {
             return;
           }
 
+          // TODO need to hash replies to check if they have been edited, or a property (better)
+          if (reply.status === 'processed') {
+            c.log.info({ replyId: id }, 'Reply already processed, skipping');
+            return;
+          }
+
           const redditReply = makeRedditReply(reply);
+
+          c.annotate('reply.id', redditReply.id);
+          c.annotate('reply.redditId', redditReply.redditId);
+          c.annotate('thread.id', redditReply.threadId);
+          c.annotate('graph.node.author.username', redditReply.author);
 
           c.log.info(
             {

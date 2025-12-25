@@ -1,4 +1,6 @@
 services:
   rabbitmq:
-    image: rabbitmq:management
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: rabbitmq

@@ -1,6 +1,11 @@
 import type { Tracer } from '@modules/tracing';
 import { createClient } from 'redis';
-import type { GraphQueryResult, GraphQueryStats } from './types';
+import type {
+  GraphQueryResult,
+  GraphQueryStats,
+  GraphNodeResult,
+  GraphRelationshipResult,
+} from './types';
 
 export type GraphClient = ReturnType<typeof makeGraphClient>;
 
@@ -60,6 +65,83 @@ function parseGraphResponse(response: unknown[]): GraphQueryResult {
     header: Array.isArray(header) ? header.map(String) : [],
     data,
     stats: parseGraphStats(stats || []),
+  };
+}
+
+function parseNodeFromData(data: unknown[]): GraphNodeResult | null {
+  if (!Array.isArray(data) || data.length === 0) {
+    return null;
+  }
+
+  const nodeData = data[0];
+  if (!Array.isArray(nodeData) || nodeData.length < 3) {
+    return null;
+  }
+
+  const id = nodeData[0];
+  const labels = nodeData[1];
+  const properties = nodeData[2];
+
+  if (typeof id !== 'number') {
+    return null;
+  }
+
+  if (!Array.isArray(labels) || labels.length === 0) {
+    return null;
+  }
+
+  if (typeof properties !== 'object' || properties === null) {
+    return null;
+  }
+
+  return {
+    id,
+    label: labels[0] as string,
+    properties: properties as Record<string, unknown>,
+  };
+}
+
+function parseRelationshipFromData(data: unknown[]): GraphRelationshipResult | null {
+  if (!Array.isArray(data) || data.length === 0) {
+    return null;
+  }
+
+  const relData = data[0];
+  if (!Array.isArray(relData) || relData.length < 4) {
+    return null;
+  }
+
+  const id = relData[0];
+  const type = relData[1];
+  const sourceNodeId = relData[2];
+  const destinationNodeId = relData[3];
+  const properties = relData[4];
+
+  if (typeof id !== 'number') {
+    return null;
+  }
+
+  if (typeof type !== 'string') {
+    return null;
+  }
+
+  if (typeof sourceNodeId !== 'number') {
+    return null;
+  }
+
+  if (typeof destinationNodeId !== 'number') {
+    return null;
+  }
+
+  return {
+    id,
+    type,
+    sourceNodeId,
+    destinationNodeId,
+    properties:
+      typeof properties === 'object' && properties !== null
+        ? (properties as Record<string, unknown>)
+        : {},
   };
 }
 
@@ -150,7 +232,7 @@ export function makeGraphClient(opts: MakeGraphClientOpts) {
         label: string,
         matchProps: Record<string, unknown>,
         setProps?: Record<string, unknown>,
-      ): Promise<GraphQueryResult> {
+      ): Promise<GraphQueryResult & { node?: GraphNodeResult }> {
         const matchString = Object.entries(matchProps)
           .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
           .join(', ');
@@ -165,7 +247,9 @@ export function makeGraphClient(opts: MakeGraphClientOpts) {
         }
 
         cypherQuery += ' RETURN n';
-        return query(graphName, cypherQuery);
+        const result = await query(graphName, cypherQuery);
+        const node = parseNodeFromData(result.data);
+        return node ? { ...result, node } : result;
       },
 
       async createRelationship(
@@ -196,7 +280,7 @@ export function makeGraphClient(opts: MakeGraphClientOpts) {
         toProps: Record<string, unknown>,
         edgeProps: Record<string, unknown>,
         updateCondition?: string,
-      ): Promise<GraphQueryResult> {
+      ): Promise<GraphQueryResult & { relationship?: GraphRelationshipResult }> {
         const fromMatch = Object.entries(fromProps)
           .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
           .join(', ');
@@ -218,7 +302,9 @@ export function makeGraphClient(opts: MakeGraphClientOpts) {
 
         const cypherQuery = `MATCH (a:${fromLabel} {${fromMatch}}), (b:${toLabel} {${toMatch}}) MERGE (a)-[r:${relationType}]->(b) ON CREATE SET ${onCreateProps}${onMatchClause} RETURN r`;
 
-        return query(graphName, cypherQuery);
+        const result = await query(graphName, cypherQuery);
+        const relationship = parseRelationshipFromData(result.data);
+        return relationship ? { ...result, relationship } : result;
       },
     };
   }

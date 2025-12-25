@@ -31,6 +31,10 @@ export interface Tracer {
       attributes?: Attributes;
       headers?: Record<string, unknown>;
       attach?: boolean;
+      links?: Array<{
+        context: import('@opentelemetry/api').SpanContext;
+        attributes?: Attributes;
+      }>;
     },
     fn: (context: Context) => Promise<T>,
   ): Promise<T>;

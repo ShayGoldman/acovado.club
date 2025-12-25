@@ -19,7 +19,6 @@ function classificationToRelationshipType(classification: TickerClassification):
     has_position: 'HAS_POSITION',
     recommends: 'RECOMMENDS',
     warns_against: 'WARNS_AGAINST',
-    considering: 'CONSIDERING',
     sold_position: 'SOLD_POSITION',
   };
   return mapping[classification];

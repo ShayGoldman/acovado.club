@@ -6,11 +6,15 @@ import {
   makeTrackedSubredditUpdateValue,
   schema,
 } from '@modules/db';
-import type { Message } from '@modules/events';
+import type { Message, Producer } from '@modules/events';
 import type { InferenceClient } from '@modules/inference';
 import type { Context, Tracer } from '@modules/tracing';
-import { eq } from '@modules/db';
-import { makeRedditClient } from '@modules/reddit-client';
+import { sql } from '@modules/db';
+import {
+  makeRedditApiQueueClient,
+  type RedditApiResponseHandlerRegistry,
+  type RedditSubredditAboutData,
+} from '@modules/reddit-client';
 import Z from 'zod/v4';
 
 const subredditClassificationSchema = Z.object({
@@ -23,6 +27,10 @@ export interface MakeTrackedSubredditCandidateHandlerServiceOpts {
   tracer: Tracer;
   inference: InferenceClient;
   ollamaBaseUrl: string;
+  broker: string;
+  logger: any;
+  producer: Producer;
+  responseHandlerRegistry: RedditApiResponseHandlerRegistry;
 }
 
 interface TrackedSubredditCandidateDiscoveredPayload {
@@ -78,14 +86,150 @@ Is this subreddit related to investing, stocks, trading, or finance?`;
 export function makeTrackedSubredditCandidateHandlerService(
   opts: MakeTrackedSubredditCandidateHandlerServiceOpts,
 ) {
-  const { db, tracer, inference, ollamaBaseUrl } = opts;
-  const redditClient = makeRedditClient();
+  const {
+    db,
+    tracer,
+    inference,
+    ollamaBaseUrl,
+    broker,
+    logger,
+    producer,
+    responseHandlerRegistry,
+  } = opts;
+  const queueClient = makeRedditApiQueueClient({
+    broker,
+    logger,
+    tracer,
+    producer,
+  });
+  const handlerId = 'tracked-subreddit-candidate';
   const model = new ChatOllama({
     baseUrl: ollamaBaseUrl,
-    model: 'gemma3:4b',
+    model: 'gemma3:4b-it-qat',
     temperature: 0,
     format: 'json',
   }).withStructuredOutput(subredditClassificationSchema);
+
+  async function processSubredditAboutData(
+    name: string,
+    aboutData: RedditSubredditAboutData,
+    context: Context,
+  ): Promise<void> {
+    await context.with('Process subreddit about data', async (c) => {
+      c.log.debug(
+        {
+          subreddit: name,
+          title: aboutData.title,
+          subscribers: aboutData.subscribers,
+        },
+        'Fetched subreddit about data',
+      );
+
+      const systemMessage = buildSystemMessage();
+      const humanMessage = buildHumanMessage(
+        aboutData.title,
+        aboutData.description,
+        aboutData.public_description,
+        aboutData.subscribers,
+      );
+
+      const messages = [new SystemMessage(systemMessage), new HumanMessage(humanMessage)];
+
+      const classification = await inference.invoke({
+        name: 'Classify subreddit for investing relevance',
+        model: 'gemma3:4b-it-qat',
+        config: { temperature: 0, format: 'json' },
+        prompt: messages,
+        callable: () => model.invoke(messages),
+        metadata: { subreddit: name },
+      });
+
+      c.log.info(
+        {
+          subreddit: name,
+          isRelatedToInvesting: classification.isRelatedToInvesting,
+          reasoning: classification.reasoning,
+        },
+        'Subreddit classified',
+      );
+
+      const status = classification.isRelatedToInvesting ? 'enabled' : 'ignored';
+
+      const [existing] = await db
+        .select()
+        .from(schema.trackedSubreddits)
+        .where(sql`LOWER(${schema.trackedSubreddits.name}) = LOWER(${name})`)
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(schema.trackedSubreddits)
+          .set(
+            makeTrackedSubredditUpdateValue({
+              status,
+            }),
+          )
+          .where(sql`LOWER(${schema.trackedSubreddits.name}) = LOWER(${name})`);
+
+        c.log.info(
+          { subreddit: name, status },
+          'Updated existing tracked subreddit status',
+        );
+      } else {
+        await db.insert(schema.trackedSubreddits).values(
+          makeTrackedSubredditInsertValue({
+            name,
+            status,
+          }),
+        );
+
+        c.log.info({ subreddit: name, status }, 'Created new tracked subreddit');
+      }
+    });
+  }
+
+  // Register response handler
+  responseHandlerRegistry.register(handlerId, async (message, context) => {
+    await context.with('Handle subreddit about API response', async (c) => {
+      const { requestId, responseData, error, metadata } = message.payload.data;
+
+      // Extract candidate name from metadata
+      const candidateName = (metadata as { candidateName?: string } | undefined)
+        ?.candidateName;
+      if (!candidateName) {
+        c.log.warn(
+          { requestId },
+          'Received API response without candidateName metadata, ignoring',
+        );
+        return;
+      }
+
+      if (error) {
+        c.log.error(
+          { requestId, error, subreddit: candidateName },
+          'Reddit API request failed',
+        );
+        throw new Error(error.message || 'Unknown error');
+      }
+
+      if (!responseData) {
+        c.log.error(
+          { requestId, subreddit: candidateName },
+          'Reddit API response missing data',
+        );
+        throw new Error('Response data missing');
+      }
+
+      const aboutData = responseData as RedditSubredditAboutData;
+
+      await processSubredditAboutData(candidateName, aboutData, c);
+
+      c.log.info(
+        { requestId, subreddit: candidateName },
+        'Successfully processed subreddit about response',
+      );
+    });
+  });
 
   return {
     async onTrackedSubredditCandidateDiscovered(
@@ -97,87 +241,13 @@ export function makeTrackedSubredditCandidateHandlerService(
 
         c.log.info({ subreddit: name }, 'Received subreddit candidate discovered event');
 
-        try {
-          const aboutData = await redditClient.fetchSubredditAbout(name);
-          c.log.debug(
-            {
-              subreddit: name,
-              title: aboutData.title,
-              subscribers: aboutData.subscribers,
-            },
-            'Fetched subreddit about data',
-          );
+        // Publish API request with handlerId and context metadata
+        await queueClient.publishRequest(
+          { type: 'fetch-subreddit-about', params: { subreddit: name } },
+          { handlerId, candidateName: name },
+        );
 
-          const systemMessage = buildSystemMessage();
-          const humanMessage = buildHumanMessage(
-            aboutData.title,
-            aboutData.description,
-            aboutData.public_description,
-            aboutData.subscribers,
-          );
-
-          const messages = [
-            new SystemMessage(systemMessage),
-            new HumanMessage(humanMessage),
-          ];
-
-          const classification = await inference.invoke({
-            name: 'Classify subreddit for investing relevance',
-            model: 'gemma3:4b',
-            config: { temperature: 0, format: 'json' },
-            prompt: messages,
-            callable: () => model.invoke(messages),
-            metadata: { subreddit: name },
-          });
-
-          c.log.info(
-            {
-              subreddit: name,
-              isRelatedToInvesting: classification.isRelatedToInvesting,
-              reasoning: classification.reasoning,
-            },
-            'Subreddit classified',
-          );
-
-          const status = classification.isRelatedToInvesting ? 'enabled' : 'ignored';
-
-          const [existing] = await db
-            .select()
-            .from(schema.trackedSubreddits)
-            .where(eq(schema.trackedSubreddits.name, name))
-            .limit(1);
-
-          if (existing) {
-            await db
-              .update(schema.trackedSubreddits)
-              .set(
-                makeTrackedSubredditUpdateValue({
-                  status,
-                }),
-              )
-              .where(eq(schema.trackedSubreddits.name, name));
-
-            c.log.info(
-              { subreddit: name, status },
-              'Updated existing tracked subreddit status',
-            );
-          } else {
-            await db.insert(schema.trackedSubreddits).values(
-              makeTrackedSubredditInsertValue({
-                name,
-                status,
-              }),
-            );
-
-            c.log.info({ subreddit: name, status }, 'Created new tracked subreddit');
-          }
-        } catch (error) {
-          c.log.error(
-            { error, subreddit: name },
-            'Failed to process subreddit candidate',
-          );
-          throw error;
-        }
+        c.log.info({ subreddit: name }, 'Published subreddit about API request');
       });
     },
   };

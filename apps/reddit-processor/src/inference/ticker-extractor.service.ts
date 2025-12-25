@@ -89,9 +89,12 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
   const { ollamaBaseUrl, inference } = opts;
   const model = new ChatOllama({
     baseUrl: ollamaBaseUrl,
-    model: 'gemma3:4b',
+    model: 'gemma3:4b-it-qat',
     temperature: 0,
     format: 'json',
+    numCtx: 16384,
+    numPredict: 1024,
+    think: false,
   }).withStructuredOutput(responseSchema);
 
   const classificationDescriptions = {
@@ -110,50 +113,17 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
       ? '\nIMPORTANT: Extract tickers ONLY from the "TEXT TO ANALYZE" section. Context is for understanding meaning only.'
       : '';
 
-    // return `## HARD RULE: EXPLICIT EVIDENCE GATE ##
-    // You may ONLY output a classification for a ticker if you can include an reference that contains an explicit action statement.
-
-    // Explicit action triggers:
-    // - has_position: "I own", "I hold", "I'm holding", "my position", "I have shares", "long <ticker>", "bagholding"
-    // - sold_position: "I sold", "I exited", "I closed", "I got out", "I dumped", "I liquidated"
-    // - recommends: "buy", "I'm buying", "you should buy", "I recommend buying", "worth investing", "load up"
-    // - warns_against: "don't buy", "do not buy", "avoid", "stay away", "not worth investing", "do not invest"
-
-    // NOT sufficient (do NOT classify): "bullish", "bearish", "looks good", "will go up", "watching", "on my list", "great company", "could be a buy", "might buy".
-
-    // If you cannot find an explicit trigger quote, output nothing for that ticker.
-    // Do not use words like "implies", "suggests", "seems", or "likely".
-    // `;
-    // TODO from here
-    //     return `Extract stock ticker symbols and classify the author's action toward each ticker.
-
-    // ## TICKER IDENTIFICATION ##:
-    // - Format: UPPERCASE, 1-5 chars, alphanumeric (ignore $ prefix)
-    // - Avoid: common words, lowercase text, acronyms (USA, CEO, AI), Single letter tickers
-    // - Extract only tickers you are confident match this format
-
-    // ## CLASSIFICATION INSTRUCTIONS ##:
-    //   - You are looking for the most explicit and clear mentions of a stock or the author's action towards it to classify.
-    //   - For each unique ticker, attempt to select the single best classification possible.
-    //   - For each ticker classification, provide a brief reasoning explaining why this specific classification was chosen based on the text. Do it in a single sentence.
-    //   - Extract the exact verbatim text demonstrating the classification, retaining the context. ${replyInstructions}
-
-    // ## CLASSIFICATION OPTIONS ##:
-    // ${optionsList}
-
-    // ## MOST IMPORTANT ##:
-    //   - Do not reason the user is implying doing something, unless it is explicitly stated.
-    //   - Not all text will have a ticker or classification. If a ticker or classification is not found, do not include it in the output.
-    //   - Assume the text does not mention a stock or the author's action towards it, unless it is explicitly stated.
-    // `;
-
     return `
     Extract stock ticker symbols and classify the author's action statement toward each ticker
 
     ## HARD RULE: EXPLICIT EVIDENCE GATE ##
     You may ONLY output a classification for a ticker if you can include an reference that contains an explicit action statement.
 
-    Explicit action triggers ##
+    ## HARD RULE: EXPLICIT TICKER FORMAT ## 
+    You may ONLY output a ticker if it matches the following format: UPPERCASE, 1-5 chars, alphanumeric (ignore $ prefix)
+    Avoid: common words, lowercase text, acronyms (USA, CEO, AI), Single letter tickers
+
+    ## Explicit action triggers ##
     - has_position: "I own", "I hold", "I'm holding", "my position", "I have shares", "long <ticker>", "bagholding"
     - sold_position: "I sold", "I exited", "I closed", "I got out", "I dumped", "I liquidated"
     - recommends: "buy", "I'm buying", "you should buy", "I recommend buying", "worth investing", "load up"
@@ -161,11 +131,6 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
 
     ## Classification options ##
     ${optionsList}
-
-     ## TICKER IDENTIFICATION ##
-     - Format: UPPERCASE, 1-5 chars, alphanumeric (ignore $ prefix)
-     - Avoid: common words, lowercase text, acronyms (USA, CEO, AI), Single letter tickers
-     - Extract only tickers you are confident match this format
 
     NOT sufficient (do NOT classify): "bullish", "bearish", "looks good", "will go up", "watching", "on my list", "great company", "could be a buy", "might buy".
 
@@ -189,6 +154,9 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
     ): Promise<TickerReference[]> {
       return context.with('Extract tickers from thread', async (c) => {
         const { title, selftext, subreddit } = thread;
+        c.annotate('thread.id', thread.id);
+        c.annotate('thread.subreddit', subreddit);
+
         c.log.info(
           { subreddit, titleLength: title.length, contentLength: selftext.length },
           'Extracting tickers from thread',
@@ -205,12 +173,26 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
 
           const response = await inference.invoke({
             name: 'Extract tickers from thread',
-            model: 'gemma3:4b',
+            model: 'gemma3:4b-it-qat',
             config: { temperature: 0, format: 'json' },
             prompt: messages,
             callable: () => model.invoke(messages),
             metadata: { subreddit, threadId: thread.id },
           });
+
+          const tickerSymbols = response.references.map((ref) =>
+            ref.ticker.trim().toUpperCase(),
+          );
+          c.annotate('inference.ticker.count', response.references.length);
+          if (tickerSymbols.length > 0) {
+            c.annotate('inference.ticker.symbols', tickerSymbols.join(','));
+            for (let i = 0; i < tickerSymbols.length; i++) {
+              const symbol = tickerSymbols[i];
+              if (symbol) {
+                c.annotate(`inference.ticker.${i}.symbol`, symbol);
+              }
+            }
+          }
 
           c.log.debug(
             { count: response.references.length },
@@ -233,6 +215,10 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
       context: Context,
     ): Promise<TickerReference[]> {
       return context.with('Extract tickers from reply', async (c) => {
+        c.annotate('reply.id', reply.id);
+        c.annotate('reply.redditId', reply.redditId);
+        c.annotate('thread.id', reply.threadId);
+
         c.log.info(
           { replyId: reply.id, threadId: reply.threadId },
           'Extracting tickers from reply with context',
@@ -251,12 +237,26 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
 
           const response = await inference.invoke({
             name: 'Extract tickers from reply',
-            model: 'gemma3:4b',
+            model: 'gemma3:4b-it-qat',
             config: { temperature: 0, format: 'json' },
             prompt: messages,
             callable: () => model.invoke(messages),
             metadata: { replyId: reply.id, threadId: reply.threadId },
           });
+
+          const tickerSymbols = response.references.map((ref) =>
+            ref.ticker.trim().toUpperCase(),
+          );
+          c.annotate('inference.ticker.count', response.references.length);
+          if (tickerSymbols.length > 0) {
+            c.annotate('inference.ticker.symbols', tickerSymbols.join(','));
+            for (let i = 0; i < tickerSymbols.length; i++) {
+              const symbol = tickerSymbols[i];
+              if (symbol) {
+                c.annotate(`inference.ticker.${i}.symbol`, symbol);
+              }
+            }
+          }
 
           c.log.debug(
             { count: response.references.length },

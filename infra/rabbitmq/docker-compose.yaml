@@ -9,3 +9,9 @@ services:
     ports:
       - "5672:5672" # Port for RabbitMQ communication
       - "15672:15672" # Management UI port
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins
+
+volumes:
+  rabbitmq_data:

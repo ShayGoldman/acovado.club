@@ -28,6 +28,7 @@ const redditListingSchema = Z.object({
 });
 
 export type RedditThread = Z.infer<typeof redditThreadSchema>;
+export type { RedditThread as RedditThreadType };
 
 const redditReplySchema = Z.object({
   id: Z.string(),
@@ -53,6 +54,7 @@ const redditCommentListingSchema = Z.object({
 });
 
 export type RedditReply = Z.infer<typeof redditReplySchema>;
+export type { RedditReply as RedditReplyType };
 
 const commentContributionSettingsSchema = Z.object({
   allowed_media_types: Z.any(),
@@ -173,6 +175,17 @@ export interface RedditClientOpts {
   logger?: Logger;
 }
 
+export class RedditApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly response: Response,
+  ) {
+    super(message);
+    this.name = 'RedditApiError';
+  }
+}
+
 function extractRateLimitHeaders(response: Response): Record<string, string> {
   const rateLimitHeaders: Record<string, string> = {};
   for (const [key, value] of response.headers.entries()) {
@@ -224,8 +237,10 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
       if (response.status === 429) {
         logRateLimitError(logger, response, `fetchSubredditThreads: /r/${subreddit}`);
       }
-      throw new Error(
+      throw new RedditApiError(
         `Failed to fetch threads from /r/${subreddit}: ${response.status} ${response.statusText}`,
+        response.status,
+        response,
       );
     }
 
@@ -251,8 +266,10 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
       if (response.status === 429) {
         logRateLimitError(logger, response, `fetchThreadReplies: ${threadRedditId}`);
       }
-      throw new Error(
+      throw new RedditApiError(
         `Failed to fetch replies for thread ${threadRedditId}: ${response.status} ${response.statusText}`,
+        response.status,
+        response,
       );
     }
 
@@ -344,8 +361,10 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
       if (response.status === 429) {
         logRateLimitError(logger, response, `fetchSubredditAbout: /r/${subreddit}`);
       }
-      throw new Error(
+      throw new RedditApiError(
         `Failed to fetch subreddit about for /r/${subreddit}: ${response.status} ${response.statusText}`,
+        response.status,
+        response,
       );
     }
 
@@ -363,3 +382,7 @@ export function makeRedditClient(opts: RedditClientOpts = {}) {
 }
 
 export type RedditClient = ReturnType<typeof makeRedditClient>;
+
+export * from './reddit-api-types';
+export * from './reddit-api-client';
+export * from './reddit-api-response-handler';

@@ -1,0 +1,25 @@
+{
+  "name": "@apps/reddit-api-worker",
+  "version": "0.1.0",
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun --watch --inspect=localhost:16004/reddit-api-worker src/index.ts",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write .",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/bun": "^1.1.13"
+  },
+  "dependencies": {
+    "@modules/events": "workspace:*",
+    "@modules/logger": "workspace:*",
+    "@modules/reddit-client": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "zod": "^4.0.0"
+  }
+}

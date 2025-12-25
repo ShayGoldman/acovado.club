@@ -2,14 +2,18 @@ import type { DBClient, RedditThread } from '@modules/db';
 import { makeRedditThreadInsertValue, schema, eq, inArray } from '@modules/db';
 import { makeEvent, type Producer } from '@modules/events';
 import type { Context, Tracer } from '@modules/tracing';
-import type { RedditThread as RawRedditThread } from '@modules/reddit-client';
-import { makeRedditClient } from '@modules/reddit-client';
+import type {
+  RedditApiResponseHandlerRegistry,
+  RedditThread as RawRedditThread,
+} from '@modules/reddit-client';
+import { makeRedditApiQueueClient } from '@modules/reddit-client';
 import type { makeReplyFetcherService } from './reply-fetcher.service';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 let cachedSubreddits: string[] | null = null;
 let cacheTimestamp = 0;
+const handlerId = 'thread-fetcher';
 
 // TODO extract this to a module
 // TODO Add type safety to the function so that non-null or undefined values are not allowed
@@ -32,7 +36,10 @@ export interface MakeThreadFetcherServiceOpts {
   db: DBClient;
   tracer: Tracer;
   producer: Producer;
+  broker: string;
+  logger: any;
   replyFetcher?: ReturnType<typeof makeReplyFetcherService>;
+  responseHandlerRegistry: RedditApiResponseHandlerRegistry;
 }
 
 async function fetchEnabledSubreddits(db: DBClient, tracer: Tracer): Promise<string[]> {
@@ -64,24 +71,6 @@ async function fetchEnabledSubreddits(db: DBClient, tracer: Tracer): Promise<str
     );
 
     return subredditNames;
-  });
-}
-
-/**
- * Fetches threads from Reddit for a given subreddit
- */
-async function fetchThreadsFromReddit(
-  subreddit: string,
-  redditClient: ReturnType<typeof makeRedditClient>,
-  tracer: Tracer,
-): Promise<RawRedditThread[]> {
-  return tracer.with(`Fetch threads from /r/${subreddit}`, async (ctx) => {
-    const threads = await redditClient.fetchSubredditThreads(subreddit);
-    ctx.log.info(
-      { subreddit, count: threads.length },
-      `Fetched ${threads.length} threads from /r/${subreddit}`,
-    );
-    return threads;
   });
 }
 
@@ -212,76 +201,106 @@ async function fetchAndProcessReplies(
       .where(eq(schema.redditThreads.redditId, thread.id))
       .limit(1);
 
-    if (!dbThread) {
-      ctx.log.warn(
-        { redditId: thread.id },
-        'Thread not found in database, skipping reply fetch',
-      );
-      return;
-    }
+    ensureExists(dbThread, ctx, `Thread not found in database: ${thread.id}`);
 
     const shouldFetch = await replyFetcher.shouldFetchRepliesForThread(dbThread.id);
     if (!shouldFetch) {
       return;
     }
 
-    const redditClient = makeRedditClient();
     const subreddit = thread.subreddit.replace('/r/', '');
-    const newReplyCount = await replyFetcher.fetchRepliesForThread(
-      thread.id,
-      subreddit,
-      dbThread.id,
-      redditClient,
-    );
-
-    if (newReplyCount > 0) {
-      await replyFetcher.updateThreadLastReplyFetch(dbThread.id);
-      ctx.log.info(
-        { threadId: dbThread.id, newReplyCount },
-        `Fetched ${newReplyCount} new replies for thread`,
-      );
-    }
+    await replyFetcher.fetchRepliesForThread(thread.id, subreddit, dbThread.id);
   });
 }
 
 async function processSubreddit(
   subreddit: string,
-  redditClient: ReturnType<typeof makeRedditClient>,
+  queueClient: ReturnType<typeof makeRedditApiQueueClient>,
+  tracer: Tracer,
+): Promise<void> {
+  return tracer.with(`Process /r/${subreddit}`, async (ctx) => {
+    await queueClient.publishRequest(
+      { type: 'fetch-subreddit-threads', params: { subreddit, limit: 50 } },
+      { handlerId, subreddit },
+    );
+    ctx.log.info({ subreddit }, 'Published fetch threads request');
+  });
+}
+
+async function handleThreadsResponse(
+  threads: RawRedditThread[],
+  subreddit: string,
   db: DBClient,
   producer: Producer,
   tracer: Tracer,
   replyFetcher?: ReturnType<typeof makeReplyFetcherService>,
 ): Promise<void> {
-  return tracer.with(`Process /r/${subreddit}`, async (ctx) => {
-    try {
-      const threads = await fetchThreadsFromReddit(subreddit, redditClient, tracer);
+  return tracer.with(`Handle threads response for /r/${subreddit}`, async (ctx) => {
+    if (threads.length === 0) {
+      ctx.log.info({ subreddit }, 'No threads found');
+      return;
+    }
 
-      if (threads.length === 0) {
-        ctx.log.info({ subreddit }, 'No threads found');
-        return;
+    const newThreads = await findNewThreads(threads, db, tracer);
+
+    if (newThreads.length > 0) {
+      await processNewThreads(newThreads, db, producer, tracer);
+    }
+
+    if (replyFetcher) {
+      for (const thread of threads) {
+        await fetchAndProcessReplies(thread, replyFetcher, db, tracer);
       }
-
-      const newThreads = await findNewThreads(threads, db, tracer);
-
-      if (newThreads.length > 0) {
-        await processNewThreads(newThreads, db, producer, tracer);
-      }
-
-      if (replyFetcher) {
-        for (const thread of threads) {
-          await fetchAndProcessReplies(thread, replyFetcher, db, tracer);
-        }
-      }
-    } catch (error) {
-      ctx.log.error({ error, subreddit }, `Failed to fetch threads from /r/${subreddit}`);
-      throw error;
     }
   });
 }
 
 export function makeThreadFetcherService(opts: MakeThreadFetcherServiceOpts) {
-  const { db, tracer, producer, replyFetcher } = opts;
-  const redditClient = makeRedditClient();
+  const { db, tracer, producer, broker, logger, replyFetcher, responseHandlerRegistry } =
+    opts;
+  const queueClient = makeRedditApiQueueClient({
+    broker,
+    logger,
+    tracer,
+    producer,
+  });
+
+  // Register response handler
+  responseHandlerRegistry.register(handlerId, async (message, context) => {
+    await context.with('Handle threads API response', async (c) => {
+      const { requestId, responseData, error, metadata } = message.payload.data;
+
+      const subreddit = (metadata as { subreddit?: string } | undefined)?.subreddit;
+      if (!subreddit) {
+        c.log.warn(
+          { requestId },
+          'Received threads response without subreddit metadata, ignoring',
+        );
+        return;
+      }
+
+      if (error) {
+        c.log.error({ requestId, error, subreddit }, 'Reddit API request failed');
+        throw new Error(error.message || 'Unknown error');
+      }
+
+      if (!responseData) {
+        c.log.error({ requestId, subreddit }, 'Reddit API response missing data');
+        throw new Error('Response data missing');
+      }
+
+      const threads = responseData as RawRedditThread[];
+
+      c.log.info(
+        { subreddit, count: threads.length },
+        `Fetched ${threads.length} threads from /r/${subreddit}`,
+      );
+
+      await handleThreadsResponse(threads, subreddit, db, producer, tracer, replyFetcher);
+
+      c.log.info({ requestId, subreddit }, 'Successfully processed threads response');
+    });
+  });
 
   return {
     async fetchThreads() {
@@ -295,15 +314,11 @@ export function makeThreadFetcherService(opts: MakeThreadFetcherServiceOpts) {
       }
 
       for (const subreddit of enabledSubreddits) {
-        await processSubreddit(
-          subreddit,
-          redditClient,
-          db,
-          producer,
-          tracer,
-          replyFetcher,
-        );
+        await processSubreddit(subreddit, queueClient, tracer);
       }
+    },
+    async disconnect() {
+      await queueClient.disconnect();
     },
   };
 }

@@ -9,6 +9,7 @@ import { makeConsumer, makeProducer } from '@modules/events';
 import { makeGraphClient } from '@modules/graph-db';
 import { makeInferenceClient } from '@modules/inference';
 import { makeLogger } from '@modules/logger';
+import { makeRedditApiResponseHandlerRegistry } from '@modules/reddit-client';
 import { makeTracer } from '@modules/tracing';
 
 const logger = makeLogger({
@@ -65,6 +66,12 @@ const producer = makeProducer({
 
 await producer.connect();
 
+// Create global response handler registry
+const responseHandlerRegistry = makeRedditApiResponseHandlerRegistry({
+  logger,
+  tracer,
+});
+
 const threadHandler = makeThreadHandlerService({
   db,
   graphClient,
@@ -87,6 +94,10 @@ const trackedSubredditCandidateHandler = makeTrackedSubredditCandidateHandlerSer
   tracer,
   inference,
   ollamaBaseUrl: Env.OLLAMA_BASE_URL,
+  broker: Env.BROKER_URL,
+  logger,
+  producer,
+  responseHandlerRegistry,
 });
 
 const consumer = makeConsumer({
@@ -101,17 +112,29 @@ const consumer = makeConsumer({
       routingKey: 'reddit.thread.fetched',
       onMessage: threadHandler.onThreadFetched,
     },
-    // {
-    //   domain: 'reddit',
-    //   queue: 'reddit.reply.fetched',
-    //   routingKey: 'reddit.reply.fetched',
-    //   onMessage: replyHandler.onReplyFetched,
-    // },
+    {
+      domain: 'reddit',
+      queue: 'reddit.reply.fetched',
+      routingKey: 'reddit.reply.fetched',
+      onMessage: replyHandler.onReplyFetched,
+    },
     {
       domain: 'reddit',
       queue: 'reddit.tracked-subreddit.candidate-discovered',
       routingKey: 'reddit.tracked-subreddit.candidate-discovered',
       onMessage: trackedSubredditCandidateHandler.onTrackedSubredditCandidateDiscovered,
+    },
+    {
+      domain: 'reddit',
+      queue: 'reddit.api-call.responses',
+      routingKey: 'reddit.api-call.*.succeeded',
+      onMessage: responseHandlerRegistry.handle,
+    },
+    {
+      domain: 'reddit',
+      queue: 'reddit.api-call.responses',
+      routingKey: 'reddit.api-call.*.failed',
+      onMessage: responseHandlerRegistry.handle,
     },
   ],
 });

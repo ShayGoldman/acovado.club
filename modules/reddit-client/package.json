@@ -18,11 +18,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@modules/events": "workspace:*",
+    "@modules/ids": "workspace:*",
     "@modules/logger": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "@modules/types": "workspace:*",
+    "amqplib": "^0.10.5",
     "zod": "^4.2.1"
   },
   "devDependencies": {
     "@config/tsconfig": "workspace:*",
-    "@config/typescript": "workspace:*"
+    "@config/typescript": "workspace:*",
+    "@types/amqplib": "^0.10.5"
   }
 }

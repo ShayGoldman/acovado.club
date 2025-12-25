@@ -18,6 +18,20 @@ export interface GraphQueryResult {
   stats: GraphQueryStats;
 }
 
+export interface GraphNodeResult {
+  id: number;
+  label: string;
+  properties: Record<string, unknown>;
+}
+
+export interface GraphRelationshipResult {
+  id: number;
+  type: string;
+  sourceNodeId: number;
+  destinationNodeId: number;
+  properties: Record<string, unknown>;
+}
+
 export interface GraphQueryStats {
   nodesCreated: number;
   nodesDeleted: number;

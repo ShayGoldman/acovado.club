@@ -87,12 +87,28 @@ export function makeTracer(options: TracerOptions): Tracer {
   ): Promise<T>;
   async function withSpan<T>(
     name: string,
-    opts: { attributes?: Attributes; headers?: any; attach?: boolean },
+    opts: {
+      attributes?: Attributes;
+      headers?: any;
+      attach?: boolean;
+      links?: Array<{
+        context: import('@opentelemetry/api').SpanContext;
+        attributes?: Attributes;
+      }>;
+    },
     fn: (context: ContextType) => Promise<T>,
   ): Promise<T>;
   // Implementation
   async function withSpan<T>(name: string, optsOrFn: any, maybeFn?: any): Promise<T> {
-    let opts: { attributes?: Attributes; headers?: any; attach?: boolean } = {};
+    let opts: {
+      attributes?: Attributes;
+      headers?: any;
+      attach?: boolean;
+      links?: Array<{
+        context: import('@opentelemetry/api').SpanContext;
+        attributes?: Attributes;
+      }>;
+    } = {};
     let fn: (context: ContextType) => Promise<T>;
 
     if (typeof optsOrFn === 'function') {
@@ -104,24 +120,66 @@ export function makeTracer(options: TracerOptions): Tracer {
       fn = maybeFn;
     }
 
-    const { attributes, headers } = opts;
+    const { attributes, headers, attach = true, links } = opts;
     let parentContext = context.active();
+    let extractedContext: import('@opentelemetry/api').Context | undefined;
 
-    if (headers) {
-      const extractedContext = extractTraceContext(headers);
+    // Only extract context from headers if attach is true
+    // When attach is false, we want siblings, so we don't use extracted context as parent
+    if (headers && attach) {
+      extractedContext = extractTraceContext(headers);
 
       if (extractedContext) {
         parentContext = extractedContext;
       }
     }
 
-    const span = otelTracer.startSpan(
-      name,
-      attributes ? { attributes } : {},
-      parentContext,
-    );
+    // When attach is false, we want sibling spans (same parent as current span)
+    // When attach is true, use current active context as parent (nested spans)
+    let spanParentContext = parentContext;
 
-    return context.with(trace.setSpan(context.active(), span), async () => {
+    if (!attach) {
+      // To create a sibling span, we need to use the same parent as the producer span
+      // Since we don't have access to the producer's parent, we use root context
+      // The span link (passed via links parameter) will connect the spans in the trace view
+      // This creates siblings instead of parent-child relationships
+      // Use root context by not setting any span in the context
+      // This ensures the new span is not nested under the current active span
+      spanParentContext = context.active();
+      // Remove any active span from the context to create a root-level span
+      const activeSpan = trace.getSpan(spanParentContext);
+      if (activeSpan) {
+        // Get the context without the active span
+        spanParentContext = trace.deleteSpan(spanParentContext);
+      }
+    }
+
+    // Build span options with links if provided
+    const spanOptions: {
+      attributes?: Attributes;
+      links?: Array<{
+        context: import('@opentelemetry/api').SpanContext;
+        attributes?: Attributes;
+      }>;
+    } = {};
+
+    if (attributes) {
+      spanOptions.attributes = attributes;
+    }
+
+    if (links && links.length > 0) {
+      spanOptions.links = links;
+    }
+
+    const span = otelTracer.startSpan(name, spanOptions, spanParentContext);
+
+    // When attach is false, don't set span as active for children (creates siblings)
+    // When attach is true, set span as active (creates nested children)
+    const executionContext = attach
+      ? trace.setSpan(context.active(), span)
+      : context.active();
+
+    return context.with(executionContext, async () => {
       try {
         const ctx = makeContext(span);
         const result = await fn(ctx);

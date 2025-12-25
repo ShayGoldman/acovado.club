@@ -2,7 +2,13 @@ import type { DBClient, RedditReply } from '@modules/db';
 import { makeRedditReplyInsertValue, schema, eq, inArray } from '@modules/db';
 import { makeEvent, type Producer } from '@modules/events';
 import type { Context, Tracer } from '@modules/tracing';
-import type { RedditReply as RawRedditReply, RedditClient } from '@modules/reddit-client';
+import type {
+  RedditApiResponseHandlerRegistry,
+  RedditReply as RawRedditReply,
+} from '@modules/reddit-client';
+import { makeRedditApiQueueClient } from '@modules/reddit-client';
+
+const handlerId = 'reply-fetcher';
 
 function ensureExists<T>(
   value: T | undefined | null,
@@ -20,24 +26,35 @@ export interface MakeReplyFetcherServiceOpts {
   db: DBClient;
   tracer: Tracer;
   producer: Producer;
+  broker: string;
+  logger: any;
+  responseHandlerRegistry: RedditApiResponseHandlerRegistry;
 }
 
 export function makeReplyFetcherService(opts: MakeReplyFetcherServiceOpts) {
-  const { db, tracer, producer } = opts;
+  const { db, tracer, producer, broker, logger, responseHandlerRegistry } = opts;
+  const queueClient = makeRedditApiQueueClient({
+    broker,
+    logger,
+    tracer,
+    producer,
+  });
 
-  async function fetchRepliesForThread(
+  async function publishFetchRepliesRequest(
     threadRedditId: string,
     subreddit: string,
-    redditClient: RedditClient,
-  ): Promise<RawRedditReply[]> {
-    return tracer.with(`Fetch replies for thread ${threadRedditId}`, async (ctx) => {
-      const replies = await redditClient.fetchThreadReplies(threadRedditId, subreddit);
-      ctx.log.info(
-        { threadRedditId, count: replies.length },
-        `Fetched ${replies.length} replies for thread`,
-      );
-      return replies;
-    });
+    threadId: number,
+  ): Promise<void> {
+    return tracer.with(
+      `Publish fetch replies request for thread ${threadRedditId}`,
+      async (ctx) => {
+        await queueClient.publishRequest(
+          { type: 'fetch-thread-replies', params: { threadRedditId, subreddit } },
+          { handlerId, threadRedditId, subreddit, threadId },
+        );
+        ctx.log.info({ threadRedditId }, 'Published fetch replies request');
+      },
+    );
   }
 
   async function findNewReplies(replies: RawRedditReply[]): Promise<RawRedditReply[]> {
@@ -208,31 +225,70 @@ export function makeReplyFetcherService(opts: MakeReplyFetcherServiceOpts) {
     });
   }
 
+  // Register response handler
+  responseHandlerRegistry.register(handlerId, async (message, context) => {
+    await context.with('Handle replies API response', async (c) => {
+      const { requestId, responseData, error, metadata } = message.payload.data;
+
+      const threadRedditId = (metadata as { threadRedditId?: string } | undefined)
+        ?.threadRedditId;
+      const threadId = (metadata as { threadId?: number } | undefined)?.threadId;
+
+      if (!threadRedditId || !threadId) {
+        c.log.warn(
+          { requestId },
+          'Received replies response without threadRedditId or threadId metadata, ignoring',
+        );
+        return;
+      }
+
+      if (error) {
+        c.log.error({ requestId, error, threadRedditId }, 'Reddit API request failed');
+        throw new Error(error.message || 'Unknown error');
+      }
+
+      if (!responseData) {
+        c.log.error({ requestId, threadRedditId }, 'Reddit API response missing data');
+        throw new Error('Response data missing');
+      }
+
+      const replies = responseData as RawRedditReply[];
+
+      c.log.info(
+        { threadRedditId, count: replies.length },
+        `Fetched ${replies.length} replies for thread`,
+      );
+
+      const newReplies = await findNewReplies(replies);
+
+      if (newReplies.length > 0) {
+        await processNewReplies(newReplies, threadId);
+        await updateThreadLastReplyFetch(threadId);
+      }
+
+      c.log.info(
+        { requestId, threadRedditId, newRepliesCount: newReplies.length },
+        'Successfully processed replies response',
+      );
+    });
+  });
+
   return {
     async fetchRepliesForThread(
       threadRedditId: string,
       subreddit: string,
       threadId: number,
-      redditClient: RedditClient,
     ) {
-      const replies = await fetchRepliesForThread(
-        threadRedditId,
-        subreddit,
-        redditClient,
-      );
-      const newReplies = await findNewReplies(replies);
-
-      if (newReplies.length > 0) {
-        await processNewReplies(newReplies, threadId);
-      }
-
-      return newReplies.length;
+      await publishFetchRepliesRequest(threadRedditId, subreddit, threadId);
     },
     shouldFetchRepliesForThread(threadId: number) {
       return shouldFetchRepliesForThread(threadId);
     },
     updateThreadLastReplyFetch(threadId: number) {
       return updateThreadLastReplyFetch(threadId);
+    },
+    async disconnect() {
+      await queueClient.disconnect();
     },
   };
 }
