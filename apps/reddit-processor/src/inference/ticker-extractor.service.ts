@@ -89,7 +89,7 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
   const { ollamaBaseUrl, inference } = opts;
   const model = new ChatOllama({
     baseUrl: ollamaBaseUrl,
-    model: 'gemma3:4b-it-qat',
+    model: 'gemma3:12b-it-qat',
     temperature: 0,
     format: 'json',
     numCtx: 16384,
@@ -120,7 +120,7 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
     You may ONLY output a classification for a ticker if you can include an reference that contains an explicit action statement.
 
     ## HARD RULE: EXPLICIT TICKER FORMAT ## 
-    You may ONLY output a ticker if it matches the following format: UPPERCASE, 1-5 chars, alphanumeric (ignore $ prefix)
+    You may ONLY output a ticker if it matches the following format: UPPERCASE, 1-5 chars, alphanumeric (ignore $ prefix) and without spaces
     Avoid: common words, lowercase text, acronyms (USA, CEO, AI), Single letter tickers
 
     ## Explicit action triggers ##
@@ -132,9 +132,7 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
     ## Classification options ##
     ${optionsList}
 
-    NOT sufficient (do NOT classify): "bullish", "bearish", "looks good", "will go up", "watching", "on my list", "great company", "could be a buy", "might buy".
-
-    If you cannot find an explicit trigger quote, output nothing for that ticker.
+    If you cannot find an explicit trigger quote or a ticker in the text, output nothing.
     Do not use words like "implies", "suggests", "seems", or "likely". 
     ${replyInstructions}
     `;
@@ -173,7 +171,7 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
 
           const response = await inference.invoke({
             name: 'Extract tickers from thread',
-            model: 'gemma3:4b-it-qat',
+            model: 'gemma3:12b-it-qat',
             config: { temperature: 0, format: 'json' },
             prompt: messages,
             callable: () => model.invoke(messages),
@@ -237,7 +235,7 @@ export function makeTickerExtractorService(opts: MakeTickerExtractorServiceOpts)
 
           const response = await inference.invoke({
             name: 'Extract tickers from reply',
-            model: 'gemma3:4b-it-qat',
+            model: 'gemma3:12b-it-qat',
             config: { temperature: 0, format: 'json' },
             prompt: messages,
             callable: () => model.invoke(messages),

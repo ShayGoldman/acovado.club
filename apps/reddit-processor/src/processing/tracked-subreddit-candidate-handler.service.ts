@@ -105,7 +105,7 @@ export function makeTrackedSubredditCandidateHandlerService(
   const handlerId = 'tracked-subreddit-candidate';
   const model = new ChatOllama({
     baseUrl: ollamaBaseUrl,
-    model: 'gemma3:4b-it-qat',
+    model: 'gemma3:12b-it-qat',
     temperature: 0,
     format: 'json',
   }).withStructuredOutput(subredditClassificationSchema);
@@ -137,7 +137,7 @@ export function makeTrackedSubredditCandidateHandlerService(
 
       const classification = await inference.invoke({
         name: 'Classify subreddit for investing relevance',
-        model: 'gemma3:4b-it-qat',
+        model: 'gemma3:12b-it-qat',
         config: { temperature: 0, format: 'json' },
         prompt: messages,
         callable: () => model.invoke(messages),
