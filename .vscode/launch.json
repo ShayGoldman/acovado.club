@@ -7,7 +7,7 @@
       "request": "attach",
       "name": "Acovado: Bebe (attach)",
       "url": "ws://localhost:16000/bebe",
-      "stopOnEntry": false
+      "stopOnEntry": true
     },
     {
       "type": "bun",
@@ -15,7 +15,7 @@
       "request": "attach",
       "name": "Acovado: Collection (attach)",
       "url": "ws://localhost:16001/collection",
-      "stopOnEntry": false
+      "stopOnEntry": true
     },
     {
       "type": "bun",
@@ -23,7 +23,7 @@
       "request": "attach",
       "name": "Acovado: Ana-liese (attach)",
       "url": "ws://localhost:16000/ana-liese",
-      "stopOnEntry": false
+      "stopOnEntry": true
     },
     {
       "type": "bun",
@@ -31,7 +31,7 @@
       "request": "attach",
       "name": "Acovado: Reddit Scraper (attach)",
       "url": "ws://localhost:16003/reddit-scraper",
-      "stopOnEntry": false
+      "stopOnEntry": true
     },
     {
       "type": "bun",
@@ -39,7 +39,7 @@
       "request": "attach",
       "name": "Acovado: Reddit Processor (attach)",
       "url": "ws://localhost:16004/reddit-processor",
-      "stopOnEntry": false
+      "stopOnEntry": true
     }
   ]
 }
