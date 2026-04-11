@@ -2,7 +2,6 @@ import { relations, sql } from 'drizzle-orm';
 import * as D from 'drizzle-orm/pg-core';
 
 export const acovado = D.pgSchema('acovado');
-export const metabase = D.pgSchema('metabase');
 
 export const redditStatusEnum = acovado.enum('reddit_status', [
   'pending',

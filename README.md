@@ -61,6 +61,10 @@ Run everything locally by following these instructions from the root of the proj
 3. `process-compose -f ./config/compose/local/process-compose.yml up` — run the example app.
 4. `bunx turbo test --filter="@tests/*"` — run tests (optional).
 
+### Resetting local data
+
+To wipe databases and re-apply migrations from scratch: stop Compose stacks, remove the Docker volumes used by PostgreSQL, RabbitMQ, FalkorDB, and other stateful services, then start infra again and run your migration workflow against an empty database (see `@modules/db` and Drizzle). The example HTTP app does not require Postgres.
+
 Telemetry uses `TRACE_EXPORTER_URLS` (comma-separated OTLP HTTP trace URLs). For app processes running **on your machine** while SigNoz from `infra/observability` is up, use `http://localhost:4318/v1/traces` in `apps/example/.env` (see `infra/observability/docker-compose.yaml` port mappings). Deployed apps use Docker networking (`http://otel-collector:4318/v1/traces`).
 
 ## dcv (observability)
