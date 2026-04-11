@@ -26,7 +26,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. All `producer.send()` calls in the simulation are awaited — publish errors surface rather than being silently swallowed
   4. The E2E test file no longer contains the `expect(1).toBe(1)` stub — it is either a meaningful structural placeholder or deleted
   5. `bun run` and CI pass with no type errors or import failures caused by removed modules
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [x] 01-01-PLAN.md — Reset modules/db: delete models/ and migrations/, clear schema.ts and seed.ts, update barrel export
+- [x] 01-02-PLAN.md — Point fixes: delete reset-reddit-data.ts, await producer.send(), replace E2E stub with test.todo
 
 ## Progress
 
@@ -35,4 +39,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Cleanup | 0/? | Not started | - |
+| 1. Cleanup | 2/2 | Complete | 2026-04-11 |
