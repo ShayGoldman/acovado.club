@@ -74,7 +74,7 @@ export async function runSimulation(
           c2.log.debug(`Publishing signal: ${signal.id}`);
 
           const event = makeEvent('signal', 'created', signal);
-          producer.send('signal', event.type, event);
+          await producer.send('signal', event.type, event);
 
           if (inputs.delay > 0) {
             c2.log.debug(`Delaying next event by ${inputs.delay}ms`);
