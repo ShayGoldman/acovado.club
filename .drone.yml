@@ -115,10 +115,12 @@ steps:
       GH_TOKEN:
         from_secret: github_token
     commands:
+      # Drone runs commands with /bin/sh (dash); dash rejects `set -o pipefail` (bash-only).
       - |
-        set -euo pipefail
+        set -eu
         apt-get update && apt-get install -y --no-install-recommends git jq ca-certificates curl unzip gh
-        curl -fsSL https://bun.sh/install | bash
+        curl -fsSL https://bun.sh/install -o /tmp/bun-install.sh
+        bash /tmp/bun-install.sh
         export BUN_INSTALL="${HOME}/.bun"
         export PATH="${BUN_INSTALL}/bin:${PATH}"
         bun --version
