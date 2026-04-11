@@ -5,3 +5,4 @@ lib
 
 .pnpm-debug.log
 scripts
+.env
