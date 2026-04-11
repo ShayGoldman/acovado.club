@@ -30,13 +30,13 @@ The setup consists of the following components:
 
 1. **SigNoz UI & Backend** (`signoz`)
    - Container: `signoz`
-   - Image: `signoz/signoz:v0.105.1`
+   - Image: `signoz/signoz:v0.117.1`
    - Port: `8080` (UI and API)
    - Purpose: Main application providing the UI, alerting, and query service
 
 2. **OpenTelemetry Collector** (`otel-collector`)
    - Container: `signoz-otel-collector`
-   - Image: `signoz/signoz-otel-collector:v0.129.12`
+   - Image: `signoz/signoz-otel-collector:v0.144.2`
    - Ports (published to the host in `docker-compose.yaml` as `4317` / `4318`):
      - `4317`: OTLP gRPC receiver
      - `4318`: OTLP HTTP receiver
@@ -44,26 +44,23 @@ The setup consists of the following components:
 
 3. **ClickHouse** (`clickhouse`)
    - Container: `signoz-clickhouse`
-   - Image: `clickhouse/clickhouse-server:25.5.6`
+   - Image: `clickhouse/clickhouse-server:25.12.9`
    - Port: `9000` (internal)
    - Purpose: Time-series database for storing traces, metrics, and logs
 
-4. **ZooKeeper** (`zookeeper-1`)
-   - Container: `signoz-zookeeper-1`
-   - Image: `bitnami/zookeeper:3.7.1`
+4. **ZooKeeper** (`zookeeper-1` in local compose; `zookeeper` in shared base)
+   - Image: `signoz/zookeeper:3.9.3`
    - Purpose: Distributed coordination for ClickHouse cluster
 
-5. **Schema Migrators**
-   - `schema-migrator-sync`: Synchronous schema migrations
-   - `schema-migrator-async`: Asynchronous schema migrations
-   - Image: `signoz/signoz-schema-migrator:v0.129.12`
-   - Purpose: Manage ClickHouse database schema updates
+5. **Telemetry store migrator** (`signoz-telemetrystore-migrator`)
+   - Image: `signoz/signoz-otel-collector:v0.144.2` (runs `migrate bootstrap`, `migrate sync up`, `migrate async up` before the UI and collector start)
+   - Purpose: Apply ClickHouse schema migrations for SigNoz telemetry storage
 
 ## Configuration Files
 
 ### Docker Compose
 - **`docker-compose.yaml`**: Main compose file with full service definitions, volumes, and port mappings
-- **`docker-compose.base.yaml`**: Base templates for ClickHouse and ZooKeeper with shared defaults
+- **`docker-compose.base.yaml`**: Shared service definitions (ZooKeeper, ClickHouse, migrator, SigNoz, collector) for `config/compose/docker-compose.infra.yaml` via `extends`
 
 ### OpenTelemetry Collector
 - **`otel-collector-signoz-config.yaml`**: Main OTLP collector configuration
@@ -214,10 +211,10 @@ docker compose up -d
 
 ## Version Information
 
-- **SigNoz**: v0.105.1
-- **OpenTelemetry Collector**: v0.129.12
-- **ClickHouse**: 25.5.6
-- **ZooKeeper**: 3.7.1
+- **SigNoz**: v0.117.1
+- **OpenTelemetry Collector** (and telemetry migrator): v0.144.2
+- **ClickHouse**: 25.12.9
+- **ZooKeeper**: 3.9.3 (`signoz/zookeeper`)
 
 ## Additional Resources
 

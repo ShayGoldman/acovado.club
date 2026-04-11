@@ -1,5 +1,5 @@
 x-clickhouse-defaults: &clickhouse-defaults
-  image: clickhouse/clickhouse-server:25.5.6
+  image: clickhouse/clickhouse-server:25.12.9
   tty: true
   restart: unless-stopped
   logging:
@@ -23,7 +23,7 @@ x-clickhouse-defaults: &clickhouse-defaults
       hard: 262144
 
 x-zookeeper-defaults: &zookeeper-defaults
-  image: bitnami/zookeeper:3.7.1
+  image: signoz/zookeeper:3.9.3
   restart: unless-stopped
   logging:
     options:
@@ -46,6 +46,8 @@ services:
       - ZOO_SERVER_ID=1
       - ALLOW_ANONYMOUS_LOGIN=yes
       - ZOO_AUTOPURGE_INTERVAL=1
+      - ZOO_ENABLE_PROMETHEUS_METRICS=yes
+      - ZOO_PROMETHEUS_METRICS_PORT_NUMBER=9141
 
   clickhouse:
     <<: *clickhouse-defaults
@@ -53,8 +55,31 @@ services:
     environment:
       - CLICKHOUSE_SKIP_USER_SETUP=1
 
+  signoz-telemetrystore-migrator:
+    image: signoz/signoz-otel-collector:v0.144.2
+    container_name: signoz-telemetrystore-migrator
+    restart: on-failure
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        /signoz-otel-collector migrate bootstrap &&
+        /signoz-otel-collector migrate sync up &&
+        /signoz-otel-collector migrate async up
+    environment:
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+      - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    logging:
+      options:
+        max-size: 50m
+        max-file: "10"
+
   signoz:
-    image: signoz/signoz:v0.105.1
+    image: signoz/signoz:v0.117.1
     container_name: signoz
     restart: unless-stopped
     command:
@@ -63,10 +88,12 @@ services:
       - SIGNOZ_ALERTMANAGER_PROVIDER=signoz
       - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://clickhouse:9000
       - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
-      - STORAGE=clickhouse
-      - GODEBUG=netdns=go
-      - TELEMETRY_ENABLED=true
-      - DEPLOYMENT_TYPE=docker-standalone
+      - SIGNOZ_TOKENIZER_JWT_SECRET=secret
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD
@@ -83,45 +110,29 @@ services:
         max-file: "10"
 
   otel-collector:
-    image: signoz/signoz-otel-collector:v0.129.12
+    image: signoz/signoz-otel-collector:v0.144.2
     container_name: signoz-otel-collector
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - --config=/etc/otel-collector-config.yaml
-      - --manager-config=/etc/manager-config.yaml
-      - --copy-path=/var/tmp/collector-config.yaml
-      - --feature-gates=-pkg.translator.prometheus.NormalizeName
+      - |
+        /signoz-otel-collector migrate sync check &&
+        /signoz-otel-collector --config=/etc/otel-collector-config.yaml --manager-config=/etc/manager-config.yaml --copy-path=/var/tmp/collector-config.yaml
     environment:
       - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host,os.type=linux
       - LOW_CARDINAL_EXCEPTION_GROUPING=false
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+      - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      signoz:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
     logging:
       options:
         max-size: 50m
         max-file: "10"
-
-  schema-migrator-sync:
-    image: signoz/signoz-schema-migrator:v0.129.12
-    container_name: signoz-schema-migrator-sync
-    restart: on-failure
-    command:
-      - sync
-      - --dsn=tcp://clickhouse:9000
-      - --up=
-    logging:
-      options:
-        max-size: 50m
-        max-file: "10"
-
-  schema-migrator-async:
-    image: signoz/signoz-schema-migrator:v0.129.12
-    container_name: signoz-schema-migrator-async
-    restart: on-failure
-    command:
-      - async
-      - --dsn=tcp://clickhouse:9000
-      - --up=
-    logging:
-      options:
-        max-size: 50m
-        max-file: "10"
-

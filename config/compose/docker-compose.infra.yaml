@@ -89,6 +89,18 @@ services:
           cpus: 2
           memory: "4gb"
 
+  signoz-telemetrystore-migrator:
+    extends:
+      file: ../../infra/observability/docker-compose.base.yaml
+      service: signoz-telemetrystore-migrator
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512mb"
+
   signoz:
     extends:
       file: ../../infra/observability/docker-compose.base.yaml
@@ -108,11 +120,6 @@ services:
       - "traefik.http.services.signoz.loadbalancer.server.port=8080"
       - "traefik.http.routers.signoz.middlewares=auth"
       - "traefik.docker.network=proxy-network"
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      schema-migrator-sync:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -129,52 +136,11 @@ services:
     ports: []
     networks:
       - internal-network
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      signoz:
-        condition: service_healthy
-      schema-migrator-sync:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
           cpus: 1
           memory: "2gb"
-
-  schema-migrator-sync:
-    extends:
-      file: ../../infra/observability/docker-compose.base.yaml
-      service: schema-migrator-sync
-    networks:
-      - internal-network
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "512mb"
-
-  schema-migrator-async:
-    extends:
-      file: ../../infra/observability/docker-compose.base.yaml
-      service: schema-migrator-async
-    networks:
-      - internal-network
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      signoz:
-        condition: service_healthy
-      schema-migrator-sync:
-        condition: service_completed_successfully
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "512mb"
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
