@@ -28,6 +28,7 @@ flowchart LR
 ```
 
 - **CI**: [Drone](https://ci.acovado.club) runs on **push to `main`** when the pushed commit is a **GitHub merge commit** (see `.drone.yml` `validate-merge-commit`). Feature-branch pushes alone do not run this pipeline.
+- **Escape hatch**: To run the full pipeline on a **direct push to `main`** (e.g. fast-forward or cherry-pick) without a PR merge commit, include the literal tag **`[trigger-main-deploy]`** in that commit’s **message**. Use sparingly — it bypasses the merge-commit guard.
 - **Registry**: Images are pushed to **`docker-registry.acovado.club`** (`REGISTRY_URL` in `.drone.yml`).
 - **CD**: The **deploy** step runs on the **same host** as production (Docker socket mount), from the **checked-out repo** at `/drone/src`, and applies:
   - `config/compose/docker-compose.infra.yaml` → project **`acovado-infra`**
@@ -124,7 +125,7 @@ If the **`release-versions`** step runs (pending changesets), it may commit vers
 
 1. **Branch** contains the latest **`.drone.yml`** and **`config/compose/**`** you expect.
 2. **VPS**: Traefik + Drone + registry are up; **`/srv/env`** has the needed `*.env` files; **`prepare-vps-for-cd.sh`** already run if this is the first greenfield deploy.
-3. **Merge to `main` via GitHub PR** (so the merge commit exists → Drone runs).
+3. **Merge to `main` via GitHub PR** (so the merge commit exists → Drone runs), **or** push to `main` with **`[trigger-main-deploy]`** in the commit message (escape hatch).
 4. **Watch** [ci.acovado.club](https://ci.acovado.club): build → push → **deploy** green.
 5. **Smoke test**: `example` healthy path (internal or via future ingress), **`stats.acovado.club`** once **`stats`** is up, Signoz UI if exposed.
 
@@ -134,7 +135,7 @@ If the **`release-versions`** step runs (pending changesets), it may commit vers
 
 | Symptom | Where to look |
 |---------|----------------|
-| Pipeline skipped | Push not to `main`, or commit not a **merge commit** |
+| Pipeline skipped | Push not to `main`, or commit not a **merge commit** and message lacks **`[trigger-main-deploy]`** |
 | Build/push fails | Registry auth, disk space, Dockerfile |
 | Deploy fails | `docker compose` cwd (must be repo root — fixed in `.drone.yml`), missing **`/srv/env`** file, **`CONFIG_FILES_ROOT`** paths after `cp infra`, network names, **OOM** (Signoz/ClickHouse are heavy) |
 | `stats.acovado.club` down | **`stats`** container not running — ensure **`acovado-infra`** deploy succeeded |

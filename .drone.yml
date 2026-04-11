@@ -23,16 +23,23 @@ volumes:
 
 steps:
   ##############################################################################
-  # Step 0: Guard against non-merge commits
+  # Step 0: Guard against non-merge commits (with escape hatch)
   ##############################################################################
   - name: validate-merge-commit
     image: node:20-bullseye
     commands:
       - |
-        if ! git log -1 --pretty=%B | grep -q "Merge pull request"; then
-          echo "Not a merge commit. Skipping pipeline."
-          exit 78
+        MSG="$(git log -1 --pretty=%B)"
+        if echo "$MSG" | grep -q "Merge pull request"; then
+          echo "Merge commit detected — continuing pipeline."
+          exit 0
         fi
+        if echo "$MSG" | grep -qF "[trigger-main-deploy]"; then
+          echo "Escape hatch [trigger-main-deploy] — continuing pipeline without a PR merge commit."
+          exit 0
+        fi
+        echo "Not a merge commit and no [trigger-main-deploy] tag. Skipping pipeline."
+        exit 78
 
   ##############################################################################
   # Step 1: Build and push shared modules
