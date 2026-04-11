@@ -40,4 +40,4 @@ This will:
 1. Make your code changes
 2. Run `bun changeset` to document what changed
 3. Commit both your code and the changeset file
-4. When merging to main, changesets are applied automatically (or manually via `bun changeset:version`)
+4. When merging to `main`, the **Drone** `release-versions` step can run `changeset version` / tagging when pending changesets exist (see `.drone.yml`). You can also run `bun changeset:version` locally when cutting a release manually.

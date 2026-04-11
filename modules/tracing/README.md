@@ -14,6 +14,8 @@
 
 ### Usage snippet
 
+`exporterUrls` is a **list** of OTLP HTTP trace endpoint URLs (each ending with `/v1/traces`). In apps, split a comma-separated env var (see `apps/example`).
+
 ```ts
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';

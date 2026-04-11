@@ -1,17 +1,21 @@
 # @modules/events
 
+RabbitMQ **producer** and **consumer** helpers. Pass a **`Tracer`** from `@modules/tracing` to get spans around publish/consume (see `src/tracing-decorator.ts`).
+
 ## Usage
 
 ```typescript
 const producer = makeProducer({
   logger,
   broker: 'amqp://rabbit:rabbit@localhost:5672',
+  // Optional: tracing: { tracer },
 });
 
 // Consumer setup
 const consumer = makeConsumer({
   logger,
   broker: 'amqp://rabbit:rabbit@localhost:5672',
+  // Optional: tracing: { tracer },
   handlers: [
     {
       domain: 'tests',

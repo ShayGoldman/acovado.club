@@ -14,22 +14,27 @@ Add new applications under `./apps/<name>` and wire them in `Dockerfile`, `confi
 
 ## Modules
 
-| Name    | Path                | Description                                                 |
-| ------- | ------------------- | ----------------------------------------------------------- |
-| db      | `./modules/db`      | Data access, schema management and model validations        |
-| events  | `./modules/events`  | Message broker client both for producing and consuming      |
-| ids     | `./modules/ids`     | Simple module for generating ids                            |
-| logger  | `./modules/logger`  | Pino based logger                                           |
-| tracing | `./modules/tracing` | Tracing library aimed for ease-of-use                       |
-| types   | `./modules/types`   | Utility library used for type-coherence in apps and modules |
+| Name           | Path                     | Description                                                    |
+| -------------- | ------------------------ | -------------------------------------------------------------- |
+| db             | `./modules/db`           | Data access, schema management and model validations           |
+| events         | `./modules/events`       | RabbitMQ producer/consumer with optional tracing decorators    |
+| ids            | `./modules/ids`          | ID generation helpers                                          |
+| logger         | `./modules/logger`     | Pino-based structured logging                                  |
+| tracing        | `./modules/tracing`      | OpenTelemetry tracing + OTLP log export (see package README) |
+| types          | `./modules/types`        | Shared primitives for events and tracing                       |
+| graph-db       | `./modules/graph-db`     | FalkorDB / graph client                                        |
+| inference      | `./modules/inference`    | LLM / inference client abstractions                            |
+| reddit-client  | `./modules/reddit-client`| Reddit API + messaging helpers (used by future Reddit workers) |
 
 ## Infrastructure
 
 | Name          | Path                    | Description                                                                |
 | ------------- | ----------------------- | -------------------------------------------------------------------------- |
-| postgres      | `./infra/postgres`      | Self hosted postgres instance                                              |
-| rabbitmq      | `./infra/rabbitmq`      | Self hosted rabbitmq instance                                              |
-| observability | `./infra/observability` | SigNoz (OpenTelemetry → ClickHouse): traces, metrics, and logs             |
+| postgres      | `./infra/postgres`      | PostgreSQL via Docker Compose (`bun run start` runs `docker compose up`) |
+| rabbitmq      | `./infra/rabbitmq`      | RabbitMQ via Docker Compose                                                |
+| falkordb      | `./infra/falkordb`      | FalkorDB graph database via Docker Compose                                 |
+| observability | `./infra/observability` | SigNoz stack (OTel Collector → ClickHouse). See `infra/observability/README.md` |
+| inference-model | `./infra/inference-model` | Ollama / local LLM runtime (optional)                                    |
 
 ## Config
 
@@ -52,13 +57,34 @@ Add new applications under `./apps/<name>` and wire them in `Dockerfile`, `confi
 | e2e                     | `./tests/e2e`                     | End-to-end tests                                   |
 | stock-events-simulation | `./tests/stock-events-simulation` | CLI tool for simulating stock market signal events |
 
+## CI/CD
+
+- **Drone** at [ci.acovado.club](https://ci.acovado.club) (badge above): runs on **push to `main`** when the latest commit is a **GitHub merge commit** (see `.drone.yml` `validate-merge-commit`).
+- **Build**: multi-stage `Dockerfile` builds `@modules/*`, then the app image (`@apps/example` in production).
+- **Registry**: images are pushed to `docker-registry.acovado.club` (`modules`, `example`, etc.).
+- **Deploy step**: copies `infra/` to `/srv/volumes/deployment` on the host, then runs `docker compose` for `config/compose/docker-compose.infra.yaml` and `config/compose/docker-compose.apps.yaml` with `COMMIT_HASH` / `REGISTRY_URL` / volume paths from the Drone environment.
+
+## Production deployment (overview)
+
+The compose files under `config/compose/` assume:
+
+- Docker **external networks** `internal-network` and `proxy-network` (e.g. Traefik).
+- **Env files** on the host (e.g. under `/srv/env`) referenced by compose `env_file` entries.
+- **Persistent volumes** under `/srv/volumes` for Postgres, SigNoz, FalkorDB, etc.
+- App env files such as `/srv/env/example.env` for the `example` service (see `config/compose/docker-compose.apps.yaml`).
+
+Do not commit production secrets; keep them only on the server or in your secrets store.
+
 ## Local Development
 
-Run everything locally by following these instructions from the root of the project:
-
-1. `bunx turbo dev --filter="@infra/*"` — start infrastructure (PostgreSQL, FalkorDB, RabbitMQ, SigNoz observability).
-2. Copy `apps/example/.env.example` to `apps/example/.env` and adjust `TRACE_EXPORTER_URLS` if needed (see below).
-3. `process-compose -f ./config/compose/local/process-compose.yml up` — run the example app.
+1. **Infrastructure** — from each directory, run Compose in the background (there is no `dev` script on `@infra/*`; use `docker compose` directly), for example:
+   - `cd infra/postgres && docker compose up -d`
+   - `cd infra/rabbitmq && docker compose up -d`
+   - `cd infra/falkordb && docker compose up -d`
+   - `cd infra/observability && docker compose up -d`  
+   Or start only what you need. Details: `infra/*/README.md` where present, and `infra/observability/README.md` for SigNoz.
+2. Copy `apps/example/.env.example` to `apps/example/.env` and set `TRACE_EXPORTER_URLS` (see below).
+3. `process-compose -f ./config/compose/local/process-compose.yml up` — run the example app (requires [process-compose](https://github.com/F1bonacc1/process-compose)).
 4. `bunx turbo test --filter="@tests/*"` — run tests (optional).
 
 ### Resetting local data
@@ -66,10 +92,6 @@ Run everything locally by following these instructions from the root of the proj
 To wipe databases and re-apply migrations from scratch: stop Compose stacks, remove the Docker volumes used by PostgreSQL, RabbitMQ, FalkorDB, and other stateful services, then start infra again and run your migration workflow against an empty database (see `@modules/db` and Drizzle). The example HTTP app does not require Postgres.
 
 Telemetry uses `TRACE_EXPORTER_URLS` (comma-separated OTLP HTTP trace URLs). For app processes running **on your machine** while SigNoz from `infra/observability` is up, use `http://localhost:4318/v1/traces` in `apps/example/.env` (see `infra/observability/docker-compose.yaml` port mappings). Deployed apps use Docker networking (`http://otel-collector:4318/v1/traces`).
-
-## dcv (observability)
-
-`dcv` is a simple observability tool to track and monitor the infra services while running locally. Use it to inspect logs, service health, and dependencies in one place during development.
 
 ## Debugging
 

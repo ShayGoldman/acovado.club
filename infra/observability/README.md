@@ -137,17 +137,9 @@ Applications can send telemetry data to the OpenTelemetry Collector using:
 - Endpoint from the host: `http://localhost:4318`
 - Use for: Browser applications or when gRPC is not available
 
-### Example Configuration (Node.js with OpenTelemetry SDK)
+### Example (raw OpenTelemetry SDK)
 
-```javascript
-const { Resource } = require('@opentelemetry/resources');
-const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
-const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
-
-const exporter = new OTLPTraceExporter({
-  url: 'grpc://localhost:4317',
-});
-```
+This monorepo normally uses **`@modules/tracing`** (`makeTracer`) instead of wiring exporters by hand. If you integrate another language or a raw Node SDK, send OTLP to **`http://localhost:4318/v1/traces`** (HTTP) or gRPC on **`localhost:4317`**, matching the collector receivers above.
 
 ## Data Flow
 
