@@ -61,7 +61,9 @@ services:
     volumes:
       - ${VOLUMES_ROOT}/signoz-zookeeper:/bitnami/zookeeper
     networks:
-      - internal-network
+      internal-network:
+        aliases:
+          - zookeeper-1
     deploy:
       resources:
         limits:
