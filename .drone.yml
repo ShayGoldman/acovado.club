@@ -5,9 +5,7 @@ name: acovado
 environment:
   REGISTRY_URL: docker-registry.acovado.club
   MODULES_IMAGE: docker-registry.acovado.club/modules
-  BEBE_IMAGE: docker-registry.acovado.club/bebe
-  COLLECTION_IMAGE: docker-registry.acovado.club/collection
-  ANA_LIESE_IMAGE: docker-registry.acovado.club/ana-liese
+  EXAMPLE_IMAGE: docker-registry.acovado.club/example
 
 volumes:
   - name: docker-socket
@@ -67,9 +65,9 @@ steps:
       - pre-build
 
   ##############################################################################
-  # Step 3: Build and push bebe
+  # Step 3: Build and push example app
   ##############################################################################
-  - name: build-bebe
+  - name: build-example
     image: docker
     environment:
       DOCKER_BUILDKIT: 1
@@ -79,70 +77,26 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --target production --build-arg APP_PATH=bebe --build-arg APP_NAME=@apps/bebe -t $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${BEBE_IMAGE}:${DRONE_COMMIT_SHA} $${BEBE_IMAGE}:latest
-      - docker push $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}
-      - docker push $${BEBE_IMAGE}:latest
+      - docker build --target production --build-arg APP_PATH=example --build-arg APP_NAME=@apps/example -t $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA} $${EXAMPLE_IMAGE}:latest
+      - docker push $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${EXAMPLE_IMAGE}:latest
     depends_on:
       - build-modules
 
   ##############################################################################
-  # Step 4: Build and push collection
-  ##############################################################################
-  - name: build-collection
-    image: docker
-    environment:
-      DOCKER_BUILDKIT: 1
-    volumes:
-      - name: docker-socket
-        path: /var/run/docker.sock
-      - name: docker-cache
-        path: /var/lib/docker
-    commands:
-      - docker build --target production --build-arg APP_PATH=collection --build-arg APP_NAME=@apps/collection -t $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA} $${COLLECTION_IMAGE}:latest
-      - docker push $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}
-      - docker push $${COLLECTION_IMAGE}:latest
-    depends_on:
-      - build-modules
-
-  ##############################################################################
-  # Step 5: Build and push ana-liese
-  ##############################################################################
-  - name: build-ana-liese
-    image: docker
-    environment:
-      DOCKER_BUILDKIT: 1
-    volumes:
-      - name: docker-socket
-        path: /var/run/docker.sock
-      - name: docker-cache
-        path: /var/lib/docker
-    commands:
-      - docker build --target production --build-arg APP_PATH=ana-liese --build-arg APP_NAME=@apps/ana-liese -t $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA} $${ANA_LIESE_IMAGE}:latest
-      - docker push $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}
-      - docker push $${ANA_LIESE_IMAGE}:latest
-    depends_on:
-      - build-modules
-
-  ##############################################################################
-  # Step 6: Post build
+  # Step 4: Post build
   ##############################################################################
   - name: post-build
     image: bash
     commands:
       - echo "Build complete"
-      - echo "(bebe) $${BEBE_IMAGE}:${DRONE_COMMIT_SHA}"
-      - echo "(collection) $${COLLECTION_IMAGE}:${DRONE_COMMIT_SHA}"
-      - echo "(ana-liese) $${ANA_LIESE_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(example) $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA}"
     depends_on:
-      - build-bebe
-      - build-collection
-      - build-ana-liese
+      - build-example
 
   ##############################################################################
-  # Step 7: Check for and release new versions
+  # Step 5: Check for and release new versions
   ##############################################################################
   - name: release-versions
     image: debian:bookworm-slim
@@ -191,7 +145,7 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 8: Deploy 🤙
+  # Step 6: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker
@@ -221,7 +175,7 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 9: Cleanup Old Images
+  # Step 7: Cleanup Old Images
   ##############################################################################
   - name: cleanup
     image: docker

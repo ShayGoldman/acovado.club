@@ -1,0 +1,9 @@
+version: '0.5'
+
+processes:
+  example:
+    namespace: acovado-apps
+    working_dir: apps/example
+    command: bun run dev
+    env_file:
+      - apps/example/.env

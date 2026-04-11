@@ -2,14 +2,14 @@ import Z from 'zod';
 
 export type Environment = Z.infer<typeof environmentSchema>;
 
-const environmentSchema = Z.object({
+export const environmentSchema = Z.object({
   NODE_ENV: Z.enum(['development', 'test', 'production']).default('development'),
-  DATABASE_URL: Z.string().url(),
-  BROKER_URL: Z.string().url(),
+  PORT: Z.coerce.number().positive().default(3000),
   TRACE_EXPORTER_URLS: Z.string()
     .transform((val) => val.split(',').map((url) => url.trim()))
     .pipe(Z.array(Z.string().url())),
-  CRONS_START_ON_INIT: Z.coerce.boolean().default(false),
 });
 
-export default environmentSchema.parse(process.env);
+export function parseEnv(env: NodeJS.ProcessEnv): Environment {
+  return environmentSchema.parse(env);
+}

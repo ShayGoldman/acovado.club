@@ -18,10 +18,10 @@
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
 
-const logger = makeLogger({ name: 'reddit-processor' });
+const logger = makeLogger({ name: 'example' });
 
 const tracer = makeTracer({
-  serviceName: 'reddit-processor',
+  serviceName: 'example',
   exporterUrls: [process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://otel-collector:4318/v1/traces'],
   // Optional overrides
   // logExporterUrls: ['http://otel-collector:4318/v1/logs'],

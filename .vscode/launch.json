@@ -5,40 +5,8 @@
       "type": "bun",
       "internalConsoleOptions": "neverOpen",
       "request": "attach",
-      "name": "Acovado: Bebe (attach)",
-      "url": "ws://localhost:16000/bebe",
-      "stopOnEntry": true
-    },
-    {
-      "type": "bun",
-      "internalConsoleOptions": "neverOpen",
-      "request": "attach",
-      "name": "Acovado: Collection (attach)",
-      "url": "ws://localhost:16001/collection",
-      "stopOnEntry": true
-    },
-    {
-      "type": "bun",
-      "internalConsoleOptions": "neverOpen",
-      "request": "attach",
-      "name": "Acovado: Ana-liese (attach)",
-      "url": "ws://localhost:16000/ana-liese",
-      "stopOnEntry": true
-    },
-    {
-      "type": "bun",
-      "internalConsoleOptions": "neverOpen",
-      "request": "attach",
-      "name": "Acovado: Reddit Scraper (attach)",
-      "url": "ws://localhost:16003/reddit-scraper",
-      "stopOnEntry": true
-    },
-    {
-      "type": "bun",
-      "internalConsoleOptions": "neverOpen",
-      "request": "attach",
-      "name": "Acovado: Reddit Processor (attach)",
-      "url": "ws://localhost:16004/reddit-processor",
+      "name": "Acovado: Example (attach)",
+      "url": "ws://localhost:16000/example",
       "stopOnEntry": true
     }
   ]

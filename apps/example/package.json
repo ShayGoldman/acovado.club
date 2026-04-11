@@ -1,14 +1,15 @@
 {
-  "name": "@apps/collection",
+  "name": "@apps/example",
   "private": true,
   "packageManager": "bun@1.1.36",
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node",
-    "dev": "bun --watch --inspect=localhost:16001/collection src/index.ts",
+    "dev": "bun --watch --inspect=localhost:16000/example src/index.ts",
     "lint": "bunx biome lint --write .",
     "format": "bunx biome format --write .",
     "check": "bunx biome check --write .",
-    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules"
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
+    "test": "bun test"
   },
   "devDependencies": {
     "@config/tsconfig": "workspace:*",
@@ -16,13 +17,8 @@
     "@types/bun": "^1.1.13"
   },
   "dependencies": {
-    "@modules/db": "workspace:*",
-    "@modules/events": "workspace:*",
     "@modules/logger": "workspace:*",
     "@modules/tracing": "workspace:*",
-    "cron": "^3.2.1",
-    "env-var": "^7.5.0",
-    "yahoo-finance2": "^2.13.2",
     "zod": "^4.0.0"
   }
 }

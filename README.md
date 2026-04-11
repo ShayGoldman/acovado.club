@@ -6,11 +6,11 @@
 
 ## Apps
 
-| Name       | Path                | Description                                                 |
-| ---------- | ------------------- | ----------------------------------------------------------- |
-| bebe       | `./apps/bebe`       | An orchestrator in charge of running background processes   |
-| collection | `./apps/collection` | A worker in charge of collecting information                |
-| ana-liese  | `./apps/ana-liese`  | A worker in charge of analyzing data and generating stories |
+| Name    | Path              | Description                                              |
+| ------- | ----------------- | -------------------------------------------------------- |
+| example | `./apps/example`  | Minimal HTTP service demonstrating logger + tracing usage |
+
+Add new applications under `./apps/<name>` and wire them in `Dockerfile`, `config/compose/docker-compose.apps.yaml`, and `.drone.yml`.
 
 ## Modules
 
@@ -25,11 +25,11 @@
 
 ## Infrastructure
 
-| Name     | Path               | Description                                                                |
-| -------- | ------------------ | -------------------------------------------------------------------------- |
-| postgres | `./infra/postgres` | Self hosted postgres instance                                              |
-| rabbitmq | `./infra/rabbitmq` | Self hosted rabbitmq instance                                              |
-| observability | `./infra/observability` | SigNoz (OpenTelemetry → ClickHouse): traces, metrics, and logs |
+| Name          | Path                    | Description                                                                |
+| ------------- | ----------------------- | -------------------------------------------------------------------------- |
+| postgres      | `./infra/postgres`      | Self hosted postgres instance                                              |
+| rabbitmq      | `./infra/rabbitmq`      | Self hosted rabbitmq instance                                              |
+| observability | `./infra/observability` | SigNoz (OpenTelemetry → ClickHouse): traces, metrics, and logs             |
 
 ## Config
 
@@ -41,10 +41,9 @@
 
 ## Clients
 
-| Name | Path             | Description                                         |
-| ---- | ---------------- | --------------------------------------------------- |
-| nano | `./clients/nano` | Drizzle Studio client for database management       |
-| zook | `./clients/zook` | Metabase analytics dashboard for data visualization |
+| Name | Path             | Description                                   |
+| ---- | ---------------- | --------------------------------------------- |
+| nano | `./clients/nano` | Drizzle Studio client for database management |
 
 ## Tests
 
@@ -57,12 +56,12 @@
 
 Run everything locally by following these instructions from the root of the project:
 
-1. `bunx turbo dev --filter="@infra/*"` - Start infrastructure (PostgreSQL, FalkorDB, RabbitMQ, SigNoz observability)
-2. Use `dcv` to track the infra services (see the section below)
-3. `process-compose -f ./config/compose/local/process-compose.yml up` - Start the reddit-related apps
-4. `bunx turbo test --filter="@tests/*"` - Run tests (optional)
+1. `bunx turbo dev --filter="@infra/*"` — start infrastructure (PostgreSQL, FalkorDB, RabbitMQ, SigNoz observability).
+2. Copy `apps/example/.env.example` to `apps/example/.env` and adjust `TRACE_EXPORTER_URLS` if needed (see below).
+3. `process-compose -f ./config/compose/local/process-compose.yml up` — run the example app.
+4. `bunx turbo test --filter="@tests/*"` — run tests (optional).
 
-Telemetry uses the same `TRACE_EXPORTER_URLS` as production (`http://otel-collector:4318/v1/traces`). For app processes running **on your machine** (not inside Docker), add `127.0.0.1 otel-collector` to `/etc/hosts` (on Windows: `%SystemRoot%\System32\drivers\etc\hosts`) so that hostname resolves while SigNoz from `infra/observability` is up (OTLP HTTP on host port **4318**). Deployed apps use Docker networking and do not need this.
+Telemetry uses `TRACE_EXPORTER_URLS` (comma-separated OTLP HTTP trace URLs). For app processes running **on your machine** while SigNoz from `infra/observability` is up, use `http://localhost:14318/v1/traces` in `apps/example/.env` (collector OTLP HTTP is mapped to host port **14318**). Deployed apps use Docker networking (`http://otel-collector:4318/v1/traces`).
 
 ## dcv (observability)
 
@@ -70,8 +69,7 @@ Telemetry uses the same `TRACE_EXPORTER_URLS` as production (`http://otel-collec
 
 ## Debugging
 
-It won't be the easiest to debug locally, but each of the apps has a `debug` script that will start the app with the `--inspect` flag.
-You can then attach to the process using the VSCode debugger.
+Each app can be run with `bun run dev` (uses `--inspect`). Attach with the VSCode debugger (see `.vscode/launch.json` for the example app).
 
 ## Contributing
 
