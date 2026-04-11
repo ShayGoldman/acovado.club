@@ -23,10 +23,15 @@ const logger = makeLogger({ name: 'example' });
 const tracer = makeTracer({
   serviceName: 'example',
   exporterUrls: [process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://otel-collector:4318/v1/traces'],
+  deploymentEnvironment: process.env.NODE_ENV,
+  traceSampleRatio: 1,
   // Optional overrides
   // logExporterUrls: ['http://otel-collector:4318/v1/logs'],
   // logExportEnabled: true,
   logger,
 });
+
+// On process shutdown (containers receive SIGTERM):
+await tracer.shutdown();
 ```
 

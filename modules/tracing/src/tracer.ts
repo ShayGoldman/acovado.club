@@ -14,7 +14,11 @@ import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import {
+  BatchSpanProcessor,
+  ParentBasedSampler,
+  TraceIdRatioBasedSampler,
+} from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { makeTracingLogger } from './logger';
 import { extractTraceContext } from './propagation';
@@ -27,19 +31,31 @@ export function makeTracer(options: TracerOptions): Tracer {
     logger,
     logExporterUrls,
     logExportEnabled = true,
+    deploymentEnvironment = process.env.NODE_ENV ?? 'development',
+    traceSampleRatio = 1,
   } = options;
 
   const resource = new Resource({
     'service.name': serviceName,
+    'deployment.environment': deploymentEnvironment,
   });
 
   const spanProcessors = exporterUrls.map(
     (url) => new BatchSpanProcessor(new OTLPTraceExporter({ url })),
   );
 
+  const clampedRatio = Math.min(1, Math.max(0, traceSampleRatio));
+  const sampler =
+    clampedRatio >= 1
+      ? undefined
+      : new ParentBasedSampler({
+          root: new TraceIdRatioBasedSampler(clampedRatio),
+        });
+
   const tracerProvider = new NodeTracerProvider({
     resource,
     spanProcessors,
+    ...(sampler ? { sampler } : {}),
   });
 
   tracerProvider.register({
@@ -50,9 +66,18 @@ export function makeTracer(options: TracerOptions): Tracer {
   });
 
   const otelTracer = tracerProvider.getTracer(serviceName);
-  const otelLogger = logExportEnabled
-    ? makeOtelLogger(resource, logExporterUrls ?? exporterUrls, serviceName)
-    : undefined;
+
+  let loggerProvider: LoggerProvider | undefined;
+  let otelLogger: OtelLogger | undefined;
+  if (logExportEnabled) {
+    const pipeline = makeOtelLogger(
+      resource,
+      logExporterUrls ?? exporterUrls,
+      serviceName,
+    );
+    otelLogger = pipeline.otelLogger;
+    loggerProvider = pipeline.loggerProvider;
+  }
 
   function makeContext(span: Span): ContextType {
     const tracingLogger = makeTracingLogger(logger, span, otelLogger);
@@ -73,8 +98,8 @@ export function makeTracer(options: TracerOptions): Tracer {
       setName(name: string) {
         try {
           span.updateName(name);
-        } catch (error: any) {
-          span.recordException(error);
+        } catch (error: unknown) {
+          span.recordException(error as Error);
         }
       },
     };
@@ -184,11 +209,11 @@ export function makeTracer(options: TracerOptions): Tracer {
         const ctx = makeContext(span);
         const result = await fn(ctx);
         return result;
-      } catch (error: any) {
-        span.recordException(error);
+      } catch (error: unknown) {
+        span.recordException(error as Error);
         span.setStatus({
           code: SpanStatusCode.ERROR,
-          message: error.message,
+          message: error instanceof Error ? error.message : String(error),
         });
         throw error;
       } finally {
@@ -197,8 +222,19 @@ export function makeTracer(options: TracerOptions): Tracer {
     });
   }
 
+  async function shutdown(): Promise<void> {
+    try {
+      if (loggerProvider) {
+        await loggerProvider.shutdown();
+      }
+    } finally {
+      await tracerProvider.shutdown();
+    }
+  }
+
   return {
     with: withSpan,
+    shutdown,
   };
 }
 
@@ -206,7 +242,7 @@ function makeOtelLogger(
   resource: Resource,
   exporterUrls: string[],
   serviceName: string,
-): OtelLogger {
+): { otelLogger: OtelLogger; loggerProvider: LoggerProvider } {
   const loggerProvider = new LoggerProvider({ resource });
 
   for (const url of exporterUrls) {
@@ -217,5 +253,8 @@ function makeOtelLogger(
   }
 
   logs.setGlobalLoggerProvider(loggerProvider);
-  return loggerProvider.getLogger(serviceName);
+  return {
+    otelLogger: loggerProvider.getLogger(serviceName),
+    loggerProvider,
+  };
 }

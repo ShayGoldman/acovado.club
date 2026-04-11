@@ -7,6 +7,13 @@ export interface TracerOptions {
   logger: Logger;
   logExporterUrls?: string[];
   logExportEnabled?: boolean;
+  /** Semantic resource attribute `deployment.environment`. Defaults to `NODE_ENV` or `development`. */
+  deploymentEnvironment?: string;
+  /**
+   * Root trace sampling ratio (0–1]. Nested spans follow the parent decision.
+   * Defaults to `1` (always sample).
+   */
+  traceSampleRatio?: number;
 }
 
 export interface Context {
@@ -38,4 +45,6 @@ export interface Tracer {
     },
     fn: (context: Context) => Promise<T>,
   ): Promise<T>;
+  /** Flush and shutdown OTLP trace and log providers (call on process exit). */
+  shutdown(): Promise<void>;
 }

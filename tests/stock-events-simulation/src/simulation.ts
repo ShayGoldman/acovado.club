@@ -89,4 +89,5 @@ export async function runSimulation(
 
   // TODO wait until all events are consumed properly
   await new Promise((resolve) => setTimeout(resolve, 5000));
+  await tracer.shutdown();
 }

@@ -6,9 +6,13 @@ export interface LoggerOpts {
   name: string;
   level?: pino.Level;
   bindings?: Record<string, any>;
+  /** Defaults to true when NODE_ENV is not `production` (human-readable local output). */
+  pretty?: boolean;
 }
 
 export function makeLogger(opts: LoggerOpts): Logger {
+  const usePrettyTransport = opts.pretty ?? process.env.NODE_ENV !== 'production';
+
   return pino({
     name: opts.name,
     level: opts.level || 'info',
@@ -19,12 +23,16 @@ export function makeLogger(opts: LoggerOpts): Logger {
       error: pino.stdSerializers.errWithCause,
     },
 
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        ignore: 'pid,hostname',
-        colorize: true,
-      },
-    },
+    ...(usePrettyTransport
+      ? {
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              ignore: 'pid,hostname',
+              colorize: true,
+            },
+          },
+        }
+      : {}),
   });
 }
