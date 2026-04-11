@@ -108,41 +108,47 @@ steps:
   - name: release-versions
     image: node:20-bookworm
     environment:
+      CI: "true"
+      GIT_TERMINAL_PROMPT: "0"
       GITHUB_TOKEN:
         from_secret: github_token
+      GH_TOKEN:
+        from_secret: github_token
     commands:
-      - apt-get update && apt-get install -y --no-install-recommends git jq ca-certificates gh
-
-      # Verify installations
-      - node --version
-      - npm --version
-      - gh --version
-
-      # Check if there are any changesets, if no changesets then exit
-      - npx changeset status --verbose --output changesets.json
-      - jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null && exit 78 || true
-
-      # Apply version bumps
-      - npx changeset version
-
-      # Commit changelogs
-      - git config user.name "Drone CI"
-      - git config user.email "ci@acovado.club"
-      - git add .
       - |
+        set -euo pipefail
+        apt-get update && apt-get install -y --no-install-recommends git jq ca-certificates curl unzip gh
+        curl -fsSL https://bun.sh/install | bash
+        export BUN_INSTALL="${HOME}/.bun"
+        export PATH="${BUN_INSTALL}/bin:${PATH}"
+        bun --version
+
+        cd "${DRONE_WORKSPACE:-/drone/src}"
+        git config --global --add safe.directory "${DRONE_WORKSPACE:-/drone/src}"
+        git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${DRONE_REPO}.git"
+
+        bun install --frozen-lockfile --ignore-scripts
+
+        bunx changeset status --verbose --output changesets.json
+        if jq -e '.changesets == [] and .releases == []' changesets.json > /dev/null; then
+          echo "No pending changesets — skipping release."
+          exit 78
+        fi
+
+        bunx changeset version
+
+        git config user.name "Drone CI"
+        git config user.email "ci@acovado.club"
+        git add .
         git commit -m "chore: update CHANGELOG.md and version bumps [skip ci]"
 
-      # Tag the new versions
-      - npx changeset tag
+        bunx changeset tag
 
-      # Create GitHub release for the new tags
-      - |
         for tag in $(git tag --points-at HEAD); do
-          gh release create "$tag" --title "$tag" --notes "Automated release via Drone CI"
+          gh release create "$tag" --title "$tag" --notes "Automated release via Drone CI" || true
         done
 
-      # Push changes
-      - git push origin main --tags
+        git push origin main --tags
 
     depends_on:
       - post-build
