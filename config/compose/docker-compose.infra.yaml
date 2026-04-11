@@ -208,7 +208,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: 4
+          cpus: 2
           memory: "8gb"
     logging: *acovado-logging
 

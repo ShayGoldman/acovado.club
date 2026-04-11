@@ -106,16 +106,12 @@ steps:
   # Step 5: Check for and release new versions
   ##############################################################################
   - name: release-versions
-    image: debian:bookworm-slim
+    image: node:20-bookworm
     environment:
       GITHUB_TOKEN:
         from_secret: github_token
     commands:
-      # Install Node.js, gh, and necessary tools
-      - apt-get update
-      - apt-get install -y --no-install-recommends git jq curl gh
-      - curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
-      - apt-get install -y nodejs
+      - apt-get update && apt-get install -y --no-install-recommends git jq ca-certificates gh
 
       # Verify installations
       - node --version
