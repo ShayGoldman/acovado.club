@@ -94,14 +94,15 @@ steps:
       GH_TOKEN:
         from_secret: github_token
     commands:
+      # Drone substitutes $VAR in steps; use $$ so shell gets $HOME, $PATH, $(...), loop $tag.
       # Drone runs commands with /bin/sh (dash); dash rejects `set -o pipefail` (bash-only).
       - |
         set -eu
         apt-get update && apt-get install -y --no-install-recommends git jq ca-certificates curl unzip gh
         curl -fsSL https://bun.sh/install -o /tmp/bun-install.sh
         bash /tmp/bun-install.sh
-        export BUN_INSTALL="${HOME}/.bun"
-        export PATH="${BUN_INSTALL}/bin:${PATH}"
+        export BUN_INSTALL="$${HOME}/.bun"
+        export PATH="$${BUN_INSTALL}/bin:$${PATH}"
         bun --version
 
         cd "${DRONE_WORKSPACE:-/drone/src}"
@@ -125,8 +126,8 @@ steps:
 
         bunx changeset tag
 
-        for tag in $(git tag --points-at HEAD); do
-          gh release create "$tag" --title "$tag" --notes "Automated release via Drone CI" || true
+        for tag in $$(git tag --points-at HEAD); do
+          gh release create "$$tag" --title "$$tag" --notes "Automated release via Drone CI" || true
         done
 
         git push origin main --tags
