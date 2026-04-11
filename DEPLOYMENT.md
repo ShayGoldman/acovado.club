@@ -40,10 +40,9 @@ flowchart LR
 
 | Step | Output |
 |------|--------|
-| `build-modules` | `docker-registry.acovado.club/modules:${SHA}` |
 | `build-example` | `docker-registry.acovado.club/example:${SHA}` |
 
-The **`example`** app image is what `docker-compose.apps.yaml` runs (`COMMIT_HASH` must match the build).
+The **`example`** image bundles the repo install and runs the app with Bun (workspace `modules/` sources are used JIT). `docker-compose.apps.yaml` references this image (`COMMIT_HASH` must match the build).
 
 ---
 
@@ -147,7 +146,7 @@ If the **`release-versions`** step runs (pending changesets), it may commit vers
 | File | Purpose |
 |------|---------|
 | `.drone.yml` | Full pipeline (build, deploy, cleanup, release) |
-| `Dockerfile` | Multi-stage: modules + app image |
+| `Dockerfile` | Monorepo `bun install`, then app runs `bun run src/index.ts` (JIT workspace modules) |
 | `config/compose/docker-compose.infra.yaml` | Production infra stack |
 | `config/compose/docker-compose.apps.yaml` | Production app(s) |
 | `config/deploy/prepare-vps-for-cd.sh` | Host prep before first aligned deploy |

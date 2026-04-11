@@ -4,7 +4,6 @@ name: acovado
 
 environment:
   REGISTRY_URL: docker-registry.acovado.club
-  MODULES_IMAGE: docker-registry.acovado.club/modules
   EXAMPLE_IMAGE: docker-registry.acovado.club/example
 
 volumes:
@@ -42,7 +41,7 @@ steps:
         exit 78
 
   ##############################################################################
-  # Step 1: Build and push shared modules
+  # Step 1: Pre-build
   ##############################################################################
   - name: pre-build
     image: bash
@@ -52,27 +51,7 @@ steps:
       - validate-merge-commit
 
   ##############################################################################
-  # Step 2: Build and push shared modules
-  ##############################################################################
-  - name: build-modules
-    image: docker
-    environment:
-      DOCKER_BUILDKIT: 1
-    volumes:
-      - name: docker-socket
-        path: /var/run/docker.sock
-      - name: docker-cache
-        path: /var/lib/docker
-    commands:
-      - docker build --target modules-builder -t $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${MODULES_IMAGE}:${DRONE_COMMIT_SHA} $${MODULES_IMAGE}:latest
-      - docker push $${MODULES_IMAGE}:${DRONE_COMMIT_SHA}
-      - docker push $${MODULES_IMAGE}:latest
-    depends_on:
-      - pre-build
-
-  ##############################################################################
-  # Step 3: Build and push example app
+  # Step 2: Build and push example app (workspace modules resolved JIT in image)
   ##############################################################################
   - name: build-example
     image: docker
@@ -84,15 +63,15 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --target production --build-arg APP_PATH=example --build-arg APP_NAME=@apps/example -t $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --target production --build-arg APP_PATH=example -t $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA} $${EXAMPLE_IMAGE}:latest
       - docker push $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${EXAMPLE_IMAGE}:latest
     depends_on:
-      - build-modules
+      - pre-build
 
   ##############################################################################
-  # Step 4: Post build
+  # Step 3: Post build
   ##############################################################################
   - name: post-build
     image: bash
@@ -103,7 +82,7 @@ steps:
       - build-example
 
   ##############################################################################
-  # Step 5: Check for and release new versions
+  # Step 4: Check for and release new versions
   ##############################################################################
   - name: release-versions
     image: node:20-bookworm
@@ -156,7 +135,7 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 6: Deploy 🤙
+  # Step 5: Deploy 🤙
   ##############################################################################
   - name: deploy
     image: docker
@@ -186,7 +165,7 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 7: Cleanup Old Images
+  # Step 6: Cleanup old images
   ##############################################################################
   - name: cleanup
     image: docker

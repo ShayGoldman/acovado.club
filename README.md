@@ -60,8 +60,8 @@ Add new applications under `./apps/<name>` and wire them in `Dockerfile`, `confi
 ## CI/CD
 
 - **Drone** at [ci.acovado.club](https://ci.acovado.club) (badge above): runs on **push to `main`** when the latest commit is a **GitHub merge commit** (see `.drone.yml` `validate-merge-commit`).
-- **Build**: multi-stage `Dockerfile` builds `@modules/*`, then the app image (`@apps/example` in production).
-- **Registry**: images are pushed to `docker-registry.acovado.club` (`modules`, `example`, etc.).
+- **Build**: `Dockerfile` installs the monorepo and runs each app with Bun against TypeScript sources; workspace packages under `modules/` are resolved JIT (no separate modules build or image).
+- **Registry**: images are pushed to `docker-registry.acovado.club` (e.g. `example`).
 - **Deploy step**: copies `infra/` to `/srv/volumes/deployment` on the host, then runs `docker compose` for `config/compose/docker-compose.infra.yaml` and `config/compose/docker-compose.apps.yaml` with `COMMIT_HASH` / `REGISTRY_URL` / volume paths from the Drone environment.
 
 ## Production deployment (overview)
