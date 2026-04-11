@@ -4,7 +4,11 @@ This directory contains the configuration for the SigNoz observability platform,
 
 This repository **standardizes on SigNoz only** for that telemetry. Do not run a separate Grafana, Tempo, Loki, or standalone Prometheus stack for application observability alongside this.
 
-**Local and production use the same URL:** set `TRACE_EXPORTER_URLS=http://otel-collector:4318/v1/traces` in each app env (see `apps/*/.env` and the env files referenced by `config/compose/docker-compose.apps.yaml`). On the shared Docker network (`internal-network`), that hostname resolves to the collector on the VPS and in local Compose. When running app **processes on the host** (e.g. Turbo or process-compose), add `127.0.0.1 otel-collector` to `/etc/hosts` so the same URL resolves; **`infra/observability/docker-compose.yaml`** publishes OTLP on **4317** (gRPC) and **4318** (HTTP) on the host, matching the collector’s in-container ports.
+**In Docker (apps + collector on the same network):** set `TRACE_EXPORTER_URLS=http://otel-collector:4318/v1/traces` (see `config/compose/docker-compose.apps.yaml` and app env files). The hostname `otel-collector` resolves on `internal-network`.
+
+**On the host** (e.g. `process-compose` or `bun run dev`): use `http://localhost:4318/v1/traces` — **`infra/observability/docker-compose.yaml`** maps the collector’s OTLP ports **4317** (gRPC) and **4318** (HTTP) to the same ports on localhost. Alternatively, keep `http://otel-collector:4318/v1/traces` and add `127.0.0.1 otel-collector` to `/etc/hosts`.
+
+**Prometheus:** Application metrics should be sent with **OTLP** to the collector (`4317` / `4318`). The collector also runs an embedded **Prometheus scrape** of its own metrics (`otel-collector-signoz-config.yaml`, `receivers.prometheus` → `localhost:8888`). Do not run a separate Prometheus server for app telemetry; SigNoz stores metrics in ClickHouse. The file `signoz/prometheus.yml` is for SigNoz’s internal Prometheus wiring, not for scraping your apps directly.
 
 **Retention** (e.g. 30 days for traces, metrics, and logs) is configured in the SigNoz UI under **Settings → General**. SigNoz applies the corresponding ClickHouse TTL; see the [retention docs](https://signoz.io/docs/userguide/retention-period/).
 

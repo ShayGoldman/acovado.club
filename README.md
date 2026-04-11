@@ -61,7 +61,7 @@ Run everything locally by following these instructions from the root of the proj
 3. `process-compose -f ./config/compose/local/process-compose.yml up` — run the example app.
 4. `bunx turbo test --filter="@tests/*"` — run tests (optional).
 
-Telemetry uses `TRACE_EXPORTER_URLS` (comma-separated OTLP HTTP trace URLs). For app processes running **on your machine** while SigNoz from `infra/observability` is up, use `http://localhost:14318/v1/traces` in `apps/example/.env` (collector OTLP HTTP is mapped to host port **14318**). Deployed apps use Docker networking (`http://otel-collector:4318/v1/traces`).
+Telemetry uses `TRACE_EXPORTER_URLS` (comma-separated OTLP HTTP trace URLs). For app processes running **on your machine** while SigNoz from `infra/observability` is up, use `http://localhost:4318/v1/traces` in `apps/example/.env` (see `infra/observability/docker-compose.yaml` port mappings). Deployed apps use Docker networking (`http://otel-collector:4318/v1/traces`).
 
 ## dcv (observability)
 
