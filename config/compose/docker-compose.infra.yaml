@@ -189,31 +189,6 @@ services:
           memory: "2gb"
     logging: *acovado-logging
 
-  inference-model:
-    extends:
-      file: ../../infra/inference-model/docker-compose.base.yaml
-      service: inference-model
-    environment:
-      OLLAMA_HOST: 0.0.0.0:11434
-    volumes:
-      - ${VOLUMES_ROOT}/inference-model-data:/root/.ollama
-    restart: unless-stopped
-    networks:
-      - internal-network
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        ollama serve &
-        sleep 10
-        ollama run gemma4:e4b || echo "Model pull failed or already exists"
-        wait
-    deploy:
-      resources:
-        limits:
-          cpus: 2
-          memory: "8gb"
-    logging: *acovado-logging
-
 networks:
   proxy-network:
     external: true

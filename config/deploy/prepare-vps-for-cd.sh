@@ -25,7 +25,6 @@ mkdir -p /srv/volumes/signoz-zookeeper
 mkdir -p /srv/volumes/signoz-clickhouse
 mkdir -p /srv/volumes/signoz-sqlite
 mkdir -p /srv/volumes/falkordb-data
-mkdir -p /srv/volumes/inference-model-data
 
 mkdir -p /srv/env
 

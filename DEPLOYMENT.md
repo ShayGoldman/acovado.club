@@ -111,7 +111,7 @@ sudo bash config/deploy/prepare-vps-for-cd.sh
 - **Apps compose** runs a single service: **`example`**, image  
   **`${REGISTRY_URL}/example:${COMMIT_HASH}`**,  
   OTLP: **`TRACE_EXPORTER_URLS`** → `http://otel-collector:4318/v1/traces` on **`internal-network`**.
-- **Infra compose** includes Postgres, RabbitMQ (custom image build), **Signoz** (ClickHouse, collector, …), FalkorDB, Ollama inference image, **Portainer** (`stats` → **`stats.acovado.club`** behind Traefik), etc. See `config/compose/docker-compose.infra.yaml`.
+- **Infra compose** includes Postgres, RabbitMQ (custom image build), **Signoz** (ClickHouse, collector, …), FalkorDB, **Portainer** (`stats` → **`stats.acovado.club`** behind Traefik), etc. See `config/compose/docker-compose.infra.yaml`. (Ollama / `inference-model` is not deployed in prod; use `infra/inference-model` locally if needed.)
 
 ---
 

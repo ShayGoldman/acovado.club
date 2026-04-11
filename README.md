@@ -34,7 +34,7 @@ Add new applications under `./apps/<name>` and wire them in `Dockerfile`, `confi
 | rabbitmq      | `./infra/rabbitmq`      | RabbitMQ via Docker Compose                                                |
 | falkordb      | `./infra/falkordb`      | FalkorDB graph database via Docker Compose                                 |
 | observability | `./infra/observability` | SigNoz stack (OTel Collector → ClickHouse). See `infra/observability/README.md` |
-| inference-model | `./infra/inference-model` | Ollama / local LLM runtime (optional)                                    |
+| inference-model | `./infra/inference-model` | Ollama / local LLM (optional; not part of prod infra compose)            |
 
 ## Config
 
