@@ -6,3 +6,8 @@ lib
 .pnpm-debug.log
 scripts
 .env
+
+.claude
+.cursor
+.playwright-cli
+.zed
