@@ -7,7 +7,7 @@ x-clickhouse-defaults: &clickhouse-defaults
   logging:
     options:
       max-size: 50m
-      max-file: "3"
+      max-file: "10"
   healthcheck:
     test:
       - CMD
@@ -30,7 +30,7 @@ x-zookeeper-defaults: &zookeeper-defaults
   logging:
     options:
       max-size: 50m
-      max-file: "3"
+      max-file: "10"
   healthcheck:
     test:
       - CMD-SHELL
@@ -103,7 +103,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
   otel-collector:
     image: signoz/signoz-otel-collector:v0.129.12
@@ -121,8 +121,8 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host,os.type=linux
       - LOW_CARDINAL_EXCEPTION_GROUPING=false
     ports:
-      - "14317:4317" # OTLP gRPC receiver
-      - "14318:4318" # OTLP HTTP receiver
+      - "4317:4317" # OTLP gRPC (same as in-network port for parity with prod)
+      - "4318:4318" # OTLP HTTP
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -133,7 +133,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
   schema-migrator-sync:
     image: signoz/signoz-schema-migrator:v0.129.12
@@ -149,7 +149,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
   schema-migrator-async:
     image: signoz/signoz-schema-migrator:v0.129.12
@@ -169,7 +169,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
 volumes:
   signoz-clickhouse:

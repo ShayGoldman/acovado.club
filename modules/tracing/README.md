@@ -9,7 +9,7 @@
 
 ### Typical SigNoz collector settings
 
-- Point `exporterUrls` (or `logExporterUrls`) to your SigNoz collector OTLP HTTP endpoint, e.g. `http://localhost:4318/v1/logs` and `http://localhost:4318/v1/traces`.
+- Use a **single** OTLP HTTP trace URL; the module derives `/v1/logs` from each trace URL. The project standard is `http://otel-collector:4318/v1/traces` (same in local app `.env` and production env files). From the host, add `127.0.0.1 otel-collector` to `/etc/hosts` when the collector is reachable on `localhost:4318` (see `infra/observability/docker-compose.yaml`).
 - If your collector needs auth/tenant headers, pass them via the collector config; the OTLP exporters here use plain URL configuration.
 
 ### Usage snippet
@@ -22,9 +22,9 @@ const logger = makeLogger({ name: 'reddit-processor' });
 
 const tracer = makeTracer({
   serviceName: 'reddit-processor',
-  exporterUrls: [process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318/v1/traces'],
+  exporterUrls: [process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://otel-collector:4318/v1/traces'],
   // Optional overrides
-  // logExporterUrls: ['http://localhost:4318/v1/logs'],
+  // logExporterUrls: ['http://otel-collector:4318/v1/logs'],
   // logExportEnabled: true,
   logger,
 });

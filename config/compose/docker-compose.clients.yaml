@@ -1,5 +1,11 @@
 name: acovado-clients
 
+x-acovado-logging: &acovado-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "10"
+
 services:
   metabase-db:
     extends:
@@ -16,6 +22,7 @@ services:
         limits:
           cpus: 1
           memory: '2gb'
+    logging: *acovado-logging
 
   metabase:
     extends:
@@ -43,6 +50,7 @@ services:
         limits:
           cpus: '0.50'
           memory: '1gb'
+    logging: *acovado-logging
 
 networks:
   proxy-network:

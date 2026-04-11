@@ -1,5 +1,13 @@
 name: acovado-apps
 
+# TRACE_EXPORTER_URLS is read from each env_file (same value locally and on the VPS): see app .env templates.
+
+x-acovado-logging: &acovado-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "10"
+
 services:
   bebe:
     container_name: bebe
@@ -8,7 +16,6 @@ services:
       - ${ENV_FILES_ROOT}/bebe.env
     environment:
       NODE_ENV: production
-      TRACE_EXPORTER_URLS: http://localhost:14318/v1/traces,http://localhost:4318/v1/traces
       CRONS_START_ON_INIT: false
     restart: unless-stopped
     networks:
@@ -18,6 +25,7 @@ services:
         limits:
           cpus: 1
           memory: "1gb"
+    logging: *acovado-logging
 
   collection:
     container_name: collection
@@ -26,7 +34,6 @@ services:
       - ${ENV_FILES_ROOT}/collection.env
     environment:
       NODE_ENV: production
-      TRACE_EXPORTER_URLS: http://localhost:14318/v1/traces,http://localhost:4318/v1/traces
     restart: unless-stopped
     networks:
       - internal-network
@@ -35,6 +42,7 @@ services:
         limits:
           cpus: 1
           memory: "1gb"
+    logging: *acovado-logging
 
   ana-liese:
     container_name: ana-liese
@@ -43,7 +51,6 @@ services:
       - ${ENV_FILES_ROOT}/ana-liese.env
     environment:
       NODE_ENV: production
-      TRACE_EXPORTER_URLS: http://localhost:14318/v1/traces,http://localhost:4318/v1/traces
     restart: unless-stopped
     networks:
       - internal-network
@@ -52,6 +59,7 @@ services:
         limits:
           cpus: 2
           memory: "2gb"
+    logging: *acovado-logging
 
 networks:
   internal-network:

@@ -5,7 +5,7 @@ x-clickhouse-defaults: &clickhouse-defaults
   logging:
     options:
       max-size: 50m
-      max-file: "3"
+      max-file: "10"
   healthcheck:
     test:
       - CMD
@@ -28,7 +28,7 @@ x-zookeeper-defaults: &zookeeper-defaults
   logging:
     options:
       max-size: 50m
-      max-file: "3"
+      max-file: "10"
   healthcheck:
     test:
       - CMD-SHELL
@@ -80,7 +80,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
   otel-collector:
     image: signoz/signoz-otel-collector:v0.129.12
@@ -97,7 +97,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
   schema-migrator-sync:
     image: signoz/signoz-schema-migrator:v0.129.12
@@ -110,7 +110,7 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 
   schema-migrator-async:
     image: signoz/signoz-schema-migrator:v0.129.12
@@ -123,5 +123,5 @@ services:
     logging:
       options:
         max-size: 50m
-        max-file: "3"
+        max-file: "10"
 

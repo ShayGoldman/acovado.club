@@ -2,6 +2,14 @@
 
 This directory contains the configuration for the SigNoz observability platform, which provides distributed tracing, metrics, and logs for the acovado.club application.
 
+This repository **standardizes on SigNoz only** for that telemetry. Do not run a separate Grafana, Tempo, Loki, or standalone Prometheus stack for application observability alongside this.
+
+**Local and production use the same URL:** set `TRACE_EXPORTER_URLS=http://otel-collector:4318/v1/traces` in each app env (see `apps/*/.env` and the env files referenced by `config/compose/docker-compose.apps.yaml`). On the shared Docker network (`internal-network`), that hostname resolves to the collector on the VPS and in local Compose. When running app **processes on the host** (e.g. Turbo or process-compose), add `127.0.0.1 otel-collector` to `/etc/hosts` so the same URL resolves; **`infra/observability/docker-compose.yaml`** publishes OTLP on **4317** (gRPC) and **4318** (HTTP) on the host, matching the collector’s in-container ports.
+
+**Retention** (e.g. 30 days for traces, metrics, and logs) is configured in the SigNoz UI under **Settings → General**. SigNoz applies the corresponding ClickHouse TTL; see the [retention docs](https://signoz.io/docs/userguide/retention-period/).
+
+**Container log rotation** on the host uses Docker `json-file` limits (`max-size` / `max-file`) from `config/compose/docker-compose.*.yaml` and `infra/observability/docker-compose*.yaml` so service stdout does not fill disk.
+
 ## Overview
 
 SigNoz is a self-hosted, open-source observability platform that provides:
@@ -25,9 +33,9 @@ The setup consists of the following components:
 2. **OpenTelemetry Collector** (`otel-collector`)
    - Container: `signoz-otel-collector`
    - Image: `signoz/signoz-otel-collector:v0.129.12`
-   - Ports:
-     - `14317`: OTLP gRPC receiver
-     - `14318`: OTLP HTTP receiver
+   - Ports (published to the host in `docker-compose.yaml` as `4317` / `4318`):
+     - `4317`: OTLP gRPC receiver
+     - `4318`: OTLP HTTP receiver
    - Purpose: Receives, processes, and exports telemetry data (traces, metrics, logs)
 
 3. **ClickHouse** (`clickhouse`)
@@ -118,11 +126,11 @@ The first time you access it, you'll be prompted to create an admin account.
 Applications can send telemetry data to the OpenTelemetry Collector using:
 
 ### OTLP gRPC
-- Endpoint: `localhost:14317`
+- Endpoint from the host: `localhost:4317`
 - Use for: Most production applications (better performance)
 
 ### OTLP HTTP
-- Endpoint: `http://localhost:14318`
+- Endpoint from the host: `http://localhost:4318`
 - Use for: Browser applications or when gRPC is not available
 
 ### Example Configuration (Node.js with OpenTelemetry SDK)
@@ -133,7 +141,7 @@ const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventi
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 
 const exporter = new OTLPTraceExporter({
-  url: 'grpc://localhost:14317',
+  url: 'grpc://localhost:4317',
 });
 ```
 

@@ -29,7 +29,7 @@
 | -------- | ------------------ | -------------------------------------------------------------------------- |
 | postgres | `./infra/postgres` | Self hosted postgres instance                                              |
 | rabbitmq | `./infra/rabbitmq` | Self hosted rabbitmq instance                                              |
-| tracing  | `./infra/tracing ` | Tracing stack consisting of: Grafana, Tempo, otel-collector and Prometheus |
+| observability | `./infra/observability` | SigNoz (OpenTelemetry → ClickHouse): traces, metrics, and logs |
 
 ## Config
 
@@ -57,10 +57,16 @@
 
 Run everything locally by following these instructions from the root of the project:
 
-1. `bunx turbo start --filter="@infra/*"` - Start infrastructure (PostgreSQL, FalkorDB, RabbitMQ, Observability stack)
-2. `bunx turbo dev --filter="@clients/*"` - Start clients (Drizzle Studio, Metabase)
-3. `bunx turbo dev --filter="@apps/*"` - Start all applications
+1. `bunx turbo dev --filter="@infra/*"` - Start infrastructure (PostgreSQL, FalkorDB, RabbitMQ, SigNoz observability)
+2. Use `dcv` to track the infra services (see the section below)
+3. `process-compose -f ./config/compose/local/process-compose.yml up` - Start the reddit-related apps
 4. `bunx turbo test --filter="@tests/*"` - Run tests (optional)
+
+Telemetry uses the same `TRACE_EXPORTER_URLS` as production (`http://otel-collector:4318/v1/traces`). For app processes running **on your machine** (not inside Docker), add `127.0.0.1 otel-collector` to `/etc/hosts` (on Windows: `%SystemRoot%\System32\drivers\etc\hosts`) so that hostname resolves while SigNoz from `infra/observability` is up (OTLP HTTP on host port **4318**). Deployed apps use Docker networking and do not need this.
+
+## dcv (observability)
+
+`dcv` is a simple observability tool to track and monitor the infra services while running locally. Use it to inspect logs, service health, and dependencies in one place during development.
 
 ## Debugging
 
