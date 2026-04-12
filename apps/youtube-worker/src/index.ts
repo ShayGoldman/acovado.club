@@ -2,4 +2,4 @@
 // For now, validates env at startup and exits.
 import { parseEnv } from '@/env';
 
-const _Env = parseEnv(process.env);
+parseEnv(process.env);

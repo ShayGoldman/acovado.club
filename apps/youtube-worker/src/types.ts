@@ -26,3 +26,11 @@ export interface ResolvedChannel {
   /** YouTube uploads playlist ID (from channels.list at startup) */
   uploadPlaylistId: string;
 }
+
+/** An active YouTube source row from acovado.sources */
+export interface Source {
+  /** acovado.sources UUID */
+  id: string;
+  /** YouTube channel ID (e.g. UCxxxxxxx) */
+  externalId: string;
+}
