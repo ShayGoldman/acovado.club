@@ -1,0 +1,212 @@
+# docker-compose.dev.yaml
+# Local developer stack — all required services in one command:
+#   docker compose -f docker-compose.dev.yaml up -d
+#
+# Services: PostgreSQL, RabbitMQ, FalkorDB, Ollama (gemma3:4b), SigNoz (OTel)
+#
+# Ollama model pull happens at startup; first run takes time depending on bandwidth.
+# SigNoz UI: http://localhost:8080
+# OTel collector (OTLP HTTP): http://localhost:4318
+
+name: acovado-dev
+
+services:
+  # ── Application databases ──────────────────────────────────────────────────
+
+  postgres:
+    extends:
+      file: infra/postgres/docker-compose.base.yaml
+      service: postgres
+    environment:
+      POSTGRES_USER: development
+      POSTGRES_PASSWORD: development
+      POSTGRES_DB: development
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    build:
+      context: infra/rabbitmq
+      dockerfile: Dockerfile
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: rabbit
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  falkordb:
+    extends:
+      file: infra/falkordb/docker-compose.base.yaml
+      service: falkordb
+    environment:
+      REDIS_ARGS: --requirepass development
+      FALKORDB_ARGS: THREAD_COUNT 4
+      FALKORDB_PASSWORD: development
+    ports:
+      - "6379:6379"   # Redis/FalkorDB
+      - "3000:3000"   # FalkorDB Browser
+    volumes:
+      - falkordb-data:/data
+
+  # ── LLM inference ──────────────────────────────────────────────────────────
+
+  inference-model:
+    extends:
+      file: infra/inference-model/docker-compose.base.yaml
+      service: inference-model
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    entrypoint: ["/bin/sh", "-c"]
+    # Pulls gemma3:4b on first start; subsequent starts skip if cached
+    command:
+      - |
+        ollama serve &
+        sleep 10
+        ollama pull gemma3:4b || echo "Model pull failed or already exists"
+        wait
+    volumes:
+      - inference-model-data:/root/.ollama
+
+  # ── Observability (SigNoz) ─────────────────────────────────────────────────
+
+  zookeeper:
+    image: signoz/zookeeper:3.9.3
+    container_name: signoz-zookeeper
+    user: root
+    restart: unless-stopped
+    volumes:
+      - signoz-zookeeper:/bitnami/zookeeper
+    environment:
+      - ZOO_SERVER_ID=1
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_AUTOPURGE_INTERVAL=1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.12.9
+    container_name: signoz-clickhouse
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_SKIP_USER_SETUP=1
+    volumes:
+      - ./infra/observability/clickhouse/config.xml:/etc/clickhouse-server/config.xml
+      - ./infra/observability/clickhouse/users.xml:/etc/clickhouse-server/users.xml
+      - ./infra/observability/clickhouse/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+      - ./infra/observability/clickhouse/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+      - signoz-clickhouse:/var/lib/clickhouse/
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "0.0.0.0:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  signoz-telemetrystore-migrator:
+    image: signoz/signoz-otel-collector:v0.144.2
+    container_name: signoz-telemetrystore-migrator
+    restart: on-failure
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        /signoz-otel-collector migrate bootstrap &&
+        /signoz-otel-collector migrate sync up &&
+        /signoz-otel-collector migrate async up
+    environment:
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+      - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  signoz:
+    image: signoz/signoz:v0.117.1
+    container_name: signoz
+    restart: unless-stopped
+    command:
+      - --config=/root/config/prometheus.yml
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/observability/signoz/prometheus.yml:/root/config/prometheus.yml
+      - signoz-sqlite:/var/lib/signoz/
+    environment:
+      - SIGNOZ_ALERTMANAGER_PROVIDER=signoz
+      - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
+      - SIGNOZ_TOKENIZER_JWT_SECRET=dev-secret
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  otel-collector:
+    image: signoz/signoz-otel-collector:v0.144.2
+    container_name: signoz-otel-collector
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        /signoz-otel-collector migrate sync check &&
+        /signoz-otel-collector --config=/etc/otel-collector-config.yaml --manager-config=/etc/manager-config.yaml --copy-path=/var/tmp/collector-config.yaml
+    volumes:
+      - ./infra/observability/otel-collector-signoz-config.yaml:/etc/otel-collector-config.yaml
+      - ./infra/observability/signoz/otel-collector-opamp-config.yaml:/etc/manager-config.yaml
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=host.name=acovado-dev,os.type=linux
+      - LOW_CARDINAL_EXCEPTION_GROUPING=false
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+      - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP  ← matches TRACE_EXPORTER_URLS in apps/example/.env
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      signoz:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  falkordb-data:
+  inference-model-data:
+  signoz-clickhouse:
+  signoz-sqlite:
+  signoz-zookeeper:
