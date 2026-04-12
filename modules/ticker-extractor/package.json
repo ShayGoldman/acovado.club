@@ -1,7 +1,7 @@
 {
-  "name": "@modules/inference",
+  "name": "@modules/ticker-extractor",
   "private": true,
-  "description": "",
+  "description": "LLM-powered equity ticker extraction from free-form text (Gemma3 via Ollama, Claude fallback)",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -12,17 +12,19 @@
     "typecheck": "bun tsc --noEmit",
     "lint": "bunx biome lint --write .",
     "format": "bunx biome format --write .",
-    "check": "bunx biome check --write ."
+    "check": "bunx biome check --write .",
+    "test": "bun test",
+    "test:integration": "INTEGRATION_TEST=true bun test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.69",
     "@modules/db": "workspace:*",
+    "@modules/inference": "workspace:*",
     "@modules/tracing": "workspace:*",
-    "ai": "^6.0.158",
-    "ollama-ai-provider": "^1.2.0"
+    "ai": "^6.0.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@config/tsconfig": "workspace:*",
