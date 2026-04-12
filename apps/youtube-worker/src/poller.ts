@@ -29,9 +29,6 @@ export function makePoller({
   logger,
   fetchLimit,
 }: MakePollerOpts) {
-  /** sourceId → YouTube uploads playlist ID; populated at startup */
-  const playlistCache = new Map<string, string>();
-
   async function fetchActiveSources(): Promise<Source[]> {
     const rows = await db.execute(
       `SELECT id, external_id FROM acovado.sources WHERE kind = 'youtube' AND active = true`,
@@ -55,38 +52,10 @@ export function makePoller({
     return max ? new Date(max as string) : undefined;
   }
 
-  /** Resolves and caches the uploads playlist ID for every active YouTube source. */
-  async function resolvePlaylistIds(): Promise<void> {
-    const sources = await fetchActiveSources();
-    await Promise.all(
-      sources.map(async (source) => {
-        try {
-          const playlistId = await youtubeClient.fetchUploadPlaylistId(source.externalId);
-          playlistCache.set(source.id, playlistId);
-          logger.info(
-            { channelId: source.externalId, playlistId },
-            'yt.playlist.resolved',
-          );
-        } catch (err) {
-          logger.error(
-            { err, channelId: source.externalId },
-            'yt.playlist.resolve_failed',
-          );
-        }
-      }),
-    );
-  }
-
   async function pollChannel(source: Source): Promise<void> {
-    const uploadPlaylistId = playlistCache.get(source.id);
-    if (!uploadPlaylistId) {
-      logger.warn({ channelId: source.externalId }, 'yt.poll.skipped.no_playlist_id');
-      return;
-    }
-
     const publishedAfter = await getCheckpoint(source.id);
     const videos = await youtubeClient.fetchRecentVideos({
-      uploadPlaylistId,
+      channelId: source.externalId,
       maxResults: fetchLimit,
       ...(publishedAfter ? { publishedAfter } : {}),
     });
@@ -128,5 +97,5 @@ export function makePoller({
     logger.info({ count: sources.length }, 'yt.tick.done');
   }
 
-  return { resolvePlaylistIds, runOnce };
+  return { runOnce };
 }

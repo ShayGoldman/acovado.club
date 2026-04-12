@@ -19,7 +19,7 @@ const tracer = makeTracer({
 
 const db = makeDBClient({ url: Env.DATABASE_URL, tracer });
 const producer = makeProducer({ broker: Env.RABBITMQ_URL, logger, tracing: { tracer } });
-const youtubeClient = makeYouTubeClient({ apiKey: Env.YOUTUBE_API_KEY, logger });
+const youtubeClient = makeYouTubeClient({ logger });
 
 const poller = makePoller({
   db,
@@ -37,7 +37,6 @@ const cron = makeCronRunner({
 
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
 await producer.connect();
-await poller.resolvePlaylistIds();
 
 cron.start();
 

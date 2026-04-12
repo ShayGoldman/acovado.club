@@ -9,7 +9,6 @@ export const environmentSchema = Z.object({
   TRACE_EXPORTER_URLS: Z.string()
     .transform((v) => v.split(',').map((s) => s.trim()))
     .pipe(Z.array(Z.string().url())),
-  YOUTUBE_API_KEY: Z.string().min(1),
   YOUTUBE_FETCH_LIMIT: Z.coerce.number().positive().default(10),
   POLL_CRON: Z.string().default('0 * * * *'),
 });

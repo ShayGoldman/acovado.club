@@ -28,17 +28,9 @@ function makeDb(rows: Array<Record<string, unknown>> = []): PollerDb {
   return { execute: mock(async () => rows) };
 }
 
-function makeYouTubeClientMock(opts: {
-  playlistId?: string;
-  videos?: VideoSnippet[];
-  failFetch?: boolean;
-}): YouTubeClient {
+function makeYouTubeClientMock(videos: VideoSnippet[] = []): YouTubeClient {
   return {
-    fetchUploadPlaylistId: mock(async () => {
-      if (opts.failFetch) throw new Error('API error');
-      return opts.playlistId ?? 'PLmock123';
-    }),
-    fetchRecentVideos: mock(async () => opts.videos ?? []),
+    fetchRecentVideos: mock(async () => videos),
   };
 }
 
@@ -54,7 +46,7 @@ function makeVideo(overrides: Partial<VideoSnippet> = {}): VideoSnippet {
   return {
     videoId: 'vid1',
     title: 'Test Video',
-    description: 'desc',
+    description: '',
     publishedAt: '2025-01-15T10:00:00Z',
     channelId: 'UCchannel1',
     ...overrides,
@@ -67,9 +59,8 @@ function makeVideo(overrides: Partial<VideoSnippet> = {}): VideoSnippet {
 
 describe('checkpoint logic', () => {
   test('first run: no checkpoint → fetchRecentVideos called without publishedAfter', async () => {
-    // DB returns a row with max = null (PostgreSQL MAX on empty set → NULL)
     const db = makeDb();
-    const ytClient = makeYouTubeClientMock({ videos: [makeVideo()] });
+    const ytClient = makeYouTubeClientMock([makeVideo()]);
     const producer = makeProducerMock();
 
     const poller = makePoller({
@@ -85,7 +76,6 @@ describe('checkpoint logic', () => {
       return [{ max: null }]; // content_items checkpoint query → no checkpoint
     });
 
-    await poller.resolvePlaylistIds();
     await poller.runOnce();
 
     // With exactOptionalPropertyTypes, publishedAfter is simply absent when null checkpoint
@@ -98,7 +88,7 @@ describe('checkpoint logic', () => {
   test('subsequent runs: getCheckpoint passes publishedAfter from max published_at', async () => {
     const checkpoint = new Date('2025-01-10T00:00:00Z');
     const db = makeDb();
-    const ytClient = makeYouTubeClientMock({ videos: [makeVideo()] });
+    const ytClient = makeYouTubeClientMock([makeVideo()]);
     const producer = makeProducerMock();
 
     const poller = makePoller({
@@ -114,7 +104,6 @@ describe('checkpoint logic', () => {
       return [{ max: checkpoint.toISOString() }];
     });
 
-    await poller.resolvePlaylistIds();
     await poller.runOnce();
 
     expect(ytClient.fetchRecentVideos).toHaveBeenCalledWith(
@@ -127,38 +116,13 @@ describe('checkpoint logic', () => {
 });
 
 // ---------------------------------------------------------------------------
-// pollChannel — skips when no playlist cached
+// pollChannel — calls fetchRecentVideos with the correct channelId
 // ---------------------------------------------------------------------------
 
 describe('pollChannel', () => {
-  test('skips channel with no cached playlist ID', async () => {
+  test('calls fetchRecentVideos with channelId from source.externalId', async () => {
     const db = makeDb();
-    const ytClient = makeYouTubeClientMock({});
-    const producer = makeProducerMock();
-
-    const poller = makePoller({
-      db,
-      producer,
-      youtubeClient: ytClient,
-      logger: makeNullLogger(),
-      fetchLimit: 10,
-    });
-
-    // Don't call resolvePlaylistIds — cache stays empty
-    (db.execute as ReturnType<typeof mock>).mockImplementation(async () => [
-      { id: 'src-uuid-1', external_id: 'UCchannel1' },
-    ]);
-
-    await poller.runOnce();
-
-    expect(ytClient.fetchRecentVideos).not.toHaveBeenCalled();
-    expect(producer.send).not.toHaveBeenCalled();
-  });
-
-  test('publishes correct payload shape when videos are found', async () => {
-    const db = makeDb();
-    const video = makeVideo({ videoId: 'abc123', title: 'My Video' });
-    const ytClient = makeYouTubeClientMock({ videos: [video] });
+    const ytClient = makeYouTubeClientMock([makeVideo()]);
     const producer = makeProducerMock();
 
     const poller = makePoller({
@@ -174,7 +138,32 @@ describe('pollChannel', () => {
       return [{ max: null }];
     });
 
-    await poller.resolvePlaylistIds();
+    await poller.runOnce();
+
+    expect(ytClient.fetchRecentVideos).toHaveBeenCalledWith(
+      expect.objectContaining({ channelId: 'UCchannel1' }),
+    );
+  });
+
+  test('publishes correct payload shape when videos are found', async () => {
+    const db = makeDb();
+    const video = makeVideo({ videoId: 'abc123', title: 'My Video' });
+    const ytClient = makeYouTubeClientMock([video]);
+    const producer = makeProducerMock();
+
+    const poller = makePoller({
+      db,
+      producer,
+      youtubeClient: ytClient,
+      logger: makeNullLogger(),
+      fetchLimit: 10,
+    });
+
+    (db.execute as ReturnType<typeof mock>).mockImplementation(async (q: string) => {
+      if (q.includes('sources')) return [{ id: 'src-uuid-1', external_id: 'UCchannel1' }];
+      return [{ max: null }];
+    });
+
     await poller.runOnce();
 
     expect(producer.send).toHaveBeenCalledWith(
@@ -193,7 +182,7 @@ describe('pollChannel', () => {
 
   test('does not publish when no new videos', async () => {
     const db = makeDb();
-    const ytClient = makeYouTubeClientMock({ videos: [] });
+    const ytClient = makeYouTubeClientMock([]);
     const producer = makeProducerMock();
 
     const poller = makePoller({
@@ -209,7 +198,6 @@ describe('pollChannel', () => {
       return [{ max: null }];
     });
 
-    await poller.resolvePlaylistIds();
     await poller.runOnce();
 
     expect(producer.send).not.toHaveBeenCalled();
@@ -225,11 +213,8 @@ describe('runOnce', () => {
     const db = makeDb();
     const videos = [makeVideo({ videoId: 'ok1', channelId: 'UCchannel2' })];
     const ytClient: YouTubeClient = {
-      fetchUploadPlaylistId: mock(async (channelId: string) => {
-        return channelId === 'UCchannel1' ? 'PLfails' : 'PLgood';
-      }),
       fetchRecentVideos: mock(async (opts: any) => {
-        if (opts.uploadPlaylistId === 'PLfails') throw new Error('API 403');
+        if (opts.channelId === 'UCchannel1') throw new Error('RSS fetch error');
         return videos;
       }),
     };
@@ -253,7 +238,6 @@ describe('runOnce', () => {
       return [{ max: null }];
     });
 
-    await poller.resolvePlaylistIds();
     await poller.runOnce();
 
     // Second channel still published despite first channel throwing

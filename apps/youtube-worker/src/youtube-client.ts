@@ -1,10 +1,10 @@
 import type { Logger } from '@modules/logger';
 
-/** Raw snippet returned from playlistItems.list */
+/** Raw snippet returned from the YouTube RSS feed */
 export interface VideoSnippet {
   videoId: string;
   title: string;
-  /** Truncated to 2000 chars */
+  /** Empty string — descriptions are not included in the RSS feed */
   description: string;
   /** ISO 8601 */
   publishedAt: string;
@@ -12,78 +12,58 @@ export interface VideoSnippet {
 }
 
 export interface FetchRecentVideosOpts {
-  uploadPlaylistId: string;
+  channelId: string;
   maxResults: number;
   /** Only return videos published after this date */
   publishedAfter?: Date;
 }
 
 export interface MakeYouTubeClientOpts {
-  apiKey: string;
   logger: Logger;
 }
 
 export type YouTubeClient = ReturnType<typeof makeYouTubeClient>;
 
-export function makeYouTubeClient({ apiKey, logger }: MakeYouTubeClientOpts) {
-  const BASE = 'https://www.googleapis.com/youtube/v3';
-
+export function makeYouTubeClient({ logger }: MakeYouTubeClientOpts) {
   /**
-   * Fetches the uploads playlist ID for a channel via channels.list.
-   * Costs 1 quota unit per call; called once at startup and cached.
-   */
-  async function fetchUploadPlaylistId(channelId: string): Promise<string> {
-    const url = new URL(`${BASE}/channels`);
-    url.searchParams.set('part', 'contentDetails');
-    url.searchParams.set('id', channelId);
-    url.searchParams.set('key', apiKey);
-
-    logger.debug({ channelId }, 'yt.client.channels.list');
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`channels.list failed: ${res.status} ${res.statusText}`);
-    }
-    const data = (await res.json()) as any;
-    const playlistId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-    if (!playlistId) {
-      throw new Error(`No uploads playlist found for channel ${channelId}`);
-    }
-    return playlistId as string;
-  }
-
-  /**
-   * Fetches recent videos from an uploads playlist via playlistItems.list.
-   * Costs 1 quota unit per call. Filters client-side by publishedAfter when set.
+   * Fetches recent videos from the YouTube Atom RSS feed for a channel.
+   * No API key required. Filters client-side by publishedAfter when set.
    */
   async function fetchRecentVideos(opts: FetchRecentVideosOpts): Promise<VideoSnippet[]> {
-    const { uploadPlaylistId, maxResults, publishedAfter } = opts;
+    const { channelId, maxResults, publishedAfter } = opts;
 
-    const url = new URL(`${BASE}/playlistItems`);
-    url.searchParams.set('part', 'snippet');
-    url.searchParams.set('playlistId', uploadPlaylistId);
-    url.searchParams.set('maxResults', String(maxResults));
-    url.searchParams.set('key', apiKey);
+    const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    logger.debug({ channelId, maxResults }, 'yt.client.rss.fetch');
 
-    logger.debug({ uploadPlaylistId, maxResults }, 'yt.client.playlistItems.list');
     const res = await fetch(url);
     if (!res.ok) {
-      throw new Error(`playlistItems.list failed: ${res.status} ${res.statusText}`);
+      throw new Error(`RSS fetch failed: ${res.status} ${res.statusText}`);
     }
-    const data = (await res.json()) as any;
-    const items: any[] = data.items ?? [];
 
-    return items
+    const xmlText = await res.text();
+    const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+    const entries = Array.from(doc.getElementsByTagName('entry'));
+
+    return entries
+      .map((entry) => {
+        const videoId = entry.getElementsByTagName('yt:videoId')[0]?.textContent ?? '';
+        const title = entry.getElementsByTagName('title')[0]?.textContent ?? '';
+        const published = entry.getElementsByTagName('published')[0]?.textContent ?? '';
+        const entryChannelId =
+          entry.getElementsByTagName('yt:channelId')[0]?.textContent ?? channelId;
+        return {
+          videoId,
+          title,
+          description: '',
+          publishedAt: published,
+          channelId: entryChannelId,
+        };
+      })
       .filter(
-        (item) => !publishedAfter || new Date(item.snippet.publishedAt) > publishedAfter,
+        (v) => v.videoId && (!publishedAfter || new Date(v.publishedAt) > publishedAfter),
       )
-      .map((item) => ({
-        videoId: item.snippet.resourceId.videoId as string,
-        title: item.snippet.title as string,
-        description: ((item.snippet.description as string) ?? '').slice(0, 2000),
-        publishedAt: item.snippet.publishedAt as string,
-        channelId: item.snippet.channelId as string,
-      }));
+      .slice(0, maxResults);
   }
 
-  return { fetchUploadPlaylistId, fetchRecentVideos };
+  return { fetchRecentVideos };
 }
