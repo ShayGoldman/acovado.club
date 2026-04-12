@@ -18,11 +18,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.69",
     "@modules/db": "workspace:*",
-    "@modules/tracing": "workspace:*",
-    "ai": "^6.0.158",
-    "ollama-ai-provider": "^1.2.0"
+    "@modules/tracing": "workspace:*"
   },
   "devDependencies": {
     "@config/tsconfig": "workspace:*",
