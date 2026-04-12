@@ -36,10 +36,10 @@ export function makePoller({
     const rows = await db.execute(
       `SELECT id, external_id FROM acovado.sources WHERE kind = 'youtube' AND active = true`,
     );
-    return rows.map((row) => ({
-      id: row.id as string,
-      externalId: row.external_id as string,
-    }));
+    return rows.map((row) => {
+      const r = row as { id: string; external_id: string };
+      return { id: r.id, externalId: r.external_id };
+    });
   }
 
   /**
@@ -51,7 +51,7 @@ export function makePoller({
     const rows = await db.execute(
       `SELECT MAX(published_at) AS max FROM acovado.content_items WHERE source_id = '${sourceId}'`,
     );
-    const max = rows[0]?.max;
+    const max = (rows[0] as { max: string | null } | undefined)?.max;
     return max ? new Date(max as string) : undefined;
   }
 

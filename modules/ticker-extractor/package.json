@@ -1,0 +1,27 @@
+{
+  "name": "@modules/ticker-extractor",
+  "private": true,
+  "description": "LLM-based ticker extraction from text using @modules/inference",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "clean": "rm -rf .turbo && rm -rf node_modules",
+    "typecheck": "bun tsc --noEmit",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modules/inference": "workspace:*"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*"
+  }
+}
