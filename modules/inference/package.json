@@ -19,10 +19,10 @@
   "license": "ISC",
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.69",
+    "@ai-sdk/openai-compatible": "^2.0.41",
     "@modules/db": "workspace:*",
     "@modules/tracing": "workspace:*",
-    "ai": "^6.0.158",
-    "ollama-ai-provider": "^1.2.0"
+    "ai": "^6.0.158"
   },
   "devDependencies": {
     "@config/tsconfig": "workspace:*",

@@ -1,5 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createOllama } from 'ollama-ai-provider';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
 export interface MakeOllamaProviderOpts {
   baseUrl?: string;
@@ -19,10 +19,10 @@ export function makeOllamaProvider(opts: MakeOllamaProviderOpts = {}) {
   const baseUrl = opts.baseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
   const modelId = opts.model ?? process.env.OLLAMA_MODEL ?? 'gemma3:4b';
 
-  const ollama = createOllama({ baseURL: `${baseUrl}/api` });
+  const ollama = createOpenAICompatible({ name: 'ollama', baseURL: `${baseUrl}/v1` });
 
   return {
-    model: ollama(modelId),
+    model: ollama(modelId, { supportsStructuredOutputs: true }),
     modelId,
   };
 }
