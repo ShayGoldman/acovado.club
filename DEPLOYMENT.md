@@ -41,8 +41,12 @@ flowchart LR
 | Step | Output |
 |------|--------|
 | `build-example` | `docker-registry.acovado.club/example:${SHA}` |
+| `build-signal-processor` | `docker-registry.acovado.club/signal-processor:${SHA}` |
+| `build-youtube-worker` | `docker-registry.acovado.club/youtube-worker:${SHA}` |
+| `build-reddit-worker` *(pending)* | `docker-registry.acovado.club/reddit-worker:${SHA}` — commented out until `apps/reddit-worker/src/index.ts` exists |
+| `build-dashboard` *(pending)* | `docker-registry.acovado.club/dashboard:${SHA}` — commented out until `apps/dashboard` is scaffolded |
 
-The **`example`** image bundles the repo install and runs the app with Bun (workspace `modules/` sources are used JIT). `docker-compose.apps.yaml` references this image (`COMMIT_HASH` must match the build).
+All app images are built in parallel from the monorepo `Dockerfile` (`--build-arg APP_PATH=<name>`). `docker-compose.apps.yaml` references all images (`COMMIT_HASH` must match the build).
 
 ---
 
@@ -82,7 +86,20 @@ Shared Docker networks (used by Traefik and compose stacks):
 - **`proxy-network`** — external, for HTTPS routes (Signoz, RabbitMQ UI, stats, etc.).
 - **`internal-network`** — external, for app ↔ infra (Postgres, OTel, `example`, …).
 
-Env files live under **`/srv/env/`** (at minimum for current compose: `postgres.env`, `rabbitmq.env`, `falkordb.env`, `example.env`). Do not commit real production secrets; keep them on the host.
+Env files live under **`/srv/env/`**. Required files:
+
+| File | Who populates |
+|------|--------------|
+| `postgres.env` | `prepare-vps-for-cd.sh` (stub; change in prod) |
+| `rabbitmq.env` | `prepare-vps-for-cd.sh` (auto-random password) |
+| `falkordb.env` | `prepare-vps-for-cd.sh` (auto-random password) |
+| `example.env` | `prepare-vps-for-cd.sh` (stub) |
+| `signal-processor.env` | `prepare-vps-for-cd.sh` (stub — operator must fill DB/AMQP creds) |
+| `youtube-worker.env` | `prepare-vps-for-cd.sh` (stub — operator must fill DB/AMQP creds) |
+| `reddit-worker.env` | `prepare-vps-for-cd.sh` (stub — **operator must fill Reddit API credentials**) |
+| `dashboard.env` | `prepare-vps-for-cd.sh` (stub — operator must fill DB creds) |
+
+See `config/deploy/env-templates/` for the full required-vars list per service. Do not commit real production secrets; keep them on the host.
 
 Persistent data under **`/srv/volumes/`** (e.g. `postgres-data`, `signoz-*`, `falkordb-data`, `stats` for Portainer).
 
@@ -107,9 +124,18 @@ sudo bash config/deploy/prepare-vps-for-cd.sh
 
 ## Application workload (current repo)
 
-- **Apps compose** runs a single service: **`example`**, image  
-  **`${REGISTRY_URL}/example:${COMMIT_HASH}`**,  
-  OTLP: **`TRACE_EXPORTER_URLS`** → `http://otel-collector:4318/v1/traces` on **`internal-network`**.
+**Apps compose** (`config/compose/docker-compose.apps.yaml`) runs these services:
+
+| Container | Image | Env file | Notes |
+|-----------|-------|----------|-------|
+| `example` | `${REGISTRY_URL}/example:${COMMIT_HASH}` | `example.env` | Scaffold / health probe |
+| `signal-processor` | `${REGISTRY_URL}/signal-processor:${COMMIT_HASH}` | `signal-processor.env` | AMQP consumer; Reddit + YouTube signal extraction |
+| `youtube-worker` | `${REGISTRY_URL}/youtube-worker:${COMMIT_HASH}` | `youtube-worker.env` | YouTube RSS poller |
+| `reddit-worker` | `${REGISTRY_URL}/reddit-worker:${COMMIT_HASH}` | `reddit-worker.env` | Reddit poller — **image build pending** (`src/index.ts` missing) |
+| `dashboard` | `${REGISTRY_URL}/dashboard:${COMMIT_HASH}` | `dashboard.env` | REST API + Traefik ingress — **app not yet scaffolded** |
+
+All pipeline services connect to `internal-network`; `dashboard` additionally joins `proxy-network` for Traefik TLS ingress at `dashboard.acovado.club`.
+
 - **Infra compose** includes Postgres, RabbitMQ (custom image build), **Signoz** (ClickHouse, collector, …), FalkorDB, **Portainer** (`stats` → **`stats.acovado.club`** behind Traefik), etc. See `config/compose/docker-compose.infra.yaml`. (Ollama / `inference-model` is not deployed in prod; use `infra/inference-model` locally if needed.)
 
 ---
