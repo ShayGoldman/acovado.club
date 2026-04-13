@@ -108,23 +108,22 @@ steps:
     depends_on:
       - pre-build
 
-  # TODO: uncomment once apps/reddit-worker/src/index.ts is added (entry point missing)
-  # - name: build-reddit-worker
-  #   image: docker
-  #   environment:
-  #     DOCKER_BUILDKIT: 1
-  #   volumes:
-  #     - name: docker-socket
-  #       path: /var/run/docker.sock
-  #     - name: docker-cache
-  #       path: /var/lib/docker
-  #   commands:
-  #     - docker build --target production --build-arg APP_PATH=reddit-worker -t $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
-  #     - docker tag $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${REDDIT_WORKER_IMAGE}:latest
-  #     - docker push $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
-  #     - docker push $${REDDIT_WORKER_IMAGE}:latest
-  #   depends_on:
-  #     - pre-build
+  - name: build-reddit-worker
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target production --build-arg APP_PATH=reddit-worker -t $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${REDDIT_WORKER_IMAGE}:latest
+      - docker push $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${REDDIT_WORKER_IMAGE}:latest
+    depends_on:
+      - pre-build
 
   - name: build-dashboard
     image: docker
@@ -153,11 +152,13 @@ steps:
       - echo "(example) $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(signal-processor) $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(youtube-worker) $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(reddit-worker) $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(dashboard) $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}"
     depends_on:
       - build-example
       - build-signal-processor
       - build-youtube-worker
+      - build-reddit-worker
       - build-dashboard
 
   ##############################################################################
