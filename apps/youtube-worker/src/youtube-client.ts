@@ -41,16 +41,29 @@ export function makeYouTubeClient({ logger }: MakeYouTubeClientOpts) {
     }
 
     const xmlText = await res.text();
-    const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
-    const entries = Array.from(doc.getElementsByTagName('entry'));
+
+    // Extract <entry> blocks from the Atom feed using regex — avoids DOMParser
+    // which is unavailable in Bun's Node-compatible runtime.
+    const entryPattern = /<entry>([\s\S]*?)<\/entry>/g;
+    const tagText = (block: string, tag: string): string => {
+      const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+      return m?.[1]?.trim() ?? '';
+    };
+
+    const entries: RegExpMatchArray[] = [];
+    for (;;) {
+      const m = entryPattern.exec(xmlText);
+      if (m === null) break;
+      entries.push(m);
+    }
 
     return entries
-      .map((entry) => {
-        const videoId = entry.getElementsByTagName('yt:videoId')[0]?.textContent ?? '';
-        const title = entry.getElementsByTagName('title')[0]?.textContent ?? '';
-        const published = entry.getElementsByTagName('published')[0]?.textContent ?? '';
-        const entryChannelId =
-          entry.getElementsByTagName('yt:channelId')[0]?.textContent ?? channelId;
+      .map((match) => {
+        const block = match[1] ?? '';
+        const videoId = tagText(block, 'yt:videoId');
+        const title = tagText(block, 'title');
+        const published = tagText(block, 'published');
+        const entryChannelId = tagText(block, 'yt:channelId') || channelId;
         return {
           videoId,
           title,
