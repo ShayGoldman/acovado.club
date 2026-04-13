@@ -8,6 +8,7 @@ environment:
   SIGNAL_PROCESSOR_IMAGE: docker-registry.acovado.club/signal-processor
   YOUTUBE_WORKER_IMAGE: docker-registry.acovado.club/youtube-worker
   REDDIT_WORKER_IMAGE: docker-registry.acovado.club/reddit-worker
+  DASHBOARD_IMAGE: docker-registry.acovado.club/dashboard
 
 volumes:
   - name: docker-socket
@@ -125,7 +126,22 @@ steps:
   #   depends_on:
   #     - pre-build
 
-  # TODO: add build-dashboard once apps/dashboard is scaffolded
+  - name: build-dashboard
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target production --build-arg APP_PATH=dashboard -t $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} $${DASHBOARD_IMAGE}:latest
+      - docker push $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${DASHBOARD_IMAGE}:latest
+    depends_on:
+      - pre-build
 
   ##############################################################################
   # Step 3: Post build
@@ -137,10 +153,12 @@ steps:
       - echo "(example) $${EXAMPLE_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(signal-processor) $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(youtube-worker) $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(dashboard) $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}"
     depends_on:
       - build-example
       - build-signal-processor
       - build-youtube-worker
+      - build-dashboard
 
   ##############################################################################
   # Step 4: Check for and release new versions

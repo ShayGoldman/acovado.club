@@ -1,0 +1,26 @@
+{
+  "name": "@apps/dashboard",
+  "private": true,
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch --inspect=localhost:16003/dashboard src/index.ts",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write .",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/bun": "^1.1.13"
+  },
+  "dependencies": {
+    "@modules/db": "workspace:*",
+    "@modules/logger": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "zod": "^4.0.0"
+  }
+}
