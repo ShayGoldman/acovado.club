@@ -1,6 +1,7 @@
 import { makeId } from '@modules/ids';
 import type { Logger } from '@modules/logger';
 import type { Producer } from '@modules/events';
+import type { Tracer } from '@modules/tracing';
 import type { YouTubeClient } from './youtube-client';
 import type { Source, YouTubeVideoCollectedPayload } from './types';
 
@@ -17,6 +18,7 @@ export interface MakePollerOpts {
   producer: Producer;
   youtubeClient: YouTubeClient;
   logger: Logger;
+  tracer: Tracer;
   fetchLimit: number;
 }
 
@@ -27,6 +29,7 @@ export function makePoller({
   producer,
   youtubeClient,
   logger,
+  tracer,
   fetchLimit,
 }: MakePollerOpts) {
   async function fetchActiveSources(): Promise<Source[]> {
@@ -53,12 +56,31 @@ export function makePoller({
   }
 
   async function pollChannel(source: Source): Promise<void> {
-    const publishedAfter = await getCheckpoint(source.id);
-    const videos = await youtubeClient.fetchRecentVideos({
-      channelId: source.externalId,
-      maxResults: fetchLimit,
-      ...(publishedAfter ? { publishedAfter } : {}),
-    });
+    const publishedAfter = await tracer.with(
+      'yt.fetch_checkpoint',
+      { attributes: { sourceId: source.id } },
+      async (ctx) => {
+        const checkpoint = await getCheckpoint(source.id);
+        if (checkpoint) {
+          ctx.annotate('published_after', checkpoint.toISOString());
+        }
+        return checkpoint;
+      },
+    );
+
+    const videos = await tracer.with(
+      'yt.fetch_videos',
+      { attributes: { channelId: source.externalId } },
+      async (ctx) => {
+        const result = await youtubeClient.fetchRecentVideos({
+          channelId: source.externalId,
+          maxResults: fetchLimit,
+          ...(publishedAfter ? { publishedAfter } : {}),
+        });
+        ctx.annotate('video_count', result.length);
+        return result;
+      },
+    );
 
     if (videos.length === 0) {
       logger.debug({ channelId: source.externalId }, 'yt.poll.no_new_videos');
@@ -85,7 +107,11 @@ export function makePoller({
 
   /** Polls all active YouTube sources; isolates errors per channel. */
   async function runOnce(): Promise<void> {
-    const sources = await fetchActiveSources();
+    const sources = await tracer.with('yt.startup.fetch_sources', async (ctx) => {
+      const result = await fetchActiveSources();
+      ctx.annotate('source_count', result.length);
+      return result;
+    });
     logger.info({ count: sources.length }, 'yt.tick.start');
     for (const source of sources) {
       try {

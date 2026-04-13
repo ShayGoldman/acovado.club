@@ -4,6 +4,7 @@ import type { PollerDb } from './poller';
 import type { YouTubeClient, VideoSnippet } from './youtube-client';
 import type { Producer } from '@modules/events';
 import type { Logger } from '@modules/logger';
+import type { Tracer } from '@modules/tracing';
 
 // ---------------------------------------------------------------------------
 // Minimal mocks
@@ -42,6 +43,26 @@ function makeProducerMock(): Producer {
   } as unknown as Producer;
 }
 
+function makeNullTracer(): Tracer {
+  const nullCtx: any = {
+    log: makeNullLogger(),
+    annotations: new Map(),
+    annotate: () => {},
+    setName: () => {},
+    with: async (_name: string, fnOrOpts: any, maybeFn?: any) => {
+      const fn = typeof fnOrOpts === 'function' ? fnOrOpts : maybeFn;
+      return fn(nullCtx);
+    },
+  };
+  return {
+    with: async (_name: string, fnOrOpts: any, maybeFn?: any) => {
+      const fn = typeof fnOrOpts === 'function' ? fnOrOpts : maybeFn;
+      return fn(nullCtx);
+    },
+    shutdown: async () => {},
+  } as unknown as Tracer;
+}
+
 function makeVideo(overrides: Partial<VideoSnippet> = {}): VideoSnippet {
   return {
     videoId: 'vid1',
@@ -68,6 +89,7 @@ describe('checkpoint logic', () => {
       producer,
       youtubeClient: ytClient,
       logger: makeNullLogger(),
+      tracer: makeNullTracer(),
       fetchLimit: 10,
     });
 
@@ -96,6 +118,7 @@ describe('checkpoint logic', () => {
       producer,
       youtubeClient: ytClient,
       logger: makeNullLogger(),
+      tracer: makeNullTracer(),
       fetchLimit: 10,
     });
 
@@ -130,6 +153,7 @@ describe('pollChannel', () => {
       producer,
       youtubeClient: ytClient,
       logger: makeNullLogger(),
+      tracer: makeNullTracer(),
       fetchLimit: 10,
     });
 
@@ -156,6 +180,7 @@ describe('pollChannel', () => {
       producer,
       youtubeClient: ytClient,
       logger: makeNullLogger(),
+      tracer: makeNullTracer(),
       fetchLimit: 10,
     });
 
@@ -190,6 +215,7 @@ describe('pollChannel', () => {
       producer,
       youtubeClient: ytClient,
       logger: makeNullLogger(),
+      tracer: makeNullTracer(),
       fetchLimit: 10,
     });
 
@@ -225,6 +251,7 @@ describe('runOnce', () => {
       producer,
       youtubeClient: ytClient,
       logger: makeNullLogger(),
+      tracer: makeNullTracer(),
       fetchLimit: 10,
     });
 

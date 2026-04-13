@@ -26,6 +26,7 @@ const poller = makePoller({
   producer,
   youtubeClient,
   logger,
+  tracer,
   fetchLimit: Env.YOUTUBE_FETCH_LIMIT,
 });
 
