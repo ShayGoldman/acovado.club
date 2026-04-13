@@ -4,27 +4,27 @@ import type { DBClient } from '@modules/db';
 import type { Message } from '@modules/events';
 import type { TickerExtractor } from '@modules/ticker-extractor';
 import type { Tracer } from '@modules/tracing';
-import type { RedditPostCollectedPayload } from './types';
+import type { YouTubeVideoCollectedPayload } from './youtube-types';
 
-export interface MakeMessageHandlerOpts {
+export interface MakeYouTubeMessageHandlerOpts {
   db: DBClient;
   tickerExtractor: TickerExtractor;
   tracer: Tracer;
 }
 
-export function makeMessageHandler({
+export function makeYouTubeMessageHandler({
   db,
   tickerExtractor,
   tracer,
-}: MakeMessageHandlerOpts) {
-  return async function onRedditMessage(
-    message: Message<RedditPostCollectedPayload>,
+}: MakeYouTubeMessageHandlerOpts) {
+  return async function onYouTubeMessage(
+    message: Message<YouTubeVideoCollectedPayload>,
   ): Promise<void> {
     const payload = message.payload;
 
-    await tracer.with('process reddit.post.collected', async (ctx) => {
-      ctx.annotate('subreddit', payload.subreddit);
-      ctx.annotate('externalId', payload.externalId);
+    await tracer.with('process youtube.video.collected', async (ctx) => {
+      ctx.annotate('channelId', payload.channelId);
+      ctx.annotate('videoId', payload.externalId);
 
       // Step 1: Upsert content_item — conflict on (source_id, external_id)
       const [item] = await tracer.with('db.upsert content_items', async () =>
@@ -34,13 +34,12 @@ export function makeMessageHandler({
             sourceId: payload.sourceId,
             externalId: payload.externalId,
             title: payload.title,
-            body: payload.body,
+            body: payload.description,
             url: payload.url,
             publishedAt: new Date(payload.publishedAt),
           })
           .onConflictDoUpdate({
             target: [schema.contentItems.sourceId, schema.contentItems.externalId],
-            // No-op update — only needed to get RETURNING with existing processedAt
             set: { url: schema.contentItems.url },
           })
           .returning(),
@@ -55,15 +54,15 @@ export function makeMessageHandler({
         return;
       }
 
-      // Step 3: Extract tickers from title + body
-      const text = [payload.title, payload.body].filter(Boolean).join('\n\n');
+      // Step 3: Extract tickers from title + description (YouTube-specific concatenation)
+      const text = [payload.title, payload.description].filter(Boolean).join('\n\n');
       const mentions = await tracer.with('ticker.extract', async (c) => {
         const result = await tickerExtractor.extractTickers(text);
         c.annotate('mentions.count', result.length);
         return result;
       });
 
-      // Step 4: Insert mentions (0 rows is valid — not every post mentions tickers)
+      // Step 4: Insert mentions
       if (mentions.length > 0) {
         await tracer.with('db.insert mentions', async () =>
           db.insert(schema.mentions).values(
@@ -94,4 +93,4 @@ export function makeMessageHandler({
   };
 }
 
-export type MessageHandler = ReturnType<typeof makeMessageHandler>;
+export type YouTubeMessageHandler = ReturnType<typeof makeYouTubeMessageHandler>;

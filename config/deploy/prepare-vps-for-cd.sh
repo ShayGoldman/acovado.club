@@ -91,4 +91,64 @@ else
   log "Left existing /srv/env/example.env unchanged"
 fi
 
-log "Done. Next: merge to main so Drone builds and runs the deploy step."
+# Pipeline app env files — created as stubs if missing; operator must fill in secrets.
+# See config/deploy/env-templates/ for the full list of required vars per service.
+
+if [ ! -s /srv/env/reddit-worker.env ]; then
+  cat >/srv/env/reddit-worker.env <<'EOF'
+# Fill in before first deploy — see config/deploy/env-templates/reddit-worker.env
+DATABASE_URL=postgresql://acovado:CHANGE_ME@postgres:5432/production
+RABBITMQ_URL=amqp://acovado:CHANGE_ME@rabbitmq:5672
+REDDIT_CLIENT_ID=CHANGE_ME
+REDDIT_CLIENT_SECRET=CHANGE_ME
+REDDIT_USER_AGENT=acovado-reddit-worker/1.0
+POLL_CRON=*/15 * * * *
+EOF
+  chmod 600 /srv/env/reddit-worker.env
+  log "Created /srv/env/reddit-worker.env stub — fill in REDDIT_CLIENT_ID/SECRET and DB/AMQP credentials"
+else
+  log "Left existing /srv/env/reddit-worker.env unchanged"
+fi
+
+if [ ! -s /srv/env/youtube-worker.env ]; then
+  cat >/srv/env/youtube-worker.env <<'EOF'
+# Fill in before first deploy — see config/deploy/env-templates/youtube-worker.env
+DATABASE_URL=postgresql://acovado:CHANGE_ME@postgres:5432/production
+RABBITMQ_URL=amqp://acovado:CHANGE_ME@rabbitmq:5672
+YOUTUBE_FETCH_LIMIT=10
+POLL_CRON=0 * * * *
+EOF
+  chmod 600 /srv/env/youtube-worker.env
+  log "Created /srv/env/youtube-worker.env stub — fill in DB/AMQP credentials"
+else
+  log "Left existing /srv/env/youtube-worker.env unchanged"
+fi
+
+if [ ! -s /srv/env/signal-processor.env ]; then
+  cat >/srv/env/signal-processor.env <<'EOF'
+# Fill in before first deploy — see config/deploy/env-templates/signal-processor.env
+DATABASE_URL=postgresql://acovado:CHANGE_ME@postgres:5432/production
+RABBITMQ_URL=amqp://acovado:CHANGE_ME@rabbitmq:5672
+OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_MODEL=gemma3:4b
+PORT=3001
+EOF
+  chmod 600 /srv/env/signal-processor.env
+  log "Created /srv/env/signal-processor.env stub — fill in DB/AMQP credentials"
+else
+  log "Left existing /srv/env/signal-processor.env unchanged"
+fi
+
+if [ ! -s /srv/env/dashboard.env ]; then
+  cat >/srv/env/dashboard.env <<'EOF'
+# Fill in before first deploy — see config/deploy/env-templates/dashboard.env
+DATABASE_URL=postgresql://acovado:CHANGE_ME@postgres:5432/production
+PORT=3000
+EOF
+  chmod 600 /srv/env/dashboard.env
+  log "Created /srv/env/dashboard.env stub — fill in DB credentials"
+else
+  log "Left existing /srv/env/dashboard.env unchanged"
+fi
+
+log "Done. Next: fill in CHANGE_ME values in /srv/env/*.env, then merge to main so Drone builds and runs the deploy step."

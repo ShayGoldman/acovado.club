@@ -1,17 +1,15 @@
+import { parseEnv } from '@/env';
 import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
-import {
-  makeClaudeProvider,
-  makeInferenceClient,
-  makeOllamaProvider,
-} from '@modules/inference';
+import { makeInferenceClient } from '@modules/inference';
 import { makeLogger } from '@modules/logger';
 import { makeTickerExtractor } from '@modules/ticker-extractor';
 import { makeTracer } from '@modules/tracing';
-import { parseEnv } from './env';
 import { makeMessageHandler } from './handler';
+import { makeYouTubeMessageHandler } from './youtube-handler';
 
 const Env = parseEnv(process.env);
+
 const logger = makeLogger({ name: 'signal-processor' });
 const tracer = makeTracer({
   serviceName: 'signal-processor',
@@ -22,27 +20,16 @@ const tracer = makeTracer({
 
 const db = makeDBClient({ url: Env.DATABASE_URL, tracer });
 const inferenceClient = makeInferenceClient({ db, tracer });
-
-const ollamaProvider = makeOllamaProvider({
-  baseUrl: Env.OLLAMA_BASE_URL,
-  model: Env.OLLAMA_MODEL,
-});
-const claudeProvider = Env.ANTHROPIC_API_KEY
-  ? makeClaudeProvider({ apiKey: Env.ANTHROPIC_API_KEY })
-  : undefined;
-
 const tickerExtractor = makeTickerExtractor({
   inferenceClient,
-  db,
-  providers: {
-    primary: ollamaProvider,
-    ...(claudeProvider ? { fallback: claudeProvider } : {}),
-  },
+  ollamaBaseUrl: Env.OLLAMA_BASE_URL,
+  model: Env.OLLAMA_MODEL,
 });
 
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
 
-const onMessage = makeMessageHandler({ db, tickerExtractor, logger, tracer });
+const onRedditMessage = makeMessageHandler({ db, tickerExtractor, tracer });
+const onYouTubeMessage = makeYouTubeMessageHandler({ db, tickerExtractor, tracer });
 
 const consumer = makeConsumer({
   broker: Env.RABBITMQ_URL,
@@ -54,13 +41,21 @@ const consumer = makeConsumer({
       domain: 'reddit',
       queue: 'signal-processor',
       routingKey: 'post.collected',
-      onMessage,
+      onMessage: onRedditMessage,
+    },
+    {
+      domain: 'youtube',
+      queue: 'signal-processor',
+      routingKey: 'video.collected',
+      onMessage: onYouTubeMessage,
     },
   ],
 });
 
 await consumer.connect();
-logger.info('signal-processor: consuming from reddit:signal-processor');
+logger.info(
+  'signal-processor: consuming from reddit:signal-processor + youtube:signal-processor',
+);
 
 const server = Bun.serve({
   port: Env.PORT,

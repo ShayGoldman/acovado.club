@@ -1,26 +1,11 @@
-import type { ClaudeProvider, OllamaProvider } from '@modules/inference';
-import type { InferenceClient } from '@modules/inference';
-import type { DBClient } from '@modules/db';
-
+/** A single ticker symbol extracted from text. */
 export interface TickerMention {
+  /** Uppercase ticker symbol, e.g. "AAPL" */
   symbol: string;
-  companyName: string;
+  /** Extraction confidence score in [0, 1] */
   confidence: number;
+  /** True when the symbol appeared with a $ prefix (e.g. $AAPL) */
   isExplicit: boolean;
+  /** Short phrase surrounding the mention (for audit / debugging) */
   context: string;
-}
-
-export interface TickerExtractor {
-  extractTickers(text: string): Promise<TickerMention[]>;
-}
-
-export interface MakeTickerExtractorOpts {
-  inferenceClient: InferenceClient;
-  db: DBClient;
-  providers: {
-    primary: OllamaProvider;
-    fallback?: ClaudeProvider;
-  };
-  /** Minimum confidence threshold. Default: 0.7 */
-  minConfidence?: number;
 }

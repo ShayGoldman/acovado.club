@@ -230,7 +230,7 @@ export function makeInferenceClient(opts: MakeInferenceClientOpts): InferenceCli
             model: request.model,
             config: request.config,
             prompt: normalizedPrompt,
-            response: response !== null ? response : null,
+            response: response !== null ? JSON.stringify(response) : null,
             durationMs: (Math.round(durationMs * 100) / 100).toString(),
             status,
             error: errorMessage,

@@ -1,96 +1,100 @@
+import { sql } from 'drizzle-orm';
 import * as D from 'drizzle-orm/pg-core';
 
 export const acovado = D.pgSchema('acovado');
 
-export const inferenceLogs = acovado.table('inference_logs', {
-  id: D.uuid('id').primaryKey().defaultRandom(),
-  name: D.text('name'),
-  model: D.text('model').notNull(),
-  config: D.jsonb('config'),
-  prompt: D.text('prompt').notNull(),
-  response: D.jsonb('response'),
-  durationMs: D.numeric('duration_ms', { precision: 10, scale: 2 }).notNull(),
-  status: D.text('status', { enum: ['success', 'error'] }).notNull(),
-  error: D.text('error'),
-  retryCount: D.integer('retry_count').notNull().default(0),
-  metadata: D.jsonb('metadata'),
-  createdAt: D.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
+// ---------------------------------------------------------------------------
+// sources — data sources (subreddits, youtube channels, etc.)
+// ---------------------------------------------------------------------------
 export const sources = acovado.table(
   'sources',
-  {
-    id: D.uuid('id').primaryKey().defaultRandom(),
-    kind: D.text('kind', { enum: ['reddit', 'youtube'] }).notNull(),
-    externalId: D.text('external_id').notNull(),
-    displayName: D.text('display_name').notNull(),
-    config: D.jsonb('config'),
-    active: D.boolean('active').notNull().default(true),
-    createdAt: D.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [D.unique('sources_kind_external_id_unique').on(t.kind, t.externalId)],
+  (c) => ({
+    id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
+    /** 'reddit' | 'youtube' | future kinds */
+    kind: c.varchar('kind', { length: 32 }).notNull(),
+    /** subreddit name or YouTube channel ID */
+    externalId: c.varchar('external_id', { length: 256 }).notNull(),
+    displayName: c.varchar('display_name', { length: 256 }),
+    active: c.boolean().notNull().default(true),
+    createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  }),
+  (t) => [D.unique().on(t.kind, t.externalId)],
 );
 
-export const tickers = acovado.table('tickers', {
-  id: D.uuid('id').primaryKey().defaultRandom(),
-  symbol: D.text('symbol').notNull().unique(),
-  companyName: D.text('company_name').notNull(),
-  exchange: D.text('exchange'),
-  cik: D.text('cik'),
-  createdAt: D.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+// ---------------------------------------------------------------------------
+// tickers — known ticker symbols (populated by extractor on first mention)
+// ---------------------------------------------------------------------------
+export const tickers = acovado.table('tickers', (c) => ({
+  symbol: c.varchar('symbol', { length: 16 }).primaryKey(),
+  displayName: c.varchar('display_name', { length: 128 }),
+  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+}));
 
+// ---------------------------------------------------------------------------
+// content_items — collected posts and videos (one row per external item)
+// ---------------------------------------------------------------------------
 export const contentItems = acovado.table(
   'content_items',
-  {
-    id: D.uuid('id').primaryKey().defaultRandom(),
-    sourceId: D.uuid('source_id')
+  (c) => ({
+    id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
+    sourceId: c
+      .uuid('source_id')
       .notNull()
       .references(() => sources.id),
-    externalId: D.text('external_id').notNull(),
-    title: D.text('title'),
-    body: D.text('body'),
-    url: D.text('url').notNull(),
-    publishedAt: D.timestamp('published_at', { withTimezone: true }),
-    processedAt: D.timestamp('processed_at', { withTimezone: true }),
-    createdAt: D.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    D.unique('content_items_source_external_unique').on(t.sourceId, t.externalId),
-    D.index('content_items_processed_at_idx').on(t.processedAt),
-  ],
+    externalId: c.varchar('external_id', { length: 256 }).notNull(),
+    title: c.text('title').notNull(),
+    /** Body text (reddit: selftext, youtube: description). Null for link posts. */
+    body: c.text('body'),
+    url: c.text('url').notNull(),
+    publishedAt: c.timestamp('published_at').notNull(),
+    /** Set when ticker extraction completes; null means not yet processed. */
+    processedAt: c.timestamp('processed_at'),
+    createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  }),
+  (t) => [D.unique().on(t.sourceId, t.externalId)],
 );
 
-export const mentions = acovado.table(
-  'mentions',
-  {
-    id: D.uuid('id').primaryKey().defaultRandom(),
-    contentItemId: D.uuid('content_item_id')
-      .notNull()
-      .references(() => contentItems.id),
-    tickerSymbol: D.text('ticker_symbol')
-      .notNull()
-      .references(() => tickers.symbol),
-    confidence: D.numeric('confidence', { precision: 4, scale: 3 }).notNull(),
-    isExplicit: D.boolean('is_explicit').notNull(),
-    rawContext: D.text('raw_context'),
-    mentionedAt: D.timestamp('mentioned_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    createdAt: D.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    D.index('mentions_ticker_symbol_idx').on(t.tickerSymbol),
-    D.index('mentions_mentioned_at_idx').on(t.mentionedAt),
-  ],
-);
+// ---------------------------------------------------------------------------
+// mentions — ticker symbols extracted from content items
+// ---------------------------------------------------------------------------
+export const mentions = acovado.table('mentions', (c) => ({
+  id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
+  contentItemId: c
+    .uuid('content_item_id')
+    .notNull()
+    .references(() => contentItems.id),
+  tickerSymbol: c.varchar('ticker_symbol', { length: 16 }).notNull(),
+  /** Decimal confidence score stored as string (e.g. "0.92") */
+  confidence: c.varchar('confidence', { length: 16 }).notNull(),
+  isExplicit: c.boolean('is_explicit').notNull().default(false),
+  rawContext: c.text('raw_context'),
+  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+}));
 
-export const schema = {
-  inferenceLogs,
-  sources,
-  tickers,
-  contentItems,
-  mentions,
-};
+// ---------------------------------------------------------------------------
+// inference_logs — LLM invocation audit trail (used by @modules/inference)
+// ---------------------------------------------------------------------------
+export const inferenceLogs = acovado.table('inference_logs', (c) => ({
+  id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
+  name: c.varchar('name', { length: 256 }),
+  model: c.varchar('model', { length: 128 }).notNull(),
+  config: c.jsonb('config'),
+  prompt: c.text('prompt').notNull(),
+  response: c.text('response'),
+  /** Duration in milliseconds, stored as string to avoid float precision loss */
+  durationMs: c.varchar('duration_ms', { length: 32 }).notNull(),
+  /** 'success' | 'error' */
+  status: c.varchar('status', { length: 16 }).notNull(),
+  error: c.text('error'),
+  retryCount: c.integer('retry_count').notNull().default(0),
+  metadata: c.jsonb('metadata'),
+  createdAt: c.timestamp('created_at').defaultNow().notNull(),
+}));
 
+// ---------------------------------------------------------------------------
+// Barrel export expected by the rest of the codebase via `import schema`
+// ---------------------------------------------------------------------------
+const schema = { sources, tickers, contentItems, mentions, inferenceLogs };
+
+export { schema };
 export default schema;

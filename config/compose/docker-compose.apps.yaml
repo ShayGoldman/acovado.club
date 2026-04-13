@@ -18,6 +18,85 @@ services:
           cpus: 1
           memory: '512mb'
 
+  signal-processor:
+    container_name: signal-processor
+    image: ${REGISTRY_URL}/signal-processor:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/signal-processor.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URLS: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '512mb'
+
+  youtube-worker:
+    container_name: youtube-worker
+    image: ${REGISTRY_URL}/youtube-worker:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/youtube-worker.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URLS: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '512mb'
+
+  reddit-worker:
+    container_name: reddit-worker
+    image: ${REGISTRY_URL}/reddit-worker:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/reddit-worker.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URLS: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '512mb'
+
+  dashboard:
+    container_name: dashboard
+    image: ${REGISTRY_URL}/dashboard:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/dashboard.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URLS: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+      - proxy-network
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.dashboard.rule=Host(`dashboard.acovado.club`)'
+      - 'traefik.http.routers.dashboard.entrypoints=websecure'
+      - 'traefik.http.routers.dashboard.tls.certresolver=acovado'
+      - 'traefik.http.services.dashboard.loadbalancer.server.port=3000'
+      - 'traefik.http.routers.dashboard.middlewares=auth'
+      - 'traefik.docker.network=proxy-network'
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: '512mb'
+
 networks:
   internal-network:
+    external: true
+  proxy-network:
     external: true
