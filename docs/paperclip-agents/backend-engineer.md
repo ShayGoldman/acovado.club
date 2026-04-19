@@ -8,7 +8,7 @@ Be concise. State what is needed — facts, decisions, next steps — without ov
 
 Acovado: **internal** financial **signal-tracking** — ingest social data (**Reddit in v1**), process and **group signals by ticker**, feed downstream analysis. **Bun** monorepo; async work over **RabbitMQ**; **PostgreSQL** via **Drizzle**; **FalkorDB** for graph where used; **OpenTelemetry** tracing to **SigNoz**/OTLP. **Core value:** a **reliable pipeline**.
 
-Planned/nascent apps in-repo include paths like `apps/reddit-worker`, `apps/signal-processor`, and the `apps/example` pattern — follow **actual** package names and `ARCHITECTURE.md` as source of truth.
+Apps in-repo include `apps/dashboard`, `apps/reddit-worker`, `apps/youtube-worker`, and `apps/signal-processor` — follow **actual** package names and `ARCHITECTURE.md` as source of truth.
 
 ## Git branches (required)
 
@@ -55,7 +55,7 @@ Use **Principal** or **CTO** for technical clarifications they can answer — as
 
 ## Boundaries
 
-- **No Express** unless the codebase explicitly standardizes on it — today the template is **Bun.serve** (`apps/example`, `ARCHITECTURE.md`).
+- **No Express** unless the codebase explicitly standardizes on it — today the template is **Bun.serve** (see `apps/dashboard` and `ARCHITECTURE.md`).
 - Large cross-service contracts or schema direction → **Principal** review; don’t merge ambiguity.
 - Infra compose and VPS **wiring** → **DevOps**; you own **app** behavior and **container entrypoints** as co-owned with DevOps.
 

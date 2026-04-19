@@ -8,9 +8,12 @@ A distributed financial signal-tracking system. Ingests social data (Reddit in v
 
 ## Apps
 
-| Name    | Path             | Description                                               |
-| ------- | ---------------- | --------------------------------------------------------- |
-| example | `./apps/example` | Minimal HTTP service demonstrating logger + tracing usage |
+| Name             | Path                     | Description                                                           |
+| ---------------- | ------------------------ | --------------------------------------------------------------------- |
+| dashboard        | `./apps/dashboard`       | Internal HTTP dashboard — trending ticker API + HTML view             |
+| reddit-worker    | `./apps/reddit-worker`   | Polls Reddit sources and publishes content-item events to RabbitMQ    |
+| youtube-worker   | `./apps/youtube-worker`  | Polls YouTube RSS feeds and publishes content-item events to RabbitMQ |
+| signal-processor | `./apps/signal-processor`| Consumes content-item events, extracts tickers, writes mentions       |
 
 Add new applications under `./apps/<name>` and wire them into `Dockerfile`, `config/compose/docker-compose.apps.yaml`, and `.drone.yml`.
 
@@ -64,7 +67,7 @@ Each infra package has `bun run start` / `stop` / `logs` / `status` scripts wrap
 
 - **Drone** at [ci.acovado.club](https://ci.acovado.club) (badge above): runs on **push to `main`** when the latest commit is a **GitHub merge commit** (see `.drone.yml` step `validate-merge-commit`). Escape hatch: include `[trigger-main-deploy]` in the commit message to trigger on a direct push.
 - **Build**: `Dockerfile` uses `bun build` to bundle each app's entry point into `apps/<name>/dist/index.js`. Production image runs `bun dist/index.js` — not JIT TypeScript.
-- **Registry**: images pushed to `docker-registry.acovado.club` (e.g. image `example`).
+- **Registry**: images pushed to `docker-registry.acovado.club` (e.g. image `dashboard`).
 - **Deploy step**: copies `infra/` to `/srv/volumes/deployment`, then runs `docker compose` for `config/compose/docker-compose.infra.yaml` and `config/compose/docker-compose.apps.yaml` using `COMMIT_HASH` / `REGISTRY_URL` / volume paths from the Drone environment.
 
 ## Production deployment (overview)
@@ -74,7 +77,7 @@ The compose files under `config/compose/` assume:
 - Docker **external networks** `internal-network` and `proxy-network` (managed by Traefik).
 - **Env files** on the host under `/srv/env/` referenced via compose `env_file` entries.
 - **Persistent volumes** under `/srv/volumes/` for Postgres, SigNoz, FalkorDB, etc.
-- App env files such as `/srv/env/example.env` (see `config/compose/docker-compose.apps.yaml`).
+- App env files such as `/srv/env/dashboard.env` (see `config/compose/docker-compose.apps.yaml`).
 
 Do not commit production secrets; keep them only on the server.
 
@@ -86,11 +89,11 @@ Do not commit production secrets; keep them only on the server.
    - `cd infra/falkordb && bun run start`
    - `cd infra/observability && docker compose up -d` (SigNoz — no bun run start script here)
    - **LLM inference (hard dependency):** Ollama must be running locally on `http://localhost:11434` before starting any app that uses `@modules/inference`. The managed Docker service has been removed — install and start Ollama manually (`ollama serve`, then `ollama pull <model>`).
-   - Start only what your app actually uses; `apps/example` requires nothing except optionally the OTel collector.
-2. Copy `apps/example/.env.example` to `apps/example/.env` and set `TRACE_EXPORTER_URLS`.
-3. Run the example app in watch mode:
+   - Start only what your app actually uses.
+2. Copy each app's `.env.example` to `.env` and fill in required values (see each app's `src/env.ts`).
+3. Run apps in watch mode:
    - **Via process-compose**: `process-compose -f ./config/compose/local/process-compose.yml up` (requires [process-compose](https://github.com/F1bonacc1/process-compose))
-   - **Directly**: `cd apps/example && bun run dev`
+   - **Directly**: `cd apps/<name> && bun run dev`
 4. Run tests (optional): `bunx turbo test --filter="@tests/*"`
 
 ### Telemetry
@@ -102,7 +105,7 @@ Do not commit production secrets; keep them only on the server.
 
 ### Resetting local data
 
-Stop Compose stacks, remove Docker volumes for PostgreSQL / RabbitMQ / FalkorDB, restart infra, then re-run migrations (`bun src/migrate.ts` inside `modules/db`). The `apps/example` app does not use a database.
+Stop Compose stacks, remove Docker volumes for PostgreSQL / RabbitMQ / FalkorDB, restart infra, then re-run migrations (`bun src/migrate.ts` inside `modules/db`).
 
 ## Debugging
 

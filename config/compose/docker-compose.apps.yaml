@@ -1,23 +1,6 @@
 name: acovado-apps
 
 services:
-  example:
-    container_name: example
-    image: ${REGISTRY_URL}/example:${COMMIT_HASH}
-    env_file:
-      - ${ENV_FILES_ROOT}/example.env
-    environment:
-      NODE_ENV: production
-      TRACE_EXPORTER_URLS: http://otel-collector:4318/v1/traces
-    restart: unless-stopped
-    networks:
-      - internal-network
-    deploy:
-      resources:
-        limits:
-          cpus: 1
-          memory: '512mb'
-
   signal-processor:
     container_name: signal-processor
     image: ${REGISTRY_URL}/signal-processor:${COMMIT_HASH}
