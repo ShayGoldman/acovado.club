@@ -1,10 +1,10 @@
 import { makeEvent } from '@modules/events';
 import type { Producer } from '@modules/events';
+import { connectToBroker, makeBoundLogger, safeClose } from '@modules/events';
 import { makeId } from '@modules/ids';
 import type { Logger } from '@modules/logger';
 import type { Tracer } from '@modules/tracing';
 import type amqp from 'amqplib';
-import { connectToBroker, makeBoundLogger, safeClose } from '@modules/events';
 import type {
   RedditApiRequest,
   RedditApiRequestEvent,

@@ -1,6 +1,6 @@
-import Z from 'zod';
 import type { Logger } from '@modules/logger';
 import { makeLogger } from '@modules/logger';
+import Z from 'zod';
 
 const redditThreadSchema = Z.object({
   id: Z.string(),

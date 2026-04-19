@@ -1,9 +1,9 @@
 import type { Tracer } from '@modules/tracing';
 import { createClient } from 'redis';
 import type {
+  GraphNodeResult,
   GraphQueryResult,
   GraphQueryStats,
-  GraphNodeResult,
   GraphRelationshipResult,
 } from './types';
 

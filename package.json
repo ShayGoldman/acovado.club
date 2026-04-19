@@ -5,6 +5,7 @@
   "packageManager": "bun@1.1.36",
   "workspaces": ["config/*", "infra/*", "modules/*", "apps/*", "clients/*", "tests/*"],
   "scripts": {
+    "dev:apps": "bunx turbo run dev --filter='./apps/*'",
     "build": "bunx turbo run build",
     "clean": "bunx turbo run clean",
     "format": "bunx biome format --write .",

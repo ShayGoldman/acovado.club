@@ -1,8 +1,8 @@
-import schema from './schema';
 import { type Tracer, injectTraceContext } from '@modules/tracing';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { type BunSQLDatabase, drizzle } from 'drizzle-orm/bun-sql';
 import type { Except } from 'type-fest';
+import schema from './schema';
 
 export type Schema = typeof schema;
 

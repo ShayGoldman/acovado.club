@@ -5,8 +5,8 @@ import type { Logger } from '@modules/logger';
 import { Promise as BluebirdPromise } from 'bluebird';
 import { sql } from 'drizzle-orm';
 
-import { type DBClient, makeDBClient } from './client';
 import type { Tracer } from '@modules/tracing';
+import { type DBClient, makeDBClient } from './client';
 
 export interface MigrationOpts {
   migrationsSchema?: string;
