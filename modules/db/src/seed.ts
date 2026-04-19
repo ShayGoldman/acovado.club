@@ -26,6 +26,7 @@ async function seedTickers() {
     serviceName: 'db-seed',
     exporterUrls: [],
     logExportEnabled: false,
+    logger,
   });
 
   const db = makeDBClient({ url: Env.DATABASE_URL, tracer });

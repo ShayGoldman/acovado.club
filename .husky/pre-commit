@@ -1,3 +1,4 @@
 #!/bin/sh
 
 bunx lint-staged
+bunx turbo run typecheck

@@ -26,6 +26,10 @@
       "cache": false,
       "persistent": true
     },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": ["^typecheck"]
+    },
     "clean": {
       "cache": false
     }

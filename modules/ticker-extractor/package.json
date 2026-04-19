@@ -18,7 +18,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@modules/inference": "workspace:*"
+    "@modules/inference": "workspace:*",
+    "ai": "^6.0.158",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@config/tsconfig": "workspace:*",
