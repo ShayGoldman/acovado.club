@@ -1,7 +1,7 @@
 import { parseEnv } from '@/env';
 import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
-import { makeInferenceClient } from '@modules/inference';
+import { makeClaudeProvider, makeInferenceClient } from '@modules/inference';
 import { makeLogger } from '@modules/logger';
 import { makeTickerExtractor } from '@modules/ticker-extractor';
 import { makeTracer } from '@modules/tracing';
@@ -20,10 +20,10 @@ const tracer = makeTracer({
 
 const db = makeDBClient({ url: Env.DATABASE_URL, tracer });
 const inferenceClient = makeInferenceClient({ db, tracer });
+const claudeProvider = makeClaudeProvider({ apiKey: Env.ANTHROPIC_API_KEY });
 const tickerExtractor = makeTickerExtractor({
   inferenceClient,
-  ollamaBaseUrl: Env.OLLAMA_BASE_URL,
-  model: Env.OLLAMA_MODEL,
+  provider: claudeProvider,
 });
 
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
@@ -41,13 +41,13 @@ const consumer = makeConsumer({
       domain: 'reddit',
       queue: 'signal-processor',
       routingKey: 'post.collected',
-      onMessage: onRedditMessage,
+      onMessage: async () => {},
     },
     {
       domain: 'youtube',
       queue: 'signal-processor',
       routingKey: 'video.collected',
-      onMessage: onYouTubeMessage,
+      onMessage: async () => {},
     },
   ],
 });

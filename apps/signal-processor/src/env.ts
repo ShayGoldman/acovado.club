@@ -7,8 +7,7 @@ export const environmentSchema = Z.object({
   TRACE_EXPORTER_URLS: Z.string()
     .transform((v) => v.split(',').map((s) => s.trim()))
     .pipe(Z.array(Z.string().url())),
-  OLLAMA_BASE_URL: Z.string().url().default('http://localhost:11434'),
-  OLLAMA_MODEL: Z.string().default('gemma3:4b'),
+  ANTHROPIC_API_KEY: Z.string(),
   PORT: Z.coerce.number().positive().default(3001),
 });
 
