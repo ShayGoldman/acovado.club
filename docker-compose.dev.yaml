@@ -174,7 +174,7 @@ services:
       - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
     ports:
       - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP  ← matches TRACE_EXPORTER_URLS in apps/example/.env
+      - "4318:4318" # OTLP HTTP  ← matches TRACE_EXPORTER_URLS in app .env files
     depends_on:
       clickhouse:
         condition: service_healthy

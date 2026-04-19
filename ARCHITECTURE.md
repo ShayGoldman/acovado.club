@@ -21,7 +21,7 @@ Reddit
 
 All apps are Bun processes (HTTP servers or long-running workers) deployed as Docker containers. They communicate asynchronously over RabbitMQ topic exchanges. OpenTelemetry traces flow to SigNoz via the OTLP collector.
 
-> **Note**: Only `apps/example` (a demo HTTP service) exists today. The Reddit worker, signal processor, and inference apps are planned.
+> **Note**: Production apps today are `apps/reddit-worker`, `apps/youtube-worker`, `apps/signal-processor`, and `apps/dashboard`. Additional sources and the inference worker are tracked as future work.
 
 ---
 
@@ -52,22 +52,14 @@ acovado.club/
 
 ## Apps
 
-### `apps/example`
+Each app follows the same structure — Zod-validated env (`src/env.ts`), a single entry point (`src/index.ts`) that wires a logger, tracer, and any required clients, and `SIGTERM`/`SIGINT` shutdown handlers.
 
-Minimal HTTP service demonstrating the platform's logger and tracing patterns. The canonical template for new services.
+- **`apps/reddit-worker`** — cron-driven poller. Fetches new Reddit posts for seeded sources and publishes `content-item.created` events to RabbitMQ.
+- **`apps/youtube-worker`** — cron-driven poller. Fetches new videos from YouTube RSS feeds and publishes `content-item.created` events to RabbitMQ.
+- **`apps/signal-processor`** — event consumer. Reads `content-item.created` events, runs ticker extraction via `@modules/ticker-extractor`, writes `mentions` rows.
+- **`apps/dashboard`** — internal HTTP service. Exposes `GET /health`, `GET /api/trending?window=24h|7d`, and `GET /` (SSR HTML trending view).
 
-- **Entry point**: `src/index.ts` — starts `Bun.serve`, registers `SIGTERM`/`SIGINT` shutdown
-- **Environment** (`src/env.ts`, Zod-validated at startup):
-  - `NODE_ENV` — `development | test | production` (default: `development`)
-  - `PORT` — HTTP port (default: `3000`)
-  - `TRACE_EXPORTER_URLS` — comma-separated OTLP HTTP trace URLs (required)
-- **Routes**:
-  - `GET /health` → `{ status: "ok", service: "example" }`
-  - `GET /` → service metadata and endpoint list
-- **Dependencies**: `@modules/logger`, `@modules/tracing`
-- **Dev inspector**: port `16000` (`bun --inspect=localhost:16000/example`)
-
-**Adding a new app**: Copy `apps/example/`, add a build stage in `Dockerfile` (using `--build-arg APP_PATH=<name>`), add a service in `config/compose/docker-compose.apps.yaml`, and add a build step in `.drone.yml`.
+**Adding a new app**: create `apps/<name>/` mirroring an existing app's layout (`src/index.ts`, `src/env.ts`, `package.json`, `tsconfig.json`), add a service in `config/compose/docker-compose.apps.yaml`, and add a `build-<name>` step in `.drone.yml`.
 
 ---
 
@@ -313,7 +305,7 @@ Production additionally runs Traefik (reverse proxy + TLS) and Portainer (`stats
 Modules are consumed as TypeScript sources at runtime — Bun resolves workspace imports JIT. No pre-compilation step is needed.
 
 ```bash
-cd apps/example && bun run dev   # starts with --watch --inspect
+cd apps/dashboard && bun run dev   # starts with --watch --inspect
 ```
 
 ### Production (Docker)
@@ -327,8 +319,8 @@ The `Dockerfile` uses three stages:
 Production images run the **pre-bundled** output — not JIT TypeScript. This is different from the development workflow.
 
 ```bash
-# Build example image
-docker build --target production --build-arg APP_PATH=example -t example:latest .
+# Build an app image (example: dashboard)
+docker build --target production --build-arg APP_PATH=dashboard -t dashboard:latest .
 ```
 
 ---
@@ -356,7 +348,7 @@ Triggers on push to `main` when commit is a PR merge commit (or has `[trigger-ma
 |------|-------------|
 | `validate-merge-commit` | Guards against non-merge pushes |
 | `pre-build` | Log placeholder |
-| `build-example` | `bun build` → push to `docker-registry.acovado.club/example:${SHA}` |
+| `build-<app>` (parallel: signal-processor, youtube-worker, reddit-worker, dashboard) | `bun build` → push to `docker-registry.acovado.club/<app>:${SHA}` |
 | `post-build` | Log confirmation |
 | `release-versions` | *(commented out — pending GitHub auth fix)* Changeset versioning |
 | `deploy` | `docker compose up` for infra + apps stacks on the VPS |
@@ -391,7 +383,7 @@ Each module validates its own env slice at startup using Zod schemas in `src/env
 
 ## Adding a New Service
 
-1. Create `apps/<name>/` mirroring `apps/example/` (`src/index.ts`, `src/env.ts`, `package.json`, `tsconfig.json`).
+1. Create `apps/<name>/` mirroring an existing app's layout (`src/index.ts`, `src/env.ts`, `package.json`, `tsconfig.json`).
 2. Wire in `@modules/logger` and `@modules/tracing`; add any other needed modules.
 3. Add a `Dockerfile` build stage (`--build-arg APP_PATH=<name>`).
 4. Add a service in `config/compose/docker-compose.apps.yaml`.

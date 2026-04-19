@@ -135,8 +135,11 @@ A distributed financial signal-tracking system running on a self-hosted VPS. It 
 - **Config** (`config/`) — Shared tsconfig bases, Docker Compose merge files, deploy scripts.
 - **Tests** (`tests/`) — E2E and simulation test suites.
 
-## Current App
-- `apps/example` — minimal HTTP demo. Routes: `GET /health`, `GET /`. Env: `NODE_ENV`, `PORT`, `TRACE_EXPORTER_URLS`.
+## Apps
+- `apps/dashboard` — internal dashboard HTTP API (trending tickers, HTML view).
+- `apps/reddit-worker` — Reddit polling cron, publishes content-item events.
+- `apps/youtube-worker` — YouTube RSS polling cron, publishes content-item events.
+- `apps/signal-processor` — consumes content-item events, extracts tickers, writes mentions.
 
 ## Modules Quick Reference
 

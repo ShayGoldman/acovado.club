@@ -14,7 +14,7 @@
 
 ### Usage snippet
 
-`exporterUrls` is a **list** of OTLP HTTP trace endpoint URLs (each ending with `/v1/traces`). In apps, split a comma-separated env var (see `apps/example`).
+`exporterUrls` is a **list** of OTLP HTTP trace endpoint URLs (each ending with `/v1/traces`). In apps, split a comma-separated env var (see any app's `src/env.ts`).
 
 ```ts
 import { makeLogger } from '@modules/logger';
