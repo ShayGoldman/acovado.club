@@ -40,11 +40,10 @@ flowchart LR
 
 | Step | Output |
 |------|--------|
-| `build-example` | `docker-registry.acovado.club/example:${SHA}` |
 | `build-signal-processor` | `docker-registry.acovado.club/signal-processor:${SHA}` |
 | `build-youtube-worker` | `docker-registry.acovado.club/youtube-worker:${SHA}` |
-| `build-reddit-worker` *(pending)* | `docker-registry.acovado.club/reddit-worker:${SHA}` — commented out until `apps/reddit-worker/src/index.ts` exists |
-| `build-dashboard` *(pending)* | `docker-registry.acovado.club/dashboard:${SHA}` — commented out until `apps/dashboard` is scaffolded |
+| `build-reddit-worker` | `docker-registry.acovado.club/reddit-worker:${SHA}` |
+| `build-dashboard` | `docker-registry.acovado.club/dashboard:${SHA}` |
 
 All app images are built in parallel from the monorepo `Dockerfile` (`--build-arg APP_PATH=<name>`). `docker-compose.apps.yaml` references all images (`COMMIT_HASH` must match the build).
 
@@ -84,7 +83,7 @@ These are **not** in the monorepo compose files but run on the server and are re
 Shared Docker networks (used by Traefik and compose stacks):
 
 - **`proxy-network`** — external, for HTTPS routes (Signoz, RabbitMQ UI, stats, etc.).
-- **`internal-network`** — external, for app ↔ infra (Postgres, OTel, `example`, …).
+- **`internal-network`** — external, for app ↔ infra (Postgres, OTel, pipeline apps, …).
 
 Env files live under **`/srv/env/`**. Required files:
 
@@ -93,7 +92,6 @@ Env files live under **`/srv/env/`**. Required files:
 | `postgres.env` | `prepare-vps-for-cd.sh` (stub; change in prod) |
 | `rabbitmq.env` | `prepare-vps-for-cd.sh` (auto-random password) |
 | `falkordb.env` | `prepare-vps-for-cd.sh` (auto-random password) |
-| `example.env` | `prepare-vps-for-cd.sh` (stub) |
 | `signal-processor.env` | `prepare-vps-for-cd.sh` (stub — operator must fill DB/AMQP creds) |
 | `youtube-worker.env` | `prepare-vps-for-cd.sh` (stub — operator must fill DB/AMQP creds) |
 | `reddit-worker.env` | `prepare-vps-for-cd.sh` (stub — **operator must fill Reddit API credentials**) |
@@ -107,11 +105,11 @@ Persistent data under **`/srv/volumes/`** (e.g. `postgres-data`, `signoz-*`, `fa
 
 ## One-time host preparation
 
-Before the **first** successful deploy from the current repo layout (Signoz, `example` app, etc.), the host may need:
+Before the **first** successful deploy from the current repo layout (Signoz, pipeline apps, etc.), the host may need:
 
 - Networks and volume directories
 - Legacy containers removed (old Metabase/Tempo/old collector) so names and ports do not conflict
-- **`example.env`** and any missing service env files
+- Any missing service env files
 
 The repo includes **`config/deploy/prepare-vps-for-cd.sh`** for that purpose (run as root on the VPS). It is idempotent where safe and does **not** overwrite a non-empty `postgres.env` / `rabbitmq.env`.
 
@@ -128,11 +126,10 @@ sudo bash config/deploy/prepare-vps-for-cd.sh
 
 | Container | Image | Env file | Notes |
 |-----------|-------|----------|-------|
-| `example` | `${REGISTRY_URL}/example:${COMMIT_HASH}` | `example.env` | Scaffold / health probe |
 | `signal-processor` | `${REGISTRY_URL}/signal-processor:${COMMIT_HASH}` | `signal-processor.env` | AMQP consumer; Reddit + YouTube signal extraction |
 | `youtube-worker` | `${REGISTRY_URL}/youtube-worker:${COMMIT_HASH}` | `youtube-worker.env` | YouTube RSS poller |
-| `reddit-worker` | `${REGISTRY_URL}/reddit-worker:${COMMIT_HASH}` | `reddit-worker.env` | Reddit poller — **image build pending** (`src/index.ts` missing) |
-| `dashboard` | `${REGISTRY_URL}/dashboard:${COMMIT_HASH}` | `dashboard.env` | REST API + Traefik ingress — **app not yet scaffolded** |
+| `reddit-worker` | `${REGISTRY_URL}/reddit-worker:${COMMIT_HASH}` | `reddit-worker.env` | Reddit poller |
+| `dashboard` | `${REGISTRY_URL}/dashboard:${COMMIT_HASH}` | `dashboard.env` | REST API + Traefik ingress |
 
 All pipeline services connect to `internal-network`; `dashboard` additionally joins `proxy-network` for Traefik TLS ingress at `dashboard.acovado.club`.
 
@@ -152,7 +149,7 @@ If the **`release-versions`** step runs (pending changesets), it may commit vers
 2. **VPS**: Traefik + Drone + registry are up; **`/srv/env`** has the needed `*.env` files; **`prepare-vps-for-cd.sh`** already run if this is the first greenfield deploy.
 3. **Merge to `main` via GitHub PR** (so the merge commit exists → Drone runs), **or** push to `main` with **`[trigger-main-deploy]`** in the commit message (escape hatch).
 4. **Watch** [ci.acovado.club](https://ci.acovado.club): build → push → **deploy** green.
-5. **Smoke test**: `example` healthy path (internal or via future ingress), **`stats.acovado.club`** once **`stats`** is up, Signoz UI if exposed.
+5. **Smoke test**: pipeline containers healthy (`signal-processor`, `youtube-worker`, `reddit-worker`, `dashboard`), **`stats.acovado.club`** once **`stats`** is up, Signoz UI if exposed.
 
 ---
 
