@@ -16,13 +16,18 @@ export interface MakeClaudeProviderOpts {
  * Reads OLLAMA_BASE_URL and OLLAMA_MODEL from environment if opts not provided.
  */
 export function makeOllamaProvider(opts: MakeOllamaProviderOpts = {}) {
-  const baseUrl = opts.baseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
-  const modelId = opts.model ?? process.env.OLLAMA_MODEL ?? 'gemma3:4b';
+  const baseUrl =
+    opts.baseUrl ?? process.env['OLLAMA_BASE_URL'] ?? 'http://localhost:11434';
+  const modelId = opts.model ?? process.env['OLLAMA_MODEL'] ?? 'gemma3:4b';
 
-  const ollama = createOpenAICompatible({ name: 'ollama', baseURL: `${baseUrl}/v1` });
+  const ollama = createOpenAICompatible({
+    name: 'ollama',
+    baseURL: `${baseUrl}/v1`,
+    supportsStructuredOutputs: true,
+  });
 
   return {
-    model: ollama(modelId, { supportsStructuredOutputs: true }),
+    model: ollama(modelId),
     modelId,
   };
 }
@@ -32,10 +37,10 @@ export function makeOllamaProvider(opts: MakeOllamaProviderOpts = {}) {
  * Reads ANTHROPIC_API_KEY from environment if opts not provided.
  */
 export function makeClaudeProvider(opts: MakeClaudeProviderOpts = {}) {
-  const apiKey = opts.apiKey ?? process.env.ANTHROPIC_API_KEY;
+  const apiKey = opts.apiKey ?? process.env['ANTHROPIC_API_KEY'];
   const modelId = opts.model ?? 'claude-haiku-4-5-20251001';
 
-  const anthropic = createAnthropic({ apiKey });
+  const anthropic = createAnthropic({ ...(apiKey !== undefined ? { apiKey } : {}) });
 
   return {
     model: anthropic(modelId),

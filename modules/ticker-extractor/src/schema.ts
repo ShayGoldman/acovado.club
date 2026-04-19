@@ -5,11 +5,11 @@ export const TickerMentionSchema = z.preprocess(
     if (typeof data !== 'object' || data === null) return data;
     const d = data as Record<string, unknown>;
     return {
-      symbol: d.symbol ?? d.ticker ?? '',
-      companyName: d.companyName ?? d.company ?? '',
-      confidence: d.confidence ?? 0,
-      isExplicit: d.isExplicit ?? false,
-      context: d.context ?? '',
+      symbol: d['symbol'] ?? d['ticker'] ?? '',
+      companyName: d['companyName'] ?? d['company'] ?? '',
+      confidence: d['confidence'] ?? 0,
+      isExplicit: d['isExplicit'] ?? false,
+      context: d['context'] ?? '',
     };
   },
   z.object({

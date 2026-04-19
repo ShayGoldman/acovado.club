@@ -21,6 +21,9 @@
       },
       "performance": {
         "noAccumulatingSpread": "off"
+      },
+      "complexity": {
+        "useLiteralKeys": "off"
       }
     }
   },
@@ -49,7 +52,9 @@
       "**/.turbo",
       "*.lockb",
       ".vscode",
-      "**/.vscode"
+      "**/.vscode",
+      ".claude",
+      "**/.claude"
     ]
   }
 }

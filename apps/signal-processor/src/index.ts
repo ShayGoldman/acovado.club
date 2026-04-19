@@ -1,12 +1,8 @@
 import { parseEnv } from '@/env';
-import { makeDBClient, makeMigrateDB } from '@modules/db';
+import { makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
-import { makeClaudeProvider, makeInferenceClient } from '@modules/inference';
 import { makeLogger } from '@modules/logger';
-import { makeTickerExtractor } from '@modules/ticker-extractor';
 import { makeTracer } from '@modules/tracing';
-import { makeMessageHandler } from './handler';
-import { makeYouTubeMessageHandler } from './youtube-handler';
 
 const Env = parseEnv(process.env);
 
@@ -18,18 +14,7 @@ const tracer = makeTracer({
   logger,
 });
 
-const db = makeDBClient({ url: Env.DATABASE_URL, tracer });
-const inferenceClient = makeInferenceClient({ db, tracer });
-const claudeProvider = makeClaudeProvider({ apiKey: Env.ANTHROPIC_API_KEY });
-const tickerExtractor = makeTickerExtractor({
-  inferenceClient,
-  provider: claudeProvider,
-});
-
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
-
-const onRedditMessage = makeMessageHandler({ db, tickerExtractor, tracer });
-const onYouTubeMessage = makeYouTubeMessageHandler({ db, tickerExtractor, tracer });
 
 const consumer = makeConsumer({
   broker: Env.RABBITMQ_URL,
