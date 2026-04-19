@@ -3,7 +3,7 @@
 import type { Logger } from '@modules/logger';
 import type { Tracer } from '@modules/tracing'; // Use custom Tracing
 import type { Primitive } from '@modules/types';
-import type amqp from 'amqplib';
+import type { Channel, ChannelModel } from 'amqplib';
 import { makeTracingDecorator } from './tracing-decorator';
 import {
   connectToBroker,
@@ -28,8 +28,8 @@ interface SendMessageOpts {
 export type Producer = ReturnType<typeof makeProducer>;
 
 export function makeProducer({ broker, logger, tracing }: MakeEventsProducerOpts) {
-  let connection: amqp.Connection | null = null;
-  let channel: amqp.Channel | null = null;
+  let connection: ChannelModel | null = null;
+  let channel: Channel | null = null;
   const boundLogger = makeBoundLogger(logger);
 
   const tracingDecorator = makeTracingDecorator({

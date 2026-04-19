@@ -4,7 +4,7 @@ import { connectToBroker, makeBoundLogger, safeClose } from '@modules/events';
 import { makeId } from '@modules/ids';
 import type { Logger } from '@modules/logger';
 import type { Tracer } from '@modules/tracing';
-import type amqp from 'amqplib';
+import type { Channel, ChannelModel } from 'amqplib';
 import type {
   RedditApiRequest,
   RedditApiRequestEvent,
@@ -31,8 +31,8 @@ export function makeRedditApiQueueClient(opts: MakeRedditApiQueueClientOpts) {
   const { broker, logger, tracer, producer } = opts;
   const boundLogger = makeBoundLogger(logger);
   const callbacks = new Map<string, Callback<any>>();
-  let connection: amqp.Connection | null = null;
-  let responseChannel: amqp.Channel | null = null;
+  let connection: ChannelModel | null = null;
+  let responseChannel: Channel | null = null;
   let responseConsumerTag: string | null = null;
   const domain = 'reddit';
   const responseQueueName = `${domain}:api-call-responses`;
@@ -51,30 +51,23 @@ export function makeRedditApiQueueClient(opts: MakeRedditApiQueueClientOpts) {
         throw new Error('Failed to establish RabbitMQ connection');
       }
 
-      responseChannel = await connection.createChannel();
+      const channel = await connection.createChannel();
+      responseChannel = channel;
       const exchange = `${domain}.exchange`;
 
-      await responseChannel.assertExchange(exchange, 'topic', { durable: true });
-      await responseChannel.assertQueue(responseQueueName, {
+      await channel.assertExchange(exchange, 'topic', { durable: true });
+      await channel.assertQueue(responseQueueName, {
         durable: false,
         autoDelete: true,
       });
 
       // Bind to all response routing keys
-      await responseChannel.bindQueue(
-        responseQueueName,
-        exchange,
-        'reddit.api-call.*.succeeded',
-      );
-      await responseChannel.bindQueue(
-        responseQueueName,
-        exchange,
-        'reddit.api-call.*.failed',
-      );
+      await channel.bindQueue(responseQueueName, exchange, 'reddit.api-call.*.succeeded');
+      await channel.bindQueue(responseQueueName, exchange, 'reddit.api-call.*.failed');
 
-      await responseChannel.prefetch(1);
+      await channel.prefetch(1);
 
-      const consumeResult = await responseChannel.consume(
+      const consumeResult = await channel.consume(
         responseQueueName,
         async (msg) => {
           if (!msg) return;
@@ -114,10 +107,10 @@ export function makeRedditApiQueueClient(opts: MakeRedditApiQueueClientOpts) {
               );
             }
 
-            responseChannel?.ack(msg);
+            channel.ack(msg);
           } catch (error) {
             ctx.log.error({ error }, 'Error processing response message');
-            responseChannel?.nack(msg, false, false);
+            channel.nack(msg, false, false);
           }
         },
         { noAck: false },

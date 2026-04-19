@@ -134,8 +134,8 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
       return tracer.with(`Consume message from ${queue}`, opts, async (context) => {
         try {
           await handler(message, context);
-        } catch (error: any) {
-          context.log.error('Error processing message', { error: error.message });
+        } catch (error: unknown) {
+          context.log.error({ error }, 'Error processing message');
           throw error;
         }
       });
@@ -181,8 +181,8 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
         async (context) => {
           try {
             await send(domain, routingKey, messages, { headers: tracedHeaders });
-          } catch (error: any) {
-            context.log.error('Error publishing message', { error: error.message });
+          } catch (error: unknown) {
+            context.log.error({ error }, 'Error publishing message');
             throw error;
           }
         },

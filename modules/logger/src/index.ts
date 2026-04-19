@@ -1,10 +1,10 @@
-import { pino } from 'pino';
+import pino, { type Level, stdSerializers } from 'pino';
 
 export type Logger = ReturnType<typeof pino>;
 
 export interface LoggerOpts {
   name: string;
-  level?: pino.Level;
+  level?: Level;
   bindings?: Record<string, any>;
   /** Defaults to true when NODE_ENV is not `production` (human-readable local output). */
   pretty?: boolean;
@@ -19,8 +19,8 @@ export function makeLogger(opts: LoggerOpts): Logger {
     base: opts.bindings || {},
 
     serializers: {
-      err: pino.stdSerializers.errWithCause,
-      error: pino.stdSerializers.errWithCause,
+      err: stdSerializers.errWithCause,
+      error: stdSerializers.errWithCause,
     },
 
     ...(usePrettyTransport

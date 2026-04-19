@@ -2,7 +2,7 @@
 
 import type { Logger } from '@modules/logger';
 import type { Context, Tracer } from '@modules/tracing'; // Use custom Tracer
-import type amqp from 'amqplib';
+import type { Channel, ChannelModel } from 'amqplib';
 import type { KebabCase } from 'type-fest';
 import { makeTracingDecorator } from './tracing-decorator';
 import type { Message } from './types';
@@ -40,9 +40,9 @@ export function makeConsumer({
   tracing,
   prefetch,
 }: MakeEventsConsumerOpts) {
-  let connection: amqp.Connection | null = null;
+  let connection: ChannelModel | null = null;
   const handlerList = Array.isArray(handlers) ? handlers : [handlers];
-  const channels: Map<string, amqp.Channel> = new Map();
+  const channels: Map<string, Channel> = new Map();
   const boundLogger = makeBoundLogger(logger);
 
   const tracingDecorator = makeTracingDecorator({

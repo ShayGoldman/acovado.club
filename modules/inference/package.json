@@ -20,6 +20,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.69",
     "@ai-sdk/openai-compatible": "^2.0.41",
+    "@ai-sdk/provider": "^3.0.8",
     "@modules/db": "workspace:*",
     "@modules/tracing": "workspace:*",
     "ai": "^6.0.158"
