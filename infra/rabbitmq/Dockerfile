@@ -9,7 +9,7 @@ RUN apt-get update && \
 
 # Download and enable delayed message exchange plugin
 USER rabbitmq
-RUN PLUGIN_VERSION="3.13.0" && \
+RUN PLUGIN_VERSION="4.2.0" && \
     curl -L -o /opt/rabbitmq/plugins/rabbitmq_delayed_message_exchange-${PLUGIN_VERSION}.ez \
       https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v${PLUGIN_VERSION}/rabbitmq_delayed_message_exchange-${PLUGIN_VERSION}.ez && \
     rabbitmq-plugins enable --offline rabbitmq_delayed_message_exchange

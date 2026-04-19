@@ -2,9 +2,11 @@
 # Local developer stack — all required services in one command:
 #   docker compose -f docker-compose.dev.yaml up -d
 #
-# Services: PostgreSQL, RabbitMQ, FalkorDB, Ollama (gemma3:4b), SigNoz (OTel)
+# Services: PostgreSQL, RabbitMQ, FalkorDB, SigNoz (OTel)
 #
-# Ollama model pull happens at startup; first run takes time depending on bandwidth.
+# NOTE: LLM inference requires a locally running Ollama instance (http://localhost:11434).
+#       The managed inference-model Docker service has been removed — start Ollama manually
+#       before running any apps that depend on it (e.g. `ollama serve`).
 # SigNoz UI: http://localhost:8080
 # OTel collector (OTLP HTTP): http://localhost:4318
 
@@ -59,27 +61,6 @@ services:
       - "3000:3000"   # FalkorDB Browser
     volumes:
       - falkordb-data:/data
-
-  # ── LLM inference ──────────────────────────────────────────────────────────
-
-  inference-model:
-    extends:
-      file: infra/inference-model/docker-compose.base.yaml
-      service: inference-model
-    ports:
-      - "11434:11434"
-    environment:
-      OLLAMA_HOST: 0.0.0.0:11434
-    entrypoint: ["/bin/sh", "-c"]
-    # Pulls gemma3:4b on first start; subsequent starts skip if cached
-    command:
-      - |
-        ollama serve &
-        sleep 10
-        ollama pull gemma3:4b || echo "Model pull failed or already exists"
-        wait
-    volumes:
-      - inference-model-data:/root/.ollama
 
   # ── Observability (SigNoz) ─────────────────────────────────────────────────
 
@@ -206,7 +187,6 @@ volumes:
   postgres-data:
   rabbitmq-data:
   falkordb-data:
-  inference-model-data:
   signoz-clickhouse:
   signoz-sqlite:
   signoz-zookeeper:

@@ -1,3 +1,4 @@
+# Run from repo root: process-compose -f ./config/compose/local/process-compose.yml up
 version: '0.5'
 
 processes:
@@ -7,3 +8,31 @@ processes:
     command: bun run dev
     env_file:
       - apps/example/.env
+
+  dashboard:
+    namespace: acovado-apps
+    working_dir: apps/dashboard
+    command: bun run dev
+    env_file:
+      - apps/dashboard/.env
+
+  signal-processor:
+    namespace: acovado-apps
+    working_dir: apps/signal-processor
+    command: bun run dev
+    env_file:
+      - apps/signal-processor/.env
+
+  reddit-worker:
+    namespace: acovado-apps
+    working_dir: apps/reddit-worker
+    command: bun run dev
+    env_file:
+      - apps/reddit-worker/.env
+
+  youtube-worker:
+    namespace: acovado-apps
+    working_dir: apps/youtube-worker
+    command: bun run dev
+    env_file:
+      - apps/youtube-worker/.env
