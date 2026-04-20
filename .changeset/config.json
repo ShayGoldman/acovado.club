@@ -4,7 +4,7 @@
   "access": "restricted",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@apps/*", "@modules/*", "@clients/*", "@tests/*", "@infra/*", "@config/*"],
+  "ignore": ["@clients/*", "@tests/*", "@infra/*", "@config/*"],
   "changelog": [
     "@changesets/changelog-github",
     {
