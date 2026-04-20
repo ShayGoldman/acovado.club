@@ -1,12 +1,18 @@
 # Workspace packages under modules/ stay TypeScript sources (no per-package dist).
 # The app `bun build` compiles the entrypoint and inlines workspace imports into apps/<name>/dist/.
 # Apps import via workspace protocol, e.g. import { makeLogger } from '@modules/logger';
-FROM oven/bun:1-alpine AS dependencies
+#
+# BASE_IMAGE defaults to the alpine Bun image used by every existing worker. Apps
+# that need Playwright (e.g. news-worker) override BASE_IMAGE=oven/bun:1 (Debian)
+# because Playwright's bundled Chromium is built against glibc.
+ARG BASE_IMAGE=oven/bun:1-alpine
+
+FROM ${BASE_IMAGE} AS dependencies
 WORKDIR /usr/src/app
 COPY . ./
 RUN bun install --frozen-lockfile --ignore-scripts
 
-FROM oven/bun:1-alpine AS app-builder
+FROM ${BASE_IMAGE} AS app-builder
 WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=dependencies /usr/src/app ./
@@ -15,7 +21,7 @@ RUN test -f ./modules/db/src/migrations/meta/_journal.json || \
 WORKDIR /usr/src/app/apps/${APP_PATH}
 RUN bun run build
 
-FROM oven/bun:1-alpine AS production
+FROM ${BASE_IMAGE} AS production
 WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=app-builder /usr/src/app/apps/${APP_PATH}/dist ./dist
@@ -24,6 +30,17 @@ COPY --from=app-builder /usr/src/app/modules/db/src/migrations ./modules/db/src/
 ENV NODE_ENV=production
 ARG COMMIT_SHA
 ENV COMMIT_SHA=$COMMIT_SHA
+
+# Optional Playwright browser install. Empty by default — the conditional is a
+# no-op for every existing app (byte-identical images). News-worker passes
+# PLAYWRIGHT_BROWSERS=chromium to opt in.
+ARG PLAYWRIGHT_BROWSERS=""
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/src/app/.playwright
+USER root
+RUN if [ -n "$PLAYWRIGHT_BROWSERS" ]; then \
+      bunx playwright install --with-deps $PLAYWRIGHT_BROWSERS && \
+      chown -R bun:bun "$PLAYWRIGHT_BROWSERS_PATH"; \
+    fi
 USER bun
 EXPOSE 3000
 CMD ["bun", "run", "dist/index.js"]

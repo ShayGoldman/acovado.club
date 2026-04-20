@@ -52,6 +52,25 @@ services:
           cpus: 1
           memory: '512mb'
 
+  news-worker:
+    container_name: news-worker
+    image: ${REGISTRY_URL}/news-worker:${COMMIT_HASH}
+    env_file:
+      - ${ENV_FILES_ROOT}/news-worker.env
+    environment:
+      NODE_ENV: production
+      TRACE_EXPORTER_URLS: http://otel-collector:4318/v1/traces
+    restart: unless-stopped
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          # 1024mb (double the other workers) — a live Chromium process sits in RSS.
+          # Tune down in M5 hardening if V3 shows comfortable headroom.
+          memory: '1024mb'
+
   dashboard:
     container_name: dashboard
     image: ${REGISTRY_URL}/dashboard:${COMMIT_HASH}
