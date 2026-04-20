@@ -12,7 +12,7 @@ export function makeTickerExtractor({
 
     const prompt = buildPrompt(text);
 
-    return inferenceClient.invoke<TickerMention[]>({
+    const mentions = await inferenceClient.invoke<TickerMention[]>({
       name: 'extract-tickers',
       model: provider.modelId,
       config: { format: 'json', temperature: 0 },
@@ -27,7 +27,7 @@ export function makeTickerExtractor({
         });
 
         return object.mentions.map((mention) => ({
-          symbol: mention.symbol.toUpperCase(),
+          symbol: mention.symbol,
           confidence: mention.confidence,
           isExplicit: mention.isExplicit,
           context: mention.context,
@@ -35,6 +35,8 @@ export function makeTickerExtractor({
       },
       retry: { maxAttempts: 2 },
     });
+
+    return mentions.map((m) => ({ ...m, symbol: m.symbol.toUpperCase() }));
   }
 
   return { extractTickers };

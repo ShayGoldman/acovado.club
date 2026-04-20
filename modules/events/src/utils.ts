@@ -2,13 +2,13 @@ import { makeMessageId } from '@modules/ids';
 import type { Logger } from '@modules/logger';
 import { context, trace } from '@opentelemetry/api';
 import { connect } from 'amqplib';
-import type { Channel, ChannelModel } from 'amqplib';
+import type { Channel, Connection } from 'amqplib';
 import type { MessageMetadata } from './types';
 
 export async function connectToBroker(
   broker: string,
   logger: Logger,
-): Promise<ChannelModel> {
+): Promise<Connection> {
   try {
     const connection = await connect(broker, { frameMax: 131072 });
     logger.info({ event: 'rabbitmq.connected' }, 'Connected to RabbitMQ');
@@ -36,7 +36,7 @@ export async function safeClose(
 }
 
 export async function initializeChannel(
-  connection: ChannelModel,
+  connection: Connection,
   domain: string,
   queue: string,
   routingKey: string,
