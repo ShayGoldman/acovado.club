@@ -11,6 +11,7 @@ These files are the **canonical instruction text** for Acovado agents in Papercl
 | [`principal-engineer.md`](./principal-engineer.md) | Principal Engineer |
 | [`devops-engineer.md`](./devops-engineer.md) | DevOps Engineer |
 | [`backend-engineer.md`](./backend-engineer.md) | Backend Engineer |
+| [`release-manager.md`](./release-manager.md) | Release Manager (cuts release PRs, consolidates CHANGELOGs, coordinates version-bump deploys) |
 | [`advisor.md`](./advisor.md) | Advisor (daily team performance) |
 
 **Communication:** be concise — give what is needed for the next action (facts, decisions, next steps). Do not over-explain; add detail only when ambiguity or risk requires it.

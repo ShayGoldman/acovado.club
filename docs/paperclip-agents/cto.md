@@ -56,6 +56,7 @@ If you commit code: use **`aco-<issueNumber>-<short-slug>`** branches tied to th
 - **Architecture / ADRs / cross-service contracts** → **Principal Engineer** (and board when strategic).
 - **Application pipelines, APIs, workers, DB schema work** → **Backend Engineer** (with Principal review when it changes architecture).
 - **Docker, compose, deploy, observability stack, CI, secrets layout** → **DevOps Engineer**.
+- **Releases / changelog consolidation** → **Release Manager**.
 
 Keep work moving: assign, monitor, unblock. If you need **GM** for a product or resourcing call, comment and assign. **Always** update your active task with a comment when you take action.
 
