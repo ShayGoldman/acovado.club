@@ -18,6 +18,7 @@ WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=app-builder /usr/src/app/apps/${APP_PATH}/dist ./dist
 COPY --from=app-builder /usr/src/app/node_modules ./node_modules
+COPY --from=app-builder /usr/src/app/modules/db/src/migrations ./modules/db/src/migrations
 ENV NODE_ENV=production
 USER bun
 EXPOSE 3000
