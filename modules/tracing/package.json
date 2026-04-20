@@ -1,5 +1,6 @@
 {
   "name": "@modules/tracing",
+  "version": "0.1.0",
   "private": true,
   "description": "",
   "type": "module",
