@@ -3,6 +3,10 @@ import { getTrending, parseWindow } from '@/trending';
 import { makeDBClient } from '@modules/db';
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
+import pkg from '../package.json' with { type: 'json' };
+
+const VERSION = pkg.version;
+const COMMIT = Bun.env['COMMIT_SHA'] ?? 'unknown';
 
 const Env = parseEnv(process.env);
 
@@ -87,7 +91,12 @@ const server = Bun.serve({
       return tracer.with('GET /health', async (ctx) => {
         ctx.annotate('http.route', '/health');
         ctx.log.info({ method: req.method }, 'health check');
-        return Response.json({ status: 'ok', service: 'dashboard' });
+        return Response.json({
+          status: 'ok',
+          service: 'dashboard',
+          version: VERSION,
+          commit: COMMIT,
+        });
       });
     }
 
