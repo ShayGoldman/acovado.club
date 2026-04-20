@@ -154,7 +154,7 @@ export function makeMigrateDB({ url, opts, tracer }: MakeMigrateDBOpts) {
       const migrationsTable = opts?.migrationsTable ?? '__migrations__';
       const concurrentHashes = opts?.concurrentHashes ?? 10;
 
-      const migrationsFolder = path.resolve(__dirname, './migrations');
+      const migrationsFolder = path.resolve(process.cwd(), 'modules/db/src/migrations');
       ctx.log.info('Migrating Database...');
 
       ctx.log.debug(
