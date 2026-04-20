@@ -115,7 +115,7 @@ Run any app with `bun run dev` — it passes `--inspect=localhost:16000/<name>` 
 
 - Clone the repo and create a feature branch using [Conventional Commits](https://www.conventionalcommits.org/) naming.
 - Use `bun commit` (commitizen) for structured commit messages — this is enforced by the `commit-msg` hook.
-- Use `bun changeset` to document changelog-worthy changes; changesets are tracked in `CHANGELOG.md`.
+- Use `bun changeset` to document changelog-worthy changes — each app and module carries its own `version` and `CHANGELOG.md`. See [`.changeset/README.md`](./.changeset/README.md) for when to add a changeset, how to pick a bump type, and when to coordinate with Principal on `major` bumps. **Do not** run `bun changeset:version` — that is the Release Manager's job, executed on a dedicated `release/YYYY-MM-DD` PR per [`docs/paperclip-agents/release-manager.md`](./docs/paperclip-agents/release-manager.md).
 - Code quality:
   - `bun check` — lint + format (Biome)
   - `bun lint` — lint only

@@ -3,6 +3,10 @@ import { makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
+import pkg from '../package.json' with { type: 'json' };
+
+const VERSION = pkg.version;
+const COMMIT = Bun.env['COMMIT_SHA'] ?? 'unknown';
 
 const Env = parseEnv(process.env);
 
@@ -47,7 +51,12 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
     if (url.pathname === '/health') {
-      return Response.json({ status: 'ok', service: 'signal-processor' });
+      return Response.json({
+        status: 'ok',
+        service: 'signal-processor',
+        version: VERSION,
+        commit: COMMIT,
+      });
     }
     return new Response('Not found', { status: 404 });
   },

@@ -66,7 +66,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --target production --build-arg APP_PATH=signal-processor -t $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --target production --build-arg APP_PATH=signal-processor --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA} $${SIGNAL_PROCESSOR_IMAGE}:latest
       - docker push $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${SIGNAL_PROCESSOR_IMAGE}:latest
@@ -83,7 +83,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --target production --build-arg APP_PATH=youtube-worker -t $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --target production --build-arg APP_PATH=youtube-worker --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${YOUTUBE_WORKER_IMAGE}:latest
       - docker push $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${YOUTUBE_WORKER_IMAGE}:latest
@@ -100,7 +100,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --target production --build-arg APP_PATH=reddit-worker -t $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --target production --build-arg APP_PATH=reddit-worker --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${REDDIT_WORKER_IMAGE}:latest
       - docker push $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${REDDIT_WORKER_IMAGE}:latest
@@ -117,7 +117,7 @@ steps:
       - name: docker-cache
         path: /var/lib/docker
     commands:
-      - docker build --target production --build-arg APP_PATH=dashboard -t $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker build --target production --build-arg APP_PATH=dashboard --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} .
       - docker tag $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} $${DASHBOARD_IMAGE}:latest
       - docker push $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${DASHBOARD_IMAGE}:latest

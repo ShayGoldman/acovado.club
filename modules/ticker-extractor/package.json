@@ -1,5 +1,6 @@
 {
   "name": "@modules/ticker-extractor",
+  "version": "0.1.0",
   "private": true,
   "description": "LLM-based ticker extraction from text using @modules/inference",
   "type": "module",

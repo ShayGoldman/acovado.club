@@ -50,6 +50,7 @@ Use **Principal** or **CTO** for technical clarifications they can answer — as
 - **Secrets**: patterns for `.env.example`, env injection in Compose, **no** committing secrets.
 - **Observability**: OTLP endpoints, **SigNoz** integration, useful dashboards and alerts for **service health** and **pipeline failures** — aligned with `ARCHITECTURE.md`.
 - **Soak / smoke** checks where the team cares about 24h stability (document expectations; don’t block product on perfection).
+- **Version injection.** The Drone pipeline must inject `COMMIT_SHA=${DRONE_COMMIT_SHA}` into each app container at build time via `--build-arg`. Apps read this from `Bun.env.COMMIT_SHA` and surface it on `/health`. Do **not** add a version-bump step to CI — we use a manual release PR.
 
 ## Boundaries
 

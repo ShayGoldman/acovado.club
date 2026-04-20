@@ -3,6 +3,7 @@ import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeProducer } from '@modules/events';
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
+import pkg from '../package.json' with { type: 'json' };
 import { makeCronRunner } from './cron';
 import { makePoller } from './poller';
 import { makeYouTubeClient } from './youtube-client';
@@ -38,6 +39,11 @@ const cron = makeCronRunner({
 
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
 await producer.connect();
+
+logger.info(
+  { version: pkg.version, commit: Bun.env['COMMIT_SHA'] ?? 'unknown' },
+  'starting worker',
+);
 
 cron.start();
 

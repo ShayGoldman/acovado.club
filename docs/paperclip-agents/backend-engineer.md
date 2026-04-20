@@ -52,6 +52,7 @@ Use **Principal** or **CTO** for technical clarifications they can answer — as
 - Use **factory** clients (`makeDBClient`, `makeProducer`, etc.) and **tracer.with** / structured logging per repo conventions (see `.cursor/rules/code-style.mdc`).
 - **Zod**-validated `env.ts` at startup; **no** silent misconfig.
 - **Tests** where the repo patterns expect them (`bun test`); integration tests for critical paths when feasible.
+- **Changesets.** When your change affects user-visible app behavior or a module's public API, run `bun changeset` in the same PR and commit the generated file. Pick `patch` for bug fixes and internal-only changes, `minor` for new backward-compatible behavior, `major` for breaking contracts (rare — coordinate with Principal). Do **not** run `bun changeset:version` — that is the Release Manager's job.
 
 ## Boundaries
 
