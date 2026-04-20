@@ -10,6 +10,8 @@ FROM oven/bun:1-alpine AS app-builder
 WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=dependencies /usr/src/app ./
+RUN test -f ./modules/db/src/migrations/meta/_journal.json || \
+    (echo "ERROR: migrations/_journal.json missing from build context — check COPY or .dockerignore" >&2 && exit 1)
 WORKDIR /usr/src/app/apps/${APP_PATH}
 RUN bun run build
 
