@@ -10,7 +10,7 @@ export async function connectToBroker(
   logger: Logger,
 ): Promise<ChannelModel> {
   try {
-    const connection = await connect(broker);
+    const connection = await connect(broker, { frameMax: 131072 });
     logger.info({ event: 'rabbitmq.connected' }, 'Connected to RabbitMQ');
     return connection;
   } catch (error) {
