@@ -7,6 +7,7 @@ environment:
   SIGNAL_PROCESSOR_IMAGE: docker-registry.acovado.club/signal-processor
   YOUTUBE_WORKER_IMAGE: docker-registry.acovado.club/youtube-worker
   REDDIT_WORKER_IMAGE: docker-registry.acovado.club/reddit-worker
+  NEWS_WORKER_IMAGE: docker-registry.acovado.club/news-worker
   DASHBOARD_IMAGE: docker-registry.acovado.club/dashboard
 
 volumes:
@@ -124,6 +125,23 @@ steps:
     depends_on:
       - pre-build
 
+  - name: build-news-worker
+    image: docker
+    environment:
+      DOCKER_BUILDKIT: 1
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: docker-cache
+        path: /var/lib/docker
+    commands:
+      - docker build --target production --build-arg APP_PATH=news-worker --build-arg BASE_IMAGE=oven/bun:1 --build-arg PLAYWRIGHT_BROWSERS=chromium --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
+      - docker tag $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${NEWS_WORKER_IMAGE}:latest
+      - docker push $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker push $${NEWS_WORKER_IMAGE}:latest
+    depends_on:
+      - pre-build
+
   ##############################################################################
   # Step 3: Post build
   ##############################################################################
@@ -134,11 +152,13 @@ steps:
       - echo "(signal-processor) $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(youtube-worker) $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(reddit-worker) $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
+      - echo "(news-worker) $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(dashboard) $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}"
     depends_on:
       - build-signal-processor
       - build-youtube-worker
       - build-reddit-worker
+      - build-news-worker
       - build-dashboard
 
   ##############################################################################

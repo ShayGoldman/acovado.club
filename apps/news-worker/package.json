@@ -1,0 +1,29 @@
+{
+  "name": "@apps/news-worker",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "bun@1.1.36",
+  "scripts": {
+    "build": "bun build src/index.ts src/smoke.ts --outdir dist --target bun --external playwright",
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch --inspect=localhost:16004/news-worker src/index.ts",
+    "lint": "bunx biome lint --write .",
+    "format": "bunx biome format --write .",
+    "check": "bunx biome check --write .",
+    "clean": "rm -rf .turbo && rm -rf dist && rm -rf node_modules",
+    "test": "bun test",
+    "typecheck": "bun tsc --noEmit"
+  },
+  "devDependencies": {
+    "@config/tsconfig": "workspace:*",
+    "@config/typescript": "workspace:*",
+    "@types/bun": "^1.1.13"
+  },
+  "dependencies": {
+    "@modules/events": "workspace:*",
+    "@modules/logger": "workspace:*",
+    "@modules/tracing": "workspace:*",
+    "playwright": "^1.49.0",
+    "zod": "^4.0.0"
+  }
+}

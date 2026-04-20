@@ -1,0 +1,1 @@
+# @apps/news-worker
