@@ -222,7 +222,7 @@ steps:
 
       # Deploy the new environment (Compose V2 plugin)
       - docker compose -f config/compose/docker-compose.infra.yaml -p acovado-infra up -d
-      - docker compose -f config/compose/docker-compose.apps.yaml -p acovado-apps up -d --force-recreate
+      - docker compose -f config/compose/docker-compose.apps.yaml -p acovado-apps up -d --force-recreate --remove-orphans
     depends_on:
       - post-build
 
