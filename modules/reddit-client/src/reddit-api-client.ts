@@ -4,7 +4,7 @@ import { connectToBroker, makeBoundLogger, safeClose } from '@modules/events';
 import { makeId } from '@modules/ids';
 import type { Logger } from '@modules/logger';
 import type { Tracer } from '@modules/tracing';
-import type { Channel, ChannelModel } from 'amqplib';
+import type { Channel, Connection, ConsumeMessage } from 'amqplib';
 import type {
   RedditApiRequest,
   RedditApiRequestEvent,
@@ -31,7 +31,7 @@ export function makeRedditApiQueueClient(opts: MakeRedditApiQueueClientOpts) {
   const { broker, logger, tracer, producer } = opts;
   const boundLogger = makeBoundLogger(logger);
   const callbacks = new Map<string, Callback<any>>();
-  let connection: ChannelModel | null = null;
+  let connection: Connection | null = null;
   let responseChannel: Channel | null = null;
   let responseConsumerTag: string | null = null;
   const domain = 'reddit';
@@ -69,7 +69,7 @@ export function makeRedditApiQueueClient(opts: MakeRedditApiQueueClientOpts) {
 
       const consumeResult = await channel.consume(
         responseQueueName,
-        async (msg) => {
+        async (msg: ConsumeMessage | null) => {
           if (!msg) return;
 
           try {
