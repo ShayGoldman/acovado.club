@@ -75,7 +75,7 @@ services:
       - 'traefik.http.routers.dashboard-health.entrypoints=websecure'
       - 'traefik.http.routers.dashboard-health.tls.certresolver=acovado'
       - 'traefik.http.routers.dashboard-health.service=dashboard'
-      - 'traefik.http.routers.dashboard-health.priority=10'
+      - 'traefik.http.routers.dashboard-health.priority=100'
       - 'traefik.docker.network=proxy-network'
     deploy:
       resources:
