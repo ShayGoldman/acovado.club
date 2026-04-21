@@ -25,7 +25,9 @@ FROM ${BASE_IMAGE} AS production
 WORKDIR /usr/src/app
 ARG APP_PATH
 COPY --from=app-builder /usr/src/app/apps/${APP_PATH}/dist ./dist
-COPY --from=app-builder /usr/src/app/node_modules ./node_modules
+# Pull node_modules from the dependencies stage, not app-builder — same data,
+# one fewer large cross-stage transfer (app-builder never mutates node_modules).
+COPY --from=dependencies /usr/src/app/node_modules ./node_modules
 COPY --from=app-builder /usr/src/app/modules/db/src/migrations ./modules/db/src/migrations
 ENV NODE_ENV=production
 ARG COMMIT_SHA

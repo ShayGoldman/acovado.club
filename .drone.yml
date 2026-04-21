@@ -1,6 +1,7 @@
 kind: pipeline
 type: docker
 name: acovado
+timeout: 120
 
 environment:
   REGISTRY_URL: docker-registry.acovado.club
@@ -55,7 +56,10 @@ steps:
       - validate-merge-commit
 
   ##############################################################################
-  # Step 2: Build and push all pipeline app images (parallel)
+  # Step 2: Build and push all pipeline app images (serialized to avoid
+  # I/O contention on the shared Docker daemon — parallel builds caused
+  # cross-stage COPY ops to degrade to 8-15 min each, hitting pipeline
+  # timeout before docker push was ever attempted; ACO-79)
   ##############################################################################
   - name: build-signal-processor
     image: docker
@@ -89,7 +93,7 @@ steps:
       - docker push $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${YOUTUBE_WORKER_IMAGE}:latest
     depends_on:
-      - pre-build
+      - build-signal-processor
 
   - name: build-reddit-worker
     image: docker
@@ -106,7 +110,7 @@ steps:
       - docker push $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${REDDIT_WORKER_IMAGE}:latest
     depends_on:
-      - pre-build
+      - build-youtube-worker
 
   - name: build-dashboard
     image: docker
@@ -123,7 +127,7 @@ steps:
       - docker push $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${DASHBOARD_IMAGE}:latest
     depends_on:
-      - pre-build
+      - build-reddit-worker
 
   - name: build-news-worker
     image: docker
@@ -140,7 +144,7 @@ steps:
       - docker push $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
       - docker push $${NEWS_WORKER_IMAGE}:latest
     depends_on:
-      - pre-build
+      - build-dashboard
 
   ##############################################################################
   # Step 3: Post build
@@ -155,11 +159,7 @@ steps:
       - echo "(news-worker) $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA}"
       - echo "(dashboard) $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}"
     depends_on:
-      - build-signal-processor
-      - build-youtube-worker
-      - build-reddit-worker
       - build-news-worker
-      - build-dashboard
 
   ##############################################################################
   # Step 4: Check for and release new versions
