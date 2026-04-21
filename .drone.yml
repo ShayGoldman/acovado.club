@@ -72,8 +72,8 @@ steps:
         path: /var/lib/docker
     commands:
       - docker build --target production --build-arg APP_PATH=signal-processor --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA} $${SIGNAL_PROCESSOR_IMAGE}:latest
       - docker push $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker tag $${SIGNAL_PROCESSOR_IMAGE}:${DRONE_COMMIT_SHA} $${SIGNAL_PROCESSOR_IMAGE}:latest
       - docker push $${SIGNAL_PROCESSOR_IMAGE}:latest
     depends_on:
       - pre-build
@@ -89,8 +89,8 @@ steps:
         path: /var/lib/docker
     commands:
       - docker build --target production --build-arg APP_PATH=youtube-worker --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${YOUTUBE_WORKER_IMAGE}:latest
       - docker push $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker tag $${YOUTUBE_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${YOUTUBE_WORKER_IMAGE}:latest
       - docker push $${YOUTUBE_WORKER_IMAGE}:latest
     depends_on:
       - build-signal-processor
@@ -106,8 +106,8 @@ steps:
         path: /var/lib/docker
     commands:
       - docker build --target production --build-arg APP_PATH=reddit-worker --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${REDDIT_WORKER_IMAGE}:latest
       - docker push $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker tag $${REDDIT_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${REDDIT_WORKER_IMAGE}:latest
       - docker push $${REDDIT_WORKER_IMAGE}:latest
     depends_on:
       - build-youtube-worker
@@ -123,8 +123,8 @@ steps:
         path: /var/lib/docker
     commands:
       - docker build --target production --build-arg APP_PATH=dashboard --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} $${DASHBOARD_IMAGE}:latest
       - docker push $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker tag $${DASHBOARD_IMAGE}:${DRONE_COMMIT_SHA} $${DASHBOARD_IMAGE}:latest
       - docker push $${DASHBOARD_IMAGE}:latest
     depends_on:
       - build-reddit-worker
@@ -140,8 +140,8 @@ steps:
         path: /var/lib/docker
     commands:
       - docker build --target production --build-arg APP_PATH=news-worker --build-arg BASE_IMAGE=oven/bun:1 --build-arg PLAYWRIGHT_BROWSERS=chromium --build-arg COMMIT_SHA=${DRONE_COMMIT_SHA} -t $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA} .
-      - docker tag $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${NEWS_WORKER_IMAGE}:latest
       - docker push $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA}
+      - docker tag $${NEWS_WORKER_IMAGE}:${DRONE_COMMIT_SHA} $${NEWS_WORKER_IMAGE}:latest
       - docker push $${NEWS_WORKER_IMAGE}:latest
     depends_on:
       - build-dashboard
