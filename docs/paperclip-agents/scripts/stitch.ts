@@ -136,21 +136,26 @@ function stitchRole(
 }
 
 function listRoleDirs(): string[] {
-  return readdirSync(ROOT, { withFileTypes: true })
+  const dirs = readdirSync(ROOT, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
     .filter((name) => name !== 'shared' && name !== 'scripts')
-    .map((name) => join(ROOT, name))
-    .filter((dir) => {
-      const slug = basename(dir);
-      const header = join(dir, `${slug}-header.md`);
-      try {
-        return statSync(header).isFile();
-      } catch {
-        return false;
-      }
-    })
     .sort();
+
+  for (const slug of dirs) {
+    for (const fragment of [`${slug}-header.md`, `${slug}-body.md`]) {
+      const path = join(ROOT, slug, fragment);
+      try {
+        if (!statSync(path).isFile()) {
+          die(`role "${slug}": missing required fragment ${path}`);
+        }
+      } catch {
+        die(`role "${slug}": missing required fragment ${path}`);
+      }
+    }
+  }
+
+  return dirs.map((name) => join(ROOT, name));
 }
 
 function main(): void {
