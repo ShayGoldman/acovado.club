@@ -248,14 +248,69 @@ steps:
 
   ##############################################################################
   # Step 6: Cleanup old images and stale build cache
+  #
+  # Strategy (ACO-92): targeted retention instead of `docker image prune -af`.
+  #
+  # What we keep:
+  #   - Base images used by pipeline steps (node:20-bullseye, docker, bash,
+  #     drone/git) are never touched — they stay warm for the next build.
+  #   - The `latest` tag for every app image.
+  #   - The 3 most-recent commit-SHA tags per app image.
+  #
+  # What we remove:
+  #   - Commit-SHA tags older than the 3 most recent per app image.
+  #   - Dangling (untagged) images (`docker image prune -f`, no -a).
+  #   - BuildKit cache layers older than 72 h (`docker builder prune`).
+  #
+  # This reclaims the disk space that accumulates across deploys (stale SHA
+  # layers) without cold-evicting the base images Drone pulls on every step.
   ##############################################################################
   - name: cleanup
     image: docker
+    environment:
+      SIGNAL_PROCESSOR_IMAGE: docker-registry.acovado.club/signal-processor
+      YOUTUBE_WORKER_IMAGE: docker-registry.acovado.club/youtube-worker
+      REDDIT_WORKER_IMAGE: docker-registry.acovado.club/reddit-worker
+      NEWS_WORKER_IMAGE: docker-registry.acovado.club/news-worker
+      DASHBOARD_IMAGE: docker-registry.acovado.club/dashboard
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker image prune -af
+      - |
+        set -eu
+        KEEP=3
+
+        for IMAGE in \
+          "$${SIGNAL_PROCESSOR_IMAGE}" \
+          "$${YOUTUBE_WORKER_IMAGE}" \
+          "$${REDDIT_WORKER_IMAGE}" \
+          "$${NEWS_WORKER_IMAGE}" \
+          "$${DASHBOARD_IMAGE}"; do
+
+          # List all non-latest tags sorted newest-first; skip the first $KEEP.
+          OLD_TAGS=$(
+            docker images --format '{{.Tag}}\t{{.CreatedAt}}' "$${IMAGE}" \
+              | grep -v '^latest' \
+              | sort -t$'\t' -k2 -r \
+              | tail -n +$((KEEP + 1)) \
+              | awk -v img="$${IMAGE}" '{print img ":" $1}'
+          )
+
+          if [ -n "$${OLD_TAGS}" ]; then
+            echo "Removing stale tags for $${IMAGE}:"
+            echo "$${OLD_TAGS}"
+            echo "$${OLD_TAGS}" | xargs docker rmi -f || true
+          else
+            echo "No stale tags to remove for $${IMAGE}"
+          fi
+        done
+
+        # Prune dangling (untagged) images — does NOT touch tagged base images.
+        docker image prune -f
+
+        # Prune BuildKit cache older than 72 h.
+        docker builder prune -f --filter 'until=72h' || true
     depends_on:
       - deploy
 
