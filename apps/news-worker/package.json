@@ -27,6 +27,7 @@
     "@modules/tracing": "workspace:*",
     "node-cron": "^3.0.3",
     "playwright": "^1.49.0",
+    "robots-parser": "^3.0.1",
     "zod": "^4.0.0"
   }
 }

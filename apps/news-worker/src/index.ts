@@ -5,6 +5,7 @@ import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
 import { type Browser, chromium } from 'playwright';
 import pkg from '../package.json' with { type: 'json' };
+import { makeArticleFetcher } from './article-fetcher';
 import { makeCronRunner } from './cron';
 import { makeDiscovery } from './discovery';
 
@@ -35,10 +36,26 @@ logger.info(
 
 const discovery = makeDiscovery({ db, browser, logger, tracer });
 
+const fetcher = makeArticleFetcher({
+  db,
+  browser,
+  logger,
+  tracer,
+  navTimeoutMs: Env.NEWS_NAV_TIMEOUT_MS,
+  maxRetries: Env.NEWS_FETCH_MAX_RETRIES,
+  concurrency: Env.NEWS_FETCH_CONCURRENCY,
+  robotsCacheTtlMs: Env.NEWS_ROBOTS_CACHE_TTL_MS,
+});
+
+async function runTick(): Promise<void> {
+  await discovery.runOnce();
+  await fetcher.runOnce();
+}
+
 const cron = makeCronRunner({
   expression: Env.NEWS_POLL_CRON,
   logger,
-  onTick: () => discovery.runOnce(),
+  onTick: runTick,
 });
 
 // Non-blocking producer connect — container must not crash-loop on infra flake.
@@ -97,9 +114,7 @@ logger.info(
 cron.start();
 
 // Eager first tick — avoids a cold-start wait on first deploy.
-void discovery
-  .runOnce()
-  .catch((err) => logger.error({ err }, 'news-worker: initial tick error'));
+void runTick().catch((err) => logger.error({ err }, 'news-worker: initial tick error'));
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'news-worker: shutting down');
