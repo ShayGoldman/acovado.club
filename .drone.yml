@@ -247,22 +247,15 @@ steps:
       - post-build
 
   ##############################################################################
-  # Step 6: Cleanup old images
+  # Step 6: Cleanup old images and stale build cache
   ##############################################################################
   - name: cleanup
     image: docker
-    environment:
-      REGISTRY_URL: ${REGISTRY_URL}
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - |
-        docker images --format "{{.Repository}}:{{.Tag}}" | grep "${REGISTRY_URL}" | while read image; do
-          if ! docker ps --filter "ancestor=$image" --format "{{.Image}}" | grep -q "$image"; then
-            docker rmi -f $image || true;
-          fi;
-        done
+      - docker image prune -af
     depends_on:
       - deploy
 
