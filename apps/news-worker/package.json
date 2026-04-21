@@ -17,12 +17,15 @@
   "devDependencies": {
     "@config/tsconfig": "workspace:*",
     "@config/typescript": "workspace:*",
-    "@types/bun": "^1.1.13"
+    "@types/bun": "^1.1.13",
+    "@types/node-cron": "^3.0.11"
   },
   "dependencies": {
+    "@modules/db": "workspace:*",
     "@modules/events": "workspace:*",
     "@modules/logger": "workspace:*",
     "@modules/tracing": "workspace:*",
+    "node-cron": "^3.0.3",
     "playwright": "^1.49.0",
     "zod": "^4.0.0"
   }
