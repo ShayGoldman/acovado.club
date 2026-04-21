@@ -1,0 +1,35 @@
+log:
+  level: INFO
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+    transport:
+      respondingTimeouts:
+        # Disable read timeout so large Docker image pushes (e.g. 1.5 GB news-worker)
+        # don't get aborted by Traefik's default 60 s ceiling (ACO-79).
+        readTimeout: 0
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+api:
+  dashboard: true
+  insecure: false
+
+certificatesResolvers:
+  acovado:
+    acme:
+      email: goldman.s88@gmail.com
+      storage: /etc/traefik/acme.json
+      httpChallenge:
+        entryPoint: web
