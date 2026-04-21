@@ -10,9 +10,7 @@ export const environmentSchema = Z.object({
   TRACE_EXPORTER_URLS: Z.string()
     .transform((v) => v.split(',').map((s) => s.trim()))
     .pipe(Z.array(Z.string().url())),
-  // Declared in M1 so M2 can land the discovery cron without an env schema change.
-  // Intentionally .optional() with a safe default — M1 does not schedule anything.
-  NEWS_POLL_CRON: Z.string().default('*/15 * * * *'),
+  NEWS_POLL_CRON: Z.string().default('*/10 * * * *'),
 });
 
 export function parseEnv(env: NodeJS.ProcessEnv): Environment {

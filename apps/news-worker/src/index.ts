@@ -1,9 +1,12 @@
 import { parseEnv } from '@/env';
+import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeProducer } from '@modules/events';
 import { makeLogger } from '@modules/logger';
 import { makeTracer } from '@modules/tracing';
 import { type Browser, chromium } from 'playwright';
 import pkg from '../package.json' with { type: 'json' };
+import { makeCronRunner } from './cron';
+import { makeDiscovery } from './discovery';
 
 const VERSION = pkg.version;
 const COMMIT = Bun.env['COMMIT_SHA'] ?? 'unknown';
@@ -18,10 +21,9 @@ const tracer = makeTracer({
   logger,
 });
 
+const db = makeDBClient({ url: Env.DATABASE_URL, tracer });
 const producer = makeProducer({ broker: Env.RABBITMQ_URL, logger, tracing: { tracer } });
 
-// Launch the browser at boot so the production image is proven to bring Chromium up
-// end-to-end; M2+ reuses this singleton for discovery/fetch.
 const browser: Browser = await chromium.launch({
   headless: true,
   args: ['--no-sandbox'],
@@ -31,9 +33,15 @@ logger.info(
   'chromium launched',
 );
 
-// Connect the producer in the background. We never publish in M1, but we keep the
-// startup shape M4 will need. Non-blocking so /health stays up if RabbitMQ is
-// unreachable at boot — the container must not crash-loop on infra flake.
+const discovery = makeDiscovery({ db, browser, logger, tracer });
+
+const cron = makeCronRunner({
+  expression: Env.NEWS_POLL_CRON,
+  logger,
+  onTick: () => discovery.runOnce(),
+});
+
+// Non-blocking producer connect — container must not crash-loop on infra flake.
 let producerConnected = false;
 void (async function connectProducer(): Promise<void> {
   const backoffMs = [1_000, 2_000, 5_000, 10_000, 30_000];
@@ -55,6 +63,8 @@ void (async function connectProducer(): Promise<void> {
     }
   }
 })();
+
+await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
 
 const server = Bun.serve({
   port: Env.PORT,
@@ -80,12 +90,20 @@ const server = Bun.serve({
 });
 
 logger.info(
-  { port: server.port, version: VERSION, commit: COMMIT },
+  { port: server.port, version: VERSION, commit: COMMIT, pollCron: Env.NEWS_POLL_CRON },
   'news-worker listening',
 );
 
+cron.start();
+
+// Eager first tick — avoids a cold-start wait on first deploy.
+void discovery
+  .runOnce()
+  .catch((err) => logger.error({ err }, 'news-worker: initial tick error'));
+
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'news-worker: shutting down');
+  cron.stop();
   server.stop();
   try {
     await browser.close();

@@ -10,12 +10,14 @@ export const sources = acovado.table(
   'sources',
   (c) => ({
     id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
-    /** 'reddit' | 'youtube' | future kinds */
+    /** 'reddit' | 'youtube' | 'news' | future kinds */
     kind: c.varchar('kind', { length: 32 }).notNull(),
-    /** subreddit name or YouTube channel ID */
+    /** subreddit name, YouTube channel ID, or news outlet slug */
     externalId: c.varchar('external_id', { length: 256 }).notNull(),
     displayName: c.varchar('display_name', { length: 256 }),
     active: c.boolean().notNull().default(true),
+    /** Per-source poll cadence override in ms. NULL = use app default (10 min). */
+    pollIntervalMs: c.integer('poll_interval_ms'),
     createdAt: c.timestamp('created_at').defaultNow().notNull(),
   }),
   (t) => [D.unique().on(t.kind, t.externalId)],
@@ -92,9 +94,56 @@ export const inferenceLogs = acovado.table('inference_logs', (c) => ({
 }));
 
 // ---------------------------------------------------------------------------
+// news_source_configs — seed URL configuration for news sources
+// ---------------------------------------------------------------------------
+export const newsSourceConfigs = acovado.table(
+  'news_source_configs',
+  (c) => ({
+    id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
+    sourceId: c
+      .uuid('source_id')
+      .notNull()
+      .references(() => sources.id),
+    /** Landing page URL to crawl for article links. */
+    seedUrl: c.text('seed_url').notNull(),
+    active: c.boolean().notNull().default(true),
+    createdAt: c.timestamp('created_at').defaultNow().notNull(),
+  }),
+  (t) => [D.unique().on(t.sourceId, t.seedUrl)],
+);
+
+// ---------------------------------------------------------------------------
+// seen_urls — persistent URL de-dup store for news discovery
+// ---------------------------------------------------------------------------
+export const seenUrls = acovado.table(
+  'seen_urls',
+  (c) => ({
+    /** SHA-256 hex of normalized URL — O(1) dedup lookup. */
+    urlHash: c.varchar('url_hash', { length: 64 }).primaryKey(),
+    /** Full normalized URL — kept for debug/audit. */
+    url: c.text('url').notNull(),
+    /** Source that first discovered this URL — always known at insert time. */
+    discoveredBySourceId: c
+      .uuid('discovered_by_source_id')
+      .notNull()
+      .references(() => sources.id),
+    firstSeenAt: c.timestamp('first_seen_at').defaultNow().notNull(),
+  }),
+  (t) => [D.index('seen_urls_first_seen_at_idx').on(t.firstSeenAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Barrel export expected by the rest of the codebase via `import schema`
 // ---------------------------------------------------------------------------
-const schema = { sources, tickers, contentItems, mentions, inferenceLogs };
+const schema = {
+  sources,
+  tickers,
+  contentItems,
+  mentions,
+  inferenceLogs,
+  newsSourceConfigs,
+  seenUrls,
+};
 
 export { schema };
 export default schema;
