@@ -14,6 +14,9 @@
     "test": "bunx turbo run test",
     "commit": "bunx cz",
     "prepare": "bunx husky",
+    "agents:stitch": "bun docs/paperclip-agents/scripts/stitch.ts",
+    "agents:stitch:check": "bun docs/paperclip-agents/scripts/stitch.ts --check",
+    "agents:sync": "bun docs/paperclip-agents/scripts/sync.ts",
     "changeset": "bunx changeset",
     "changeset:version": "bunx changeset version",
     "changeset:publish": "bunx changeset publish"

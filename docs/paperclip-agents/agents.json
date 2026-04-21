@@ -1,0 +1,42 @@
+{
+  "companyId": "13cc5b1d-21ff-426e-8987-8235899922a1",
+  "roles": [
+    { "slug": "gm", "name": "GM", "agentId": "073e20f6-9dbd-44ae-ad7e-7fa44504f651" },
+    { "slug": "cto", "name": "CTO", "agentId": "6592e557-dba9-4d48-a269-24609551f2d6" },
+    {
+      "slug": "principal-engineer",
+      "name": "Principal Engineer",
+      "agentId": "4d1b0cfb-1fdf-4a51-bc83-aa4a2ac0661d"
+    },
+    {
+      "slug": "backend-engineer",
+      "name": "Backend Engineer",
+      "agentId": "553a3304-db22-4ce9-9d7a-b72cb3796e88"
+    },
+    {
+      "slug": "devops-engineer",
+      "name": "DevOps Engineer",
+      "agentId": "53f36313-4f90-47aa-ab40-274cc40dff63"
+    },
+    {
+      "slug": "release-manager",
+      "name": "Release Manager",
+      "agentId": "d06ebdbb-985c-41d1-868b-754a3fe2179f"
+    },
+    {
+      "slug": "advisor",
+      "name": "Advisor",
+      "agentId": "32592a16-922c-42fb-bf08-a00e5510108f"
+    },
+    {
+      "slug": "product-manager",
+      "name": "Product Manager",
+      "agentId": "355856ce-5308-4fb6-8cc8-ca871802fc33"
+    },
+    {
+      "slug": "project-manager",
+      "name": "Project Manager",
+      "agentId": "78a2f99d-68ad-401c-8255-4b155baf5462"
+    }
+  ]
+}

@@ -5,6 +5,8 @@ lib
 
 .pnpm-debug.log
 scripts
+!docs/paperclip-agents/scripts/
+!docs/paperclip-agents/scripts/**
 .env
 
 .claude
