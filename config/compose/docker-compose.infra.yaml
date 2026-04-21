@@ -55,6 +55,7 @@ services:
     logging: *acovado-logging
 
   zookeeper:
+    profiles: [observability]
     extends:
       file: ../../infra/observability/docker-compose.base.yaml
       service: zookeeper
@@ -71,6 +72,7 @@ services:
           memory: "512mb"
 
   clickhouse:
+    profiles: [observability]
     extends:
       file: ../../infra/observability/docker-compose.base.yaml
       service: clickhouse
@@ -92,6 +94,7 @@ services:
           memory: "4gb"
 
   signoz-telemetrystore-migrator:
+    profiles: [observability]
     extends:
       file: ../../infra/observability/docker-compose.base.yaml
       service: signoz-telemetrystore-migrator
@@ -104,6 +107,7 @@ services:
           memory: "512mb"
 
   signoz:
+    profiles: [observability]
     extends:
       file: ../../infra/observability/docker-compose.base.yaml
       service: signoz
@@ -129,6 +133,7 @@ services:
           memory: "2gb"
 
   otel-collector:
+    profiles: [observability]
     extends:
       file: ../../infra/observability/docker-compose.base.yaml
       service: otel-collector
