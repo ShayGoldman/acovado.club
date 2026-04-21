@@ -1,0 +1,3 @@
+# Un-ignore scripts directory for this package (overrides root .gitignore).
+!scripts
+!scripts/**

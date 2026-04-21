@@ -133,6 +133,32 @@ export const seenUrls = acovado.table(
 );
 
 // ---------------------------------------------------------------------------
+// news_articles — full-content fetch results (Playwright extracted body)
+// ---------------------------------------------------------------------------
+export const newsArticles = acovado.table(
+  'news_articles',
+  (c) => ({
+    id: c.uuid().primaryKey().default(sql`gen_random_uuid()`),
+    sourceId: c
+      .uuid('source_id')
+      .notNull()
+      .references(() => sources.id),
+    url: c.text('url').notNull(),
+    title: c.text('title'),
+    extractedBody: c.text('extracted_body'),
+    /** SHA-256 hex of rendered HTML — varchar(64) matching seen_urls.url_hash convention.
+     *  NOT unique: same content may appear at different URLs. Unique constraint is on url only. */
+    htmlHash: c.varchar('html_hash', { length: 64 }),
+    /** 'success' | 'extract_failed' | 'error' — varchar(32) matching inference_logs.status convention */
+    fetchStatus: c.varchar('fetch_status', { length: 32 }).notNull(),
+    errorMessage: c.text('error_message'),
+    fetchedAt: c.timestamp('fetched_at', { withTimezone: true }),
+    createdAt: c.timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  }),
+  (t) => [D.unique().on(t.url)],
+);
+
+// ---------------------------------------------------------------------------
 // Barrel export expected by the rest of the codebase via `import schema`
 // ---------------------------------------------------------------------------
 const schema = {
@@ -143,6 +169,7 @@ const schema = {
   inferenceLogs,
   newsSourceConfigs,
   seenUrls,
+  newsArticles,
 };
 
 export { schema };
