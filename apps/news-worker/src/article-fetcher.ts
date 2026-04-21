@@ -1,3 +1,4 @@
+import { type SQL, sql } from 'drizzle-orm';
 import type { Browser } from 'playwright';
 import robotsParser from 'robots-parser';
 import type { Logger } from '@modules/logger';
@@ -16,7 +17,7 @@ const DEFAULT_ROBOTS_TTL_MS = 24 * 60 * 60 * 1_000;
 // ---------------------------------------------------------------------------
 
 export interface ArticleFetcherDb {
-  execute(query: string): Promise<Array<Record<string, unknown>>>;
+  execute(query: SQL<unknown>): Promise<Array<Record<string, unknown>>>;
 }
 
 export interface ArticleCandidate {
@@ -150,7 +151,7 @@ export function makeArticleFetcher({
     // TODO: this LEFT JOIN anti-join degrades at scale as news_articles grows.
     // A partial index on seen_urls (e.g. WHERE url NOT IN (...)) or a status column
     // on seen_urls is the later fix; skipped for v1 single-worker architecture.
-    const rows = await db.execute(`
+    const rows = await db.execute(sql`
       SELECT su.url, su.discovered_by_source_id AS source_id, s.external_id
       FROM acovado.seen_urls su
       LEFT JOIN acovado.news_articles na ON na.url = su.url
@@ -229,13 +230,11 @@ export function makeArticleFetcher({
 
     // All attempts exhausted — write error row so the candidate query drops this URL.
     logger.error({ err: lastErr, url }, 'news.fetch.error: writing error row');
-    const msg =
-      lastErr instanceof Error ? lastErr.message.replace(/'/g, "''") : String(lastErr);
-    await db.execute(`
+    const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    await db.execute(sql`
       INSERT INTO acovado.news_articles
         (source_id, url, fetch_status, error_message, fetched_at)
-      VALUES
-        ('${sourceId}', '${url.replace(/'/g, "''")}', 'error', '${msg}', NOW())
+      VALUES (${sourceId}, ${url}, 'error', ${msg}, NOW())
       ON CONFLICT (url) DO NOTHING
     `);
   }
@@ -249,30 +248,23 @@ export function makeArticleFetcher({
 
       if (!result) {
         logger.warn({ url }, 'news.fetch.extract_failed');
-        await db.execute(`
+        await db.execute(sql`
           INSERT INTO acovado.news_articles
             (source_id, url, title, fetch_status, fetched_at)
-          VALUES
-            ('${sourceId}', '${url.replace(/'/g, "''")}',
-             '${title.replace(/'/g, "''")}', 'extract_failed', NOW())
+          VALUES (${sourceId}, ${url}, ${title}, 'extract_failed', NOW())
           ON CONFLICT (url) DO NOTHING
         `);
         return;
       }
 
       const { text, htmlHash } = result;
-      const bodyEscaped = text.replace(/'/g, "''");
-      const titleEscaped = title.replace(/'/g, "''");
-      const urlEscaped = url.replace(/'/g, "''");
 
       // Unique constraint is on url only — html_hash is NOT unique (same content
       // can appear at multiple URLs). ON CONFLICT DO NOTHING ensures idempotency.
-      await db.execute(`
+      await db.execute(sql`
         INSERT INTO acovado.news_articles
           (source_id, url, title, extracted_body, html_hash, fetch_status, fetched_at)
-        VALUES
-          ('${sourceId}', '${urlEscaped}', '${titleEscaped}',
-           '${bodyEscaped}', '${htmlHash}', 'success', NOW())
+        VALUES (${sourceId}, ${url}, ${title}, ${text}, ${htmlHash}, 'success', NOW())
         ON CONFLICT (url) DO NOTHING
       `);
 

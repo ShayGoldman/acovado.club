@@ -1,3 +1,4 @@
+import type { SQL } from 'drizzle-orm';
 import { describe, expect, it } from 'bun:test';
 import { makeArticleFetcher } from './article-fetcher';
 
@@ -25,6 +26,25 @@ function makeNullLogger() {
   } as any;
 }
 
+// Extract the static SQL text portions from a drizzle sql`` object.
+// StringChunks are { value: string[] }; params are stored as raw primitives.
+function getSqlText(q: SQL<unknown>): string {
+  return q.queryChunks
+    .filter(
+      (c): c is { value: string[] } =>
+        typeof c === 'object' && c !== null && Array.isArray((c as any).value),
+    )
+    .flatMap((c) => c.value)
+    .join('');
+}
+
+// Extract the bound parameter values from a drizzle sql`` object.
+function getSqlParams(q: SQL<unknown>): unknown[] {
+  return q.queryChunks.filter(
+    (c) => !(typeof c === 'object' && c !== null && Array.isArray((c as any).value)),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Error-path INSERT — Principal requirement: must insert fetch_status='error'
 // so the anti-join candidate query drops the URL on subsequent runs.
@@ -32,14 +52,7 @@ function makeNullLogger() {
 
 describe('makeArticleFetcher — error path', () => {
   it('inserts fetch_status=error row after all retries exhausted', async () => {
-    const executedQueries: string[] = [];
-
-    const db = {
-      async execute(query: string) {
-        executedQueries.push(query);
-        return [];
-      },
-    };
+    const executedSql: SQL<unknown>[] = [];
 
     const browser = {
       newPage: async () => {
@@ -47,23 +60,10 @@ describe('makeArticleFetcher — error path', () => {
       },
     } as any;
 
-    makeArticleFetcher({
-      db,
-      browser,
-      logger: makeNullLogger(),
-      tracer: makeNullTracer(),
-      maxRetries: 1,
-      concurrency: 1,
-      navTimeoutMs: 1_000,
-    });
-
-    // Directly call the internal fetch path via runOnce with a seeded candidate query.
-    // We override the DB execute to return one candidate row for the first call,
-    // then empty (simulating the INSERT queries that follow).
     let callCount = 0;
-    const dbWithCandidate = {
-      async execute(query: string) {
-        executedQueries.push(query);
+    const db = {
+      async execute(query: SQL<unknown>) {
+        executedSql.push(query);
         // First call is the candidates query — return one row.
         if (callCount++ === 0) {
           return [
@@ -78,8 +78,8 @@ describe('makeArticleFetcher — error path', () => {
       },
     };
 
-    const fetcherWithCandidate = makeArticleFetcher({
-      db: dbWithCandidate,
+    const fetcher = makeArticleFetcher({
+      db,
       browser,
       logger: makeNullLogger(),
       tracer: makeNullTracer(),
@@ -88,27 +88,35 @@ describe('makeArticleFetcher — error path', () => {
       navTimeoutMs: 100,
     });
 
-    await fetcherWithCandidate.runOnce();
+    await fetcher.runOnce();
 
-    // The last INSERT query should contain fetch_status='error'.
-    const insertQueries = executedQueries.filter((q) =>
-      q.includes('INSERT INTO acovado.news_articles'),
+    // Find INSERT queries targeting news_articles.
+    const insertSqls = executedSql.filter((q) =>
+      getSqlText(q).includes('INSERT INTO acovado.news_articles'),
     );
-    expect(insertQueries.length).toBeGreaterThan(0);
+    expect(insertSqls.length).toBeGreaterThan(0);
 
-    const errorInsert = insertQueries.find((q) => q.includes("'error'"));
+    // The error-path INSERT must use fetch_status='error' as a SQL literal.
+    const errorInsert = insertSqls.find((q) => getSqlText(q).includes("'error'"));
     expect(errorInsert).toBeDefined();
-    expect(errorInsert).toContain('fetch_status');
-    expect(errorInsert).toContain('ON CONFLICT (url) DO NOTHING');
+
+    const errorText = getSqlText(errorInsert!);
+    expect(errorText).toContain('fetch_status');
+    expect(errorText).toContain('ON CONFLICT (url) DO NOTHING');
+
+    // URL and error message must be bound parameters, not interpolated strings.
+    const params = getSqlParams(errorInsert!);
+    expect(params).toContain('https://example.com/article-1');
+    expect(params).toContain('navigation failed');
   });
 
   it('skips fetch when robots.txt disallows the URL', async () => {
-    const executedQueries: string[] = [];
+    const executedSql: SQL<unknown>[] = [];
     let callCount = 0;
 
     const db = {
-      async execute(query: string) {
-        executedQueries.push(query);
+      async execute(query: SQL<unknown>) {
+        executedSql.push(query);
         if (callCount++ === 0) {
           return [
             {
@@ -156,9 +164,9 @@ describe('makeArticleFetcher — error path', () => {
     (globalThis as any).fetch = origFetch;
 
     // No INSERT should have been executed — URL was disallowed by robots.txt.
-    const insertQueries = executedQueries.filter((q) =>
-      q.includes('INSERT INTO acovado.news_articles'),
+    const insertSqls = executedSql.filter((q) =>
+      getSqlText(q).includes('INSERT INTO acovado.news_articles'),
     );
-    expect(insertQueries.length).toBe(0);
+    expect(insertSqls.length).toBe(0);
   });
 });
