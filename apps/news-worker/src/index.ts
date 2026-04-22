@@ -41,6 +41,7 @@ const fetcher = makeArticleFetcher({
   browser,
   logger,
   tracer,
+  producer,
   navTimeoutMs: Env.NEWS_NAV_TIMEOUT_MS,
   maxRetries: Env.NEWS_FETCH_MAX_RETRIES,
   concurrency: Env.NEWS_FETCH_CONCURRENCY,
@@ -58,30 +59,8 @@ const cron = makeCronRunner({
   onTick: runTick,
 });
 
-// Non-blocking producer connect — container must not crash-loop on infra flake.
-let producerConnected = false;
-void (async function connectProducer(): Promise<void> {
-  const backoffMs = [1_000, 2_000, 5_000, 10_000, 30_000];
-  let attempt = 0;
-  while (!producerConnected) {
-    try {
-      await producer.connect();
-      producerConnected = true;
-      logger.info('producer connected');
-      return;
-    } catch (err) {
-      const delay = backoffMs[Math.min(attempt, backoffMs.length - 1)] ?? 30_000;
-      logger.warn(
-        { err, attempt, retryInMs: delay },
-        'producer connect failed; retrying in background',
-      );
-      attempt += 1;
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-})();
-
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
+await producer.connect();
 
 const server = Bun.serve({
   port: Env.PORT,
@@ -97,7 +76,6 @@ const server = Bun.serve({
           service: 'news-worker',
           version: VERSION,
           commit: COMMIT,
-          producer: producerConnected ? 'connected' : 'pending',
         });
       });
     }
@@ -126,7 +104,7 @@ async function shutdown(signal: string): Promise<void> {
     logger.warn({ err }, 'news-worker: browser close failed');
   }
   try {
-    if (producerConnected) await producer.disconnect();
+    await producer.disconnect();
   } catch (err) {
     logger.warn({ err }, 'news-worker: producer disconnect failed');
   }

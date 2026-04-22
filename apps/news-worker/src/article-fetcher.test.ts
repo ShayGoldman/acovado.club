@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { SQL } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import { makeArticleFetcher, type ArticleFetcherDb } from './article-fetcher';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +25,14 @@ function makeNullLogger() {
     info: () => undefined,
     warn: () => undefined,
     error: () => undefined,
+  } as any;
+}
+
+function makeNullProducer() {
+  return {
+    send: mock(() => Promise.resolve()),
+    connect: mock(() => Promise.resolve()),
+    disconnect: mock(() => Promise.resolve()),
   } as any;
 }
 
@@ -78,6 +86,7 @@ describe('makeArticleFetcher — fetchCandidates fair-selection query', () => {
       browser,
       logger: makeNullLogger(),
       tracer: makeNullTracer(),
+      producer: makeNullProducer(),
       maxRetries: 0,
       concurrency: 1,
     });
@@ -138,6 +147,7 @@ describe('makeArticleFetcher — error path', () => {
       browser,
       logger: makeNullLogger(),
       tracer: makeNullTracer(),
+      producer: makeNullProducer(),
       maxRetries: 1,
       concurrency: 1,
       navTimeoutMs: 100,
@@ -208,6 +218,7 @@ describe('makeArticleFetcher — error path', () => {
       browser,
       logger: makeNullLogger(),
       tracer: makeNullTracer(),
+      producer: makeNullProducer(),
       maxRetries: 0,
       concurrency: 1,
       navTimeoutMs: 100,
@@ -223,6 +234,181 @@ describe('makeArticleFetcher — error path', () => {
       getSqlText(q).includes('INSERT INTO acovado.news_articles'),
     );
     expect(insertSqls.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// producer.send — M4 event publish assertions
+// ---------------------------------------------------------------------------
+
+describe('makeArticleFetcher — producer.send on success', () => {
+  it('calls producer.send with article.collected payload after successful INSERT', async () => {
+    let callCount = 0;
+    const db = {
+      async execute(_query: SQL<unknown>) {
+        // First call: candidates query — return one article.
+        if (callCount++ === 0) {
+          return [
+            {
+              url: 'https://apnews.com/article/test-123',
+              source_id: 'src-uuid-ap',
+              external_id: 'apnews',
+            },
+          ];
+        }
+        return [];
+      },
+    };
+
+    // 384-char body — satisfies isAcceptable's MIN_BODY_LEN >= 200 guard.
+    const longBody = 'The Federal Reserve raised interest rates today. '.repeat(8);
+    const articleEl = { innerText: mock(async () => longBody) };
+
+    const mockPage = {
+      goto: mock(async () => {}),
+      title: mock(async () => 'Fed Raises Rates'),
+      close: mock(async () => {}),
+      evaluate: mock(async () => ''),
+      $: mock(async (selector: string) => (selector === 'article' ? articleEl : null)),
+      $$: mock(async () => []),
+      content: mock(async () => '<html><body>Fed Raises Rates</body></html>'),
+      waitForSelector: mock(async () => null),
+    };
+
+    const browserStub = {
+      newPage: mock(async () => mockPage),
+    } as any;
+
+    // Stub robots.txt — 404 triggers the permissive fallback (allowed = true).
+    const origFetch = (globalThis as any).fetch;
+    (globalThis as any).fetch = mock(async () => ({ ok: false, status: 404 }));
+
+    const producer = makeNullProducer();
+
+    const fetcher = makeArticleFetcher({
+      db,
+      browser: browserStub,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+      producer,
+      maxRetries: 0,
+      concurrency: 1,
+    });
+
+    try {
+      await fetcher.runOnce();
+    } finally {
+      (globalThis as any).fetch = origFetch;
+    }
+
+    // Success branch: producer.send must fire exactly once with the news contract payload.
+    expect(producer.send).toHaveBeenCalledTimes(1);
+    const [exchange, routingKey, payload] = (producer.send as any).mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(exchange).toBe('news');
+    expect(routingKey).toBe('article.collected');
+    expect(payload['sourceId']).toBe('src-uuid-ap');
+    expect(payload['externalId']).toBe('https://apnews.com/article/test-123');
+    expect(payload['url']).toBe('https://apnews.com/article/test-123');
+    expect(payload['title']).toBeTruthy();
+    expect(typeof payload['body']).toBe('string');
+    expect((payload['body'] as string).length).toBeLessThanOrEqual(8_000);
+    expect(new Date(payload['publishedAt'] as string).getTime()).not.toBeNaN();
+  });
+
+  it('does NOT call producer.send on extract_failed path', async () => {
+    let callCount = 0;
+    const db = {
+      async execute(_query: SQL<unknown>) {
+        if (callCount++ === 0) {
+          return [
+            {
+              url: 'https://apnews.com/article/no-body',
+              source_id: 'src-uuid-ap',
+              external_id: 'apnews',
+            },
+          ];
+        }
+        return [];
+      },
+    };
+
+    // Page returns empty content so extractor returns null → extract_failed branch.
+    const mockPage = {
+      goto: mock(async () => {}),
+      title: mock(async () => ''),
+      close: mock(async () => {}),
+      evaluate: mock(async () => null),
+      $: mock(async () => null),
+      $$: mock(async () => []),
+      content: mock(async () => '<html></html>'),
+      waitForSelector: mock(async () => null),
+    };
+
+    const browserStub = {
+      newPage: mock(async () => mockPage),
+    } as any;
+
+    const producer = makeNullProducer();
+
+    const fetcher = makeArticleFetcher({
+      db,
+      browser: browserStub,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+      producer,
+      maxRetries: 0,
+      concurrency: 1,
+    });
+
+    await fetcher.runOnce();
+
+    // producer.send must NOT be called when extraction fails.
+    expect(producer.send).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call producer.send on navigation error path', async () => {
+    let callCount = 0;
+    const db = {
+      async execute(_query: SQL<unknown>) {
+        if (callCount++ === 0) {
+          return [
+            {
+              url: 'https://apnews.com/article/nav-fail',
+              source_id: 'src-uuid-ap',
+              external_id: 'apnews',
+            },
+          ];
+        }
+        return [];
+      },
+    };
+
+    const browserStub = {
+      newPage: mock(async () => {
+        throw new Error('navigation failed');
+      }),
+    } as any;
+
+    const producer = makeNullProducer();
+
+    const fetcher = makeArticleFetcher({
+      db,
+      browser: browserStub,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+      producer,
+      maxRetries: 0,
+      concurrency: 1,
+    });
+
+    await fetcher.runOnce();
+
+    // producer.send must NOT be called when navigation throws.
+    expect(producer.send).not.toHaveBeenCalled();
   });
 });
 
@@ -248,6 +434,7 @@ describe('makeArticleFetcher — fair-selection candidate query (§12b)', () => 
       browser,
       logger: makeNullLogger(),
       tracer: makeNullTracer(),
+      producer: makeNullProducer(),
       concurrency: 1,
     });
 
@@ -464,6 +651,7 @@ const LIVE_PG_URL = process.env['DATABASE_URL'];
           browser: {} as any,
           logger: makeNullLogger(),
           tracer: makeNullTracer(),
+          producer: makeNullProducer(),
         });
 
         const candidates = await fetcher.fetchCandidates();
