@@ -148,10 +148,13 @@ export function makeArticleFetcher({
   // ---------------------------------------------------------------------------
 
   async function fetchCandidates(): Promise<ArticleCandidate[]> {
-    // Fair per-source selection: window function distributes the 100-row batch
-    // across all active sources with pending URLs so no single source starves others.
-    // ORDER BY rn ASC, external_id ASC before LIMIT preserves deterministic ordering
-    // (rank-1 rows from all sources first, then rank-2, etc.).
+    // Fair per-source selection via window function: each active source with pending
+    // URLs receives CEIL(100 / source_count) slots so no single source starves others.
+    // ORDER BY rn ASC, external_id ASC before LIMIT 100 preserves deterministic
+    // rank-1-first-across-all-sources ordering (Principal gotcha §12b).
+    //
+    // TODO: LEFT JOIN anti-join degrades at scale. A status column on seen_urls
+    // is the later fix; skipped for v1 single-worker architecture.
     const rows = await db.execute(sql`
       WITH pending AS (
         SELECT

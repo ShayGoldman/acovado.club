@@ -4,26 +4,31 @@ import type { Tracer } from '@modules/tracing';
 import { hashUrl, normalizeUrl } from './normalize-url';
 
 const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const PLAYWRIGHT_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 5_000;
 
 // ---------------------------------------------------------------------------
-// URL-shape filter — §12c
+// URL-shape filter (§12c)
 // ---------------------------------------------------------------------------
 
-// Layer 1: global deny patterns anchored at path-segment boundaries so a
-// path like /finance/section-by-section/... is not incorrectly rejected.
-const GLOBAL_DENY_PATTERN =
-  /(?:^|\/)(section|author|live-updates|live-tv|tag|topic|category|search|video)\//i;
+// Layer 1 — global deny: section indexes, author pages, live-blogs, tag/topic pages,
+// category pages, search, and pure-video pages. Anchored at path-segment boundaries
+// so a segment like /finance/section-by-section/... is NOT wrongly dropped.
+// Trailing (?:\/|$) also matches paths that end without a slash (e.g. /search at EOS).
+const GLOBAL_DENY =
+  /(?:^|\/)(?:section|author|live-updates|live-tv|tag|topic|category|search|video)(?:\/|$)/;
 
-// Layer 2: per-source article-path allowlists.
-// Sources absent from this map pass after global-deny only.
+// Layer 2 — per-source article-path allowlist. Sources absent from this map
+// pass through after Layer 1 only. yahoo-finance accepts multiple URL shapes
+// (not just trailing numeric-ID .html) so the allowlist is intentionally broad.
 const SOURCE_URL_ALLOWLIST: Record<string, RegExp[]> = {
   cnbc: [
     /\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.html$/, // /2026/04/22/slug.html
   ],
-  // Yahoo Finance publishes multiple URL shapes — match any /news/ sub-path.
-  // A tighter pattern (e.g. requiring a trailing numeric ID) drops real articles.
   'yahoo-finance': [
-    /\/news\/[^/]+/, // /news/<any-slug>
+    /\/news\/[^/]+/, // /news/<any-slug> (any extension, with or without trailing slash)
+    /\/[^/]+-\d+\.html$/, // /<slug>-12345678.html (legacy shape outside /news/)
   ],
 };
 
@@ -35,8 +40,10 @@ export function isArticleUrl(url: string, externalId: string): boolean {
     return false;
   }
 
-  if (GLOBAL_DENY_PATTERN.test(pathname)) return false;
+  // Layer 1: global deny patterns.
+  if (GLOBAL_DENY.test(pathname)) return false;
 
+  // Layer 2: per-source allowlist (only applied to sources with an entry).
   const allowlist = SOURCE_URL_ALLOWLIST[externalId];
   if (allowlist) {
     return allowlist.some((re) => re.test(pathname));
@@ -44,9 +51,6 @@ export function isArticleUrl(url: string, externalId: string): boolean {
 
   return true;
 }
-const PLAYWRIGHT_TIMEOUT_MS = 30_000;
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 5_000;
 
 // ---------------------------------------------------------------------------
 // Narrow DB interface — real DBClient satisfies this; mocks do too in tests.
@@ -180,7 +184,7 @@ export function makeDiscovery({ db, browser, logger, tracer }: MakeDiscoveryOpts
   ): Promise<{ candidates: number; newUrls: number }> {
     const rawHrefs = await extractLinksWithRetry(seedUrl);
 
-    // Normalize + same-domain filter + URL-shape filter (§12c)
+    // Normalize + same-domain filter + article-URL shape filter
     const candidates: Array<{ urlHash: string; url: string }> = [];
     for (const href of rawHrefs) {
       const normalized = normalizeUrl(href, seedUrl);
