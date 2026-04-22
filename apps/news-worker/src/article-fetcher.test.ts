@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import type { SQL } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'bun:test';
-import { makeArticleFetcher } from './article-fetcher';
+import { makeArticleFetcher, type ArticleFetcherDb } from './article-fetcher';
 
 // ---------------------------------------------------------------------------
 // Minimal stubs
@@ -86,8 +88,8 @@ describe('makeArticleFetcher — fetchCandidates fair-selection query', () => {
     expect(executedSql.length).toBeGreaterThan(0);
     const candidateQuery = getSqlText(executedSql[0]!);
 
-    // Must use a CTE with ROW_NUMBER window function for fair selection.
-    expect(candidateQuery).toContain('WITH pending AS');
+    // Must use a two-CTE structure: active_source_count + pending (no DISTINCT window).
+    expect(candidateQuery).toContain('WITH active_source_count AS');
     expect(candidateQuery).toContain('ROW_NUMBER()');
     expect(candidateQuery).toContain('PARTITION BY');
     // Deterministic ordering: rank then source to prevent non-determinism (gotcha §12b).
@@ -255,26 +257,249 @@ describe('makeArticleFetcher — fair-selection candidate query (§12b)', () => 
 
     const candidateSql = getSqlText(executedSql[0]!);
 
-    // CTE structure
-    expect(candidateSql).toMatch(/WITH\s+pending\s+AS/i);
+    // Two-CTE structure: source-count CTE + pending CTE (no DISTINCT window function).
+    expect(candidateSql).toMatch(/WITH\s+active_source_count\s+AS/i);
+    expect(candidateSql).toMatch(/pending\s+AS\s*\(/i);
 
-    // Per-source window function
+    // Source count is a plain COUNT(DISTINCT) scalar — NOT a window expression.
+    expect(candidateSql).toMatch(
+      /COUNT\s*\(\s*DISTINCT\s+su2\.discovered_by_source_id\s*\)/i,
+    );
+    expect(candidateSql).not.toMatch(/COUNT.*DISTINCT.*OVER\s*\(\s*\)/i);
+
+    // Per-source window function inside pending CTE.
     expect(candidateSql).toMatch(/ROW_NUMBER\s*\(\s*\)\s+OVER\s*\(/i);
     expect(candidateSql).toMatch(/PARTITION\s+BY\s+su\.discovered_by_source_id/i);
 
-    // Fairness filter: rn <= CEIL(100 / source_count)
-    expect(candidateSql).toMatch(/rn\s*<=\s*CEIL\s*\(100\.0\s*\/\s*source_count\)/i);
+    // Source count joined via CROSS JOIN; fairness filter uses NULLIF for zero-safety.
+    expect(candidateSql).toMatch(/CROSS\s+JOIN\s+active_source_count/i);
+    expect(candidateSql).toMatch(
+      /rn\s*<=\s*CEIL\s*\(100\.0\s*\/\s*NULLIF\s*\(sc\.cnt,\s*0\)\)/i,
+    );
 
-    // Deterministic ordering: rank-1 first across all sources, then alphabetical by source
+    // Deterministic ordering: rank-1 first across all sources, then alphabetical by source.
     expect(candidateSql).toMatch(/ORDER\s+BY\s+rn\s+ASC,\s+external_id\s+ASC/i);
 
-    // Outer limit preserved
+    // Outer limit preserved.
     expect(candidateSql).toMatch(/LIMIT\s+100/i);
 
-    // Anti-join is still present
+    // Anti-join is still present.
     expect(candidateSql).toMatch(
       /LEFT\s+JOIN\s+acovado\.news_articles\s+na\s+ON\s+na\.url\s*=\s*su\.url/i,
     );
     expect(candidateSql).toMatch(/WHERE\s+na\.id\s+IS\s+NULL/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Live-Postgres smoke — §12b fetchCandidates (skipped when DATABASE_URL unset)
+// ---------------------------------------------------------------------------
+// Run with: DATABASE_URL=postgres://... bun test apps/news-worker/src/article-fetcher.test.ts
+//
+// Covers the three verification cases from the CTO routing comment:
+//   (a) multiple active news sources
+//   (b) mix of fetched + unfetched URLs per source
+//   (c) at least one source with zero unfetched URLs — must be excluded from source_count
+//
+// Scenario:
+//   Source A: 5 seen_urls, 2 already in news_articles → 3 pending      (case b)
+//   Source B: 3 seen_urls, all 3 in news_articles     → 0 pending      (case c — excluded)
+//   Source C: 4 seen_urls, none in news_articles      → 4 pending      (case a)
+//
+// Expected: active_source_count=2 (A+C), cap=ceil(100/2)=50,
+//           fetchCandidates returns 7 rows (A:3, B:0, C:4).
+// ---------------------------------------------------------------------------
+
+const LIVE_PG_URL = process.env['DATABASE_URL'];
+
+(LIVE_PG_URL ? describe : describe.skip)(
+  'live-Postgres smoke — §12b fetchCandidates (requires DATABASE_URL)',
+  () => {
+    it('no DISTINCT window error; mix of fetched/unfetched; fully-fetched source excluded from cap', async () => {
+      const { drizzle } = await import('drizzle-orm/bun-sql');
+      const liveClient = drizzle({ connection: LIVE_PG_URL! });
+
+      const liveDb: ArticleFetcherDb = {
+        execute: (q) => liveClient.execute(q) as Promise<Array<Record<string, unknown>>>,
+      };
+
+      const TAG = `smoke-§12b-${Date.now()}`;
+      let srcAId = '';
+      let srcBId = '';
+      let srcCId = '';
+
+      try {
+        // Ensure schema + tables exist (idempotent — mirrors migration DDL).
+        await liveClient.execute(sql`CREATE SCHEMA IF NOT EXISTS acovado`);
+        await liveClient.execute(sql`
+            CREATE TABLE IF NOT EXISTS acovado.sources (
+              id             UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+              kind           TEXT    NOT NULL,
+              external_id    TEXT    NOT NULL,
+              display_name   TEXT    NOT NULL,
+              config         JSONB,
+              active         BOOLEAN NOT NULL DEFAULT TRUE,
+              created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              UNIQUE (kind, external_id)
+            )
+          `);
+        await liveClient.execute(sql`
+            CREATE TABLE IF NOT EXISTS acovado.seen_urls (
+              url_hash                VARCHAR(64) PRIMARY KEY,
+              url                     TEXT        NOT NULL,
+              discovered_by_source_id UUID        NOT NULL REFERENCES acovado.sources(id),
+              first_seen_at           TIMESTAMP   NOT NULL DEFAULT NOW()
+            )
+          `);
+        await liveClient.execute(sql`
+            CREATE TABLE IF NOT EXISTS acovado.news_articles (
+              id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+              source_id     UUID        NOT NULL REFERENCES acovado.sources(id),
+              url           TEXT        NOT NULL,
+              title         TEXT,
+              extracted_body TEXT,
+              html_hash     VARCHAR(64),
+              fetch_status  VARCHAR(32) NOT NULL,
+              error_message TEXT,
+              fetched_at    TIMESTAMPTZ,
+              created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              UNIQUE (url)
+            )
+          `);
+
+        // -----------------------------------------------------------------
+        // Seed sources
+        // -----------------------------------------------------------------
+        const rowsA = await liveClient.execute(sql`
+            INSERT INTO acovado.sources (kind, external_id, display_name, active)
+            VALUES ('news', ${`${TAG}-src-a`}, 'Smoke A (mix fetched/unfetched)', true)
+            RETURNING id
+          `);
+        srcAId = (rowsA[0] as { id: string }).id;
+
+        const rowsB = await liveClient.execute(sql`
+            INSERT INTO acovado.sources (kind, external_id, display_name, active)
+            VALUES ('news', ${`${TAG}-src-b`}, 'Smoke B (all fetched — excluded)', true)
+            RETURNING id
+          `);
+        srcBId = (rowsB[0] as { id: string }).id;
+
+        const rowsC = await liveClient.execute(sql`
+            INSERT INTO acovado.sources (kind, external_id, display_name, active)
+            VALUES ('news', ${`${TAG}-src-c`}, 'Smoke C (all pending)', true)
+            RETURNING id
+          `);
+        srcCId = (rowsC[0] as { id: string }).id;
+
+        // -----------------------------------------------------------------
+        // Source A: 5 seen_urls, 2 fetched → 3 pending  (case b)
+        // -----------------------------------------------------------------
+        for (let i = 0; i < 5; i++) {
+          const url = `https://smoke-a.invalid/${TAG}/article-${i}`;
+          await liveClient.execute(sql`
+              INSERT INTO acovado.seen_urls (url_hash, url, discovered_by_source_id)
+              VALUES (${createHash('sha256').update(url).digest('hex')}, ${url}, ${srcAId})
+            `);
+        }
+        // Mark articles 3 and 4 as already fetched (anti-join will match them).
+        for (const i of [3, 4]) {
+          const url = `https://smoke-a.invalid/${TAG}/article-${i}`;
+          await liveClient.execute(sql`
+              INSERT INTO acovado.news_articles (source_id, url, fetch_status)
+              VALUES (${srcAId}, ${url}, 'success')
+              ON CONFLICT (url) DO NOTHING
+            `);
+        }
+
+        // -----------------------------------------------------------------
+        // Source B: 3 seen_urls, all 3 fetched → 0 pending, excluded  (case c)
+        // -----------------------------------------------------------------
+        for (let i = 0; i < 3; i++) {
+          const url = `https://smoke-b.invalid/${TAG}/article-${i}`;
+          await liveClient.execute(sql`
+              INSERT INTO acovado.seen_urls (url_hash, url, discovered_by_source_id)
+              VALUES (${createHash('sha256').update(url).digest('hex')}, ${url}, ${srcBId})
+            `);
+          await liveClient.execute(sql`
+              INSERT INTO acovado.news_articles (source_id, url, fetch_status)
+              VALUES (${srcBId}, ${url}, 'success')
+              ON CONFLICT (url) DO NOTHING
+            `);
+        }
+
+        // -----------------------------------------------------------------
+        // Source C: 4 seen_urls, none fetched → 4 pending  (case a)
+        // -----------------------------------------------------------------
+        for (let i = 0; i < 4; i++) {
+          const url = `https://smoke-c.invalid/${TAG}/article-${i}`;
+          await liveClient.execute(sql`
+              INSERT INTO acovado.seen_urls (url_hash, url, discovered_by_source_id)
+              VALUES (${createHash('sha256').update(url).digest('hex')}, ${url}, ${srcCId})
+            `);
+        }
+
+        // -----------------------------------------------------------------
+        // Verify active_source_count CTE logic scoped to our test sources.
+        // Expected: 2 (A and C have pending; B is fully fetched → excluded).
+        // -----------------------------------------------------------------
+        const cntRows = await liveClient.execute(sql`
+            SELECT COUNT(DISTINCT su2.discovered_by_source_id) AS cnt
+            FROM acovado.seen_urls su2
+            LEFT JOIN acovado.news_articles na2 ON na2.url = su2.url
+            JOIN acovado.sources s2
+                 ON  s2.id = su2.discovered_by_source_id
+                 AND s2.kind = 'news'
+                 AND s2.active = true
+            WHERE na2.id IS NULL
+              AND s2.external_id LIKE ${`${TAG}-src-%`}
+          `);
+        const activeSourceCount = Number((cntRows[0] as { cnt: string }).cnt);
+        expect(activeSourceCount).toBe(2); // A + C; B excluded
+
+        // -----------------------------------------------------------------
+        // Run fetchCandidates — core assertion: no SQLSTATE 0A000.
+        // -----------------------------------------------------------------
+        const fetcher = makeArticleFetcher({
+          db: liveDb,
+          browser: {} as any,
+          logger: makeNullLogger(),
+          tracer: makeNullTracer(),
+        });
+
+        const candidates = await fetcher.fetchCandidates();
+
+        // Total: 3 from A + 0 from B + 4 from C = 7.
+        expect(candidates.length).toBe(7);
+
+        // Source B must not appear — all its URLs have matching news_articles rows.
+        expect(candidates.some((c) => c.sourceId === srcBId)).toBe(false);
+
+        // Source A: exactly 3 pending rows (articles 0, 1, 2).
+        const countA = candidates.filter((c) => c.sourceId === srcAId).length;
+        expect(countA).toBe(3);
+
+        // Source C: exactly 4 pending rows.
+        const countC = candidates.filter((c) => c.sourceId === srcCId).length;
+        expect(countC).toBe(4);
+
+        // No source exceeds its fair-share cap (ceil(100 / global_source_count)).
+        const returnedSources = new Set(candidates.map((c) => c.sourceId));
+        const globalSourceCount = returnedSources.size;
+        const cap = Math.ceil(100 / globalSourceCount);
+        expect(countA).toBeLessThanOrEqual(cap);
+        expect(countC).toBeLessThanOrEqual(cap);
+      } finally {
+        // FK delete order: news_articles, seen_urls, then sources.
+        for (const srcId of [srcAId, srcBId, srcCId].filter(Boolean)) {
+          await liveClient.execute(
+            sql`DELETE FROM acovado.news_articles WHERE source_id = ${srcId}`,
+          );
+          await liveClient.execute(
+            sql`DELETE FROM acovado.seen_urls WHERE discovered_by_source_id = ${srcId}`,
+          );
+          await liveClient.execute(sql`DELETE FROM acovado.sources WHERE id = ${srcId}`);
+        }
+      }
+    }, 60_000);
+  },
+);
