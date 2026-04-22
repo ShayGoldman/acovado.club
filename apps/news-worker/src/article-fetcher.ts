@@ -148,15 +148,26 @@ export function makeArticleFetcher({
   // ---------------------------------------------------------------------------
 
   async function fetchCandidates(): Promise<ArticleCandidate[]> {
-    // Fair per-source selection via window function: each active source with pending
-    // URLs receives CEIL(100 / source_count) slots so no single source starves others.
-    // ORDER BY rn ASC, external_id ASC before LIMIT 100 preserves deterministic
-    // rank-1-first-across-all-sources ordering (Principal gotcha §12b).
+    // Fair per-source selection: active_source_count CTE computes the distinct-source
+    // count once, then the main query CROSS JOINs it to derive each source's slot cap.
+    // Replaces COUNT(DISTINCT ...) OVER () which Postgres rejects (SQLSTATE 0A000).
+    //
+    // NULLIF guards against division by zero when no pending URLs exist (empty result).
     //
     // TODO: LEFT JOIN anti-join degrades at scale. A status column on seen_urls
     // is the later fix; skipped for v1 single-worker architecture.
     const rows = await db.execute(sql`
-      WITH pending AS (
+      WITH active_source_count AS (
+        SELECT COUNT(DISTINCT su2.discovered_by_source_id) AS cnt
+        FROM acovado.seen_urls su2
+        LEFT JOIN acovado.news_articles na2 ON na2.url = su2.url
+        JOIN  acovado.sources s2
+              ON  s2.id = su2.discovered_by_source_id
+              AND s2.kind = 'news'
+              AND s2.active = true
+        WHERE na2.id IS NULL
+      ),
+      pending AS (
         SELECT
           su.url,
           su.discovered_by_source_id                                   AS source_id,
@@ -164,8 +175,7 @@ export function makeArticleFetcher({
           ROW_NUMBER() OVER (
             PARTITION BY su.discovered_by_source_id
             ORDER BY su.first_seen_at ASC
-          )                                                             AS rn,
-          COUNT(DISTINCT su.discovered_by_source_id) OVER ()           AS source_count
+          )                                                             AS rn
         FROM acovado.seen_urls su
         LEFT JOIN acovado.news_articles na ON na.url = su.url
         JOIN  acovado.sources s
@@ -176,7 +186,8 @@ export function makeArticleFetcher({
       )
       SELECT url, source_id, external_id
       FROM   pending
-      WHERE  rn <= CEIL(100.0 / source_count)
+      CROSS JOIN active_source_count sc
+      WHERE  rn <= CEIL(100.0 / NULLIF(sc.cnt, 0))
       ORDER BY rn ASC, external_id ASC
       LIMIT  100
     `);
@@ -340,5 +351,5 @@ export function makeArticleFetcher({
     logger.info({ count: candidates.length }, 'news.fetch.batch_done');
   }
 
-  return { runOnce };
+  return { runOnce, fetchCandidates };
 }
