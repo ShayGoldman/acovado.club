@@ -5,8 +5,24 @@ import { hashUrl, normalizeUrl } from './normalize-url';
 
 const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const PLAYWRIGHT_TIMEOUT_MS = 30_000;
+const JS_WAIT_SELECTOR_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 5_000;
+
+// ---------------------------------------------------------------------------
+// JS-aware seed wait (§M3.1)
+// ---------------------------------------------------------------------------
+
+// Sources whose seed pages hydrate article links via JS after DOMContentLoaded.
+// Value is the CSS selector to waitForSelector on — signals that the main
+// content area has rendered. Other sources keep the existing domcontentloaded
+// behavior unchanged.
+const SOURCE_JS_WAIT_CONFIG: Record<string, string> = {
+  reuters: 'main a[href]',
+  investing: 'main a[href]',
+  marketwatch: 'main a[href]',
+  benzinga: 'main a[href]',
+};
 
 // ---------------------------------------------------------------------------
 // URL-shape filter (§12c)
@@ -29,6 +45,20 @@ const SOURCE_URL_ALLOWLIST: Record<string, RegExp[]> = {
   'yahoo-finance': [
     /\/news\/[^/]+/, // /news/<any-slug> (any extension, with or without trailing slash)
     /\/[^/]+-\d+\.html$/, // /<slug>-12345678.html (legacy shape outside /news/)
+  ],
+  // §M3.1 re-qualification outlets — explicit allowlists scope discovery to
+  // genuine article paths and filter index/pagination noise.
+  reuters: [
+    /[^/]+-\d{4}-\d{2}-\d{2}(?:\/|$)/, // slug ends with -YYYY-MM-DD (e.g. /markets/us/slug-2026-04-22/)
+  ],
+  marketwatch: [
+    /\/story\/[^/]+/, // /story/<any-slug>
+  ],
+  benzinga: [
+    /\/news\/\d{2}\/\d{2}\/\d+/, // /news/YY/MM/<numeric-id>
+  ],
+  investing: [
+    /\/news\/[^/]+\/[^/]+-\d+$/, // /news/<category>/<slug>-<id>
   ],
 };
 
@@ -122,13 +152,22 @@ export function makeDiscovery({ db, browser, logger, tracer }: MakeDiscoveryOpts
     });
   }
 
-  async function extractLinksFromPage(seedUrl: string): Promise<string[]> {
+  async function extractLinksFromPage(
+    seedUrl: string,
+    externalId: string,
+  ): Promise<string[]> {
     const page = await browser.newPage();
     try {
       await page.goto(seedUrl, {
         timeout: PLAYWRIGHT_TIMEOUT_MS,
         waitUntil: 'domcontentloaded',
       });
+      const jsWaitSelector = SOURCE_JS_WAIT_CONFIG[externalId];
+      if (jsWaitSelector) {
+        await page
+          .waitForSelector(jsWaitSelector, { timeout: JS_WAIT_SELECTOR_TIMEOUT_MS })
+          .catch(() => {});
+      }
       const hrefs = await page.$$eval('a[href]', (anchors) =>
         anchors.map((a) => (a as unknown as { href: string }).href),
       );
@@ -138,11 +177,14 @@ export function makeDiscovery({ db, browser, logger, tracer }: MakeDiscoveryOpts
     }
   }
 
-  async function extractLinksWithRetry(seedUrl: string): Promise<string[]> {
+  async function extractLinksWithRetry(
+    seedUrl: string,
+    externalId: string,
+  ): Promise<string[]> {
     let lastErr: unknown;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        return await extractLinksFromPage(seedUrl);
+        return await extractLinksFromPage(seedUrl, externalId);
       } catch (err) {
         lastErr = err;
         if (attempt < MAX_RETRIES) {
@@ -182,7 +224,7 @@ export function makeDiscovery({ db, browser, logger, tracer }: MakeDiscoveryOpts
     source: DiscoverySource,
     seedUrl: string,
   ): Promise<{ candidates: number; newUrls: number }> {
-    const rawHrefs = await extractLinksWithRetry(seedUrl);
+    const rawHrefs = await extractLinksWithRetry(seedUrl, source.externalId);
 
     // Normalize + same-domain filter + article-URL shape filter
     const candidates: Array<{ urlHash: string; url: string }> = [];

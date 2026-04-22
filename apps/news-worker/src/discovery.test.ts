@@ -90,13 +90,24 @@ function makeTestDb(
   return { execute, seenUrls, insertLog };
 }
 
-function makeTestBrowser(hrefsByPage: Map<string, string[]>) {
-  return {
+function makeTestBrowser(
+  hrefsByPage: Map<string, string[]>,
+  opts: { trackWaitForSelector?: boolean } = {},
+) {
+  const waitForSelectorCalls: Array<{ selector: string; url: string }> = [];
+
+  const browser = {
     newPage: async () => {
       let currentUrl = '';
       const page: Partial<Page> = {
         goto: async (url: string) => {
           currentUrl = url;
+          return null as any;
+        },
+        waitForSelector: async (selector: string) => {
+          if (opts.trackWaitForSelector) {
+            waitForSelectorCalls.push({ selector, url: currentUrl });
+          }
           return null as any;
         },
         $$eval: async (
@@ -111,7 +122,10 @@ function makeTestBrowser(hrefsByPage: Map<string, string[]>) {
       };
       return page as Page;
     },
-  } as unknown as Browser;
+    _waitForSelectorCalls: waitForSelectorCalls,
+  } as unknown as Browser & { _waitForSelectorCalls: typeof waitForSelectorCalls };
+
+  return browser;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +137,9 @@ function makeTestBrowser(hrefsByPage: Map<string, string[]>) {
 // ---------------------------------------------------------------------------
 
 describe('isArticleUrl — global deny patterns', () => {
-  const SOURCES_WITHOUT_ALLOWLIST = [
+  // Global deny fires before the per-source allowlist check, so these tests
+  // apply to all sources regardless of whether they have an allowlist.
+  const ALL_SOURCES = [
     'reuters',
     'apnews',
     'marketwatch',
@@ -132,7 +148,7 @@ describe('isArticleUrl — global deny patterns', () => {
     'seeking-alpha',
   ];
 
-  it.each(SOURCES_WITHOUT_ALLOWLIST)('rejects /section/ paths for %s', (src) => {
+  it.each(ALL_SOURCES)('rejects /section/ paths for %s', (src) => {
     expect(isArticleUrl('https://example.com/section/markets', src)).toBe(false);
   });
 
@@ -165,12 +181,10 @@ describe('isArticleUrl — global deny patterns', () => {
   });
 
   it('does NOT reject a path containing "section" as a word in an article slug', () => {
-    // /finance/section-by-section/... must not match — pattern is anchored at segment boundary
+    // /finance/section-by-section/... must not match — pattern is anchored at segment boundary.
+    // Uses apnews (pass-through source) since reuters now has an allowlist.
     expect(
-      isArticleUrl(
-        'https://www.reuters.com/finance/section-by-section-review/',
-        'reuters',
-      ),
+      isArticleUrl('https://apnews.com/finance/section-by-section-review/', 'apnews'),
     ).toBe(true);
   });
 });
@@ -238,12 +252,13 @@ describe('isArticleUrl — sources without allowlist pass through', () => {
 
 describe('makeDiscovery — dedup correctness', () => {
   const SOURCE_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
-  // Use a pass-through source (no URL-shape allowlist) so dedup tests
+  // Use apnews (pass-through source, no URL-shape allowlist) so dedup tests
   // are not affected by the article-URL filter added in §12c.
-  const SEED_URL = 'https://www.reuters.com/finance/';
+  // reuters now has an explicit allowlist (§M3.1) so generic slugs would be filtered.
+  const SEED_URL = 'https://apnews.com/finance/';
 
   const defaultSources = [
-    { id: SOURCE_ID, external_id: 'reuters', poll_interval_ms: null },
+    { id: SOURCE_ID, external_id: 'apnews', poll_interval_ms: null },
   ];
   const defaultSeeds = [{ id: 'seed-1', source_id: SOURCE_ID, seed_url: SEED_URL }];
 
@@ -358,9 +373,9 @@ describe('makeDiscovery — dedup correctness', () => {
 
     await discovery.runOnce();
 
-    // Only the local Reuters article should be inserted
+    // Only the local apnews article should be inserted
     expect(db.insertLog.length).toBe(1);
-    expect(db.insertLog[0]!.url).toContain('reuters.com');
+    expect(db.insertLog[0]!.url).toContain('apnews.com');
   });
 });
 
@@ -411,8 +426,9 @@ describe('isArticleUrl — global deny patterns (all sources)', () => {
 
   it('does NOT reject /finance/section-by-section/report (no segment boundary match)', () => {
     // The deny regex must be anchored at segment boundaries — partial matches don't count.
+    // Uses apnews (pass-through source) since reuters now has an explicit allowlist.
     expect(
-      isArticleUrl('https://example.com/finance/section-by-section/report', 'reuters'),
+      isArticleUrl('https://example.com/finance/section-by-section/report', 'apnews'),
     ).toBe(true);
   });
 });
@@ -481,21 +497,193 @@ describe('isArticleUrl — yahoo-finance allowlist', () => {
 });
 
 describe('isArticleUrl — pass-through sources (no allowlist)', () => {
-  it('accepts a normal reuters article URL', () => {
-    expect(
-      isArticleUrl('https://www.reuters.com/markets/us/fed-holds-2026-04-22/', 'reuters'),
-    ).toBe(true);
-  });
-
   it('accepts a normal apnews article URL', () => {
     expect(
       isArticleUrl('https://apnews.com/article/federal-reserve-abc123', 'apnews'),
     ).toBe(true);
   });
+});
 
-  it('rejects reuters /author/ page via global deny', () => {
+// ---------------------------------------------------------------------------
+// §M3.1 — per-source allowlists for re-qualified outlets
+// ---------------------------------------------------------------------------
+
+describe('isArticleUrl — reuters allowlist (§M3.1)', () => {
+  it('accepts slug ending with -YYYY-MM-DD', () => {
+    expect(
+      isArticleUrl(
+        'https://www.reuters.com/markets/us/fed-holds-rates-2026-04-22/',
+        'reuters',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts deep path slug ending with -YYYY-MM-DD', () => {
+    expect(
+      isArticleUrl(
+        'https://www.reuters.com/world/europe/ecb-holds-rates-2026-04-21',
+        'reuters',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects reuters section index without date suffix', () => {
+    expect(isArticleUrl('https://www.reuters.com/markets/us/', 'reuters')).toBe(false);
+  });
+
+  it('rejects reuters /author/ path via global deny', () => {
     expect(isArticleUrl('https://www.reuters.com/author/jane-doe/', 'reuters')).toBe(
       false,
     );
+  });
+});
+
+describe('isArticleUrl — marketwatch allowlist (§M3.1)', () => {
+  it('accepts /story/<slug>', () => {
+    expect(
+      isArticleUrl(
+        'https://www.marketwatch.com/story/fed-holds-rates-abc123',
+        'marketwatch',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects marketwatch path without /story/ prefix', () => {
+    expect(
+      isArticleUrl('https://www.marketwatch.com/investing/bonds/', 'marketwatch'),
+    ).toBe(false);
+  });
+
+  it('rejects marketwatch /video/ path via global deny', () => {
+    expect(
+      isArticleUrl('https://www.marketwatch.com/video/market-recap/', 'marketwatch'),
+    ).toBe(false);
+  });
+});
+
+describe('isArticleUrl — benzinga allowlist (§M3.1)', () => {
+  it('accepts /news/YY/MM/<id> path', () => {
+    expect(
+      isArticleUrl(
+        'https://www.benzinga.com/news/26/04/40906819/fed-holds-rates',
+        'benzinga',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects benzinga path without /news/YY/MM/<id> shape', () => {
+    expect(isArticleUrl('https://www.benzinga.com/general/markets/', 'benzinga')).toBe(
+      false,
+    );
+  });
+
+  it('rejects benzinga /tag/ path via global deny', () => {
+    expect(isArticleUrl('https://www.benzinga.com/tag/economy/', 'benzinga')).toBe(false);
+  });
+});
+
+describe('isArticleUrl — investing allowlist (§M3.1)', () => {
+  it('accepts /news/<category>/<slug>-<id> path', () => {
+    expect(
+      isArticleUrl(
+        'https://www.investing.com/news/economy/fed-holds-rates-3781723',
+        'investing',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects investing /news/ path without numeric ID suffix', () => {
+    expect(isArticleUrl('https://www.investing.com/news/economy/', 'investing')).toBe(
+      false,
+    );
+  });
+
+  it('rejects investing /analysis/ path (not in allowlist)', () => {
+    expect(isArticleUrl('https://www.investing.com/analysis/slug-123', 'investing')).toBe(
+      false,
+    );
+  });
+
+  it('rejects investing /category/ path via global deny', () => {
+    expect(isArticleUrl('https://www.investing.com/category/economy/', 'investing')).toBe(
+      false,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §M3.1 — JS-aware seed wait behavior
+// ---------------------------------------------------------------------------
+
+describe('makeDiscovery — JS-aware seed wait (§M3.1)', () => {
+  const SOURCE_ID = 'bbbbbbbb-0000-0000-0000-000000000002';
+
+  function makeJsWaitSource(externalId: string, seedUrl: string) {
+    const sources = [{ id: SOURCE_ID, external_id: externalId, poll_interval_ms: null }];
+    const seedConfigs = [{ id: 'seed-js', source_id: SOURCE_ID, seed_url: seedUrl }];
+    return { sources, seedConfigs };
+  }
+
+  const JS_WAIT_SOURCES = ['reuters', 'investing', 'marketwatch', 'benzinga'];
+
+  it.each(JS_WAIT_SOURCES)(
+    'calls waitForSelector for JS-wait source: %s',
+    async (externalId) => {
+      // Each outlet needs a seed URL that itself is a valid article URL matching
+      // the per-source allowlist so that at least one link survives isArticleUrl.
+      // Seed URL shape is arbitrary for this test — we only verify the selector call.
+      const seedUrl =
+        externalId === 'reuters'
+          ? 'https://www.reuters.com/news/'
+          : externalId === 'marketwatch'
+            ? 'https://www.marketwatch.com/latest-news/'
+            : externalId === 'benzinga'
+              ? 'https://www.benzinga.com/news/'
+              : 'https://www.investing.com/news/';
+
+      const { sources, seedConfigs } = makeJsWaitSource(externalId, seedUrl);
+      const db = makeTestDb(sources, seedConfigs);
+      const browser = makeTestBrowser(new Map([[seedUrl, []]]), {
+        trackWaitForSelector: true,
+      });
+
+      const discovery = makeDiscovery({
+        db: db as any,
+        browser,
+        logger: makeNullLogger(),
+        tracer: makeNullTracer(),
+      });
+
+      await discovery.runOnce();
+
+      const calls = (browser as any)._waitForSelectorCalls as Array<{
+        selector: string;
+        url: string;
+      }>;
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+      expect(calls[0]!.selector).toBe('main a[href]');
+    },
+  );
+
+  it('does NOT call waitForSelector for pass-through source apnews', async () => {
+    const seedUrl = 'https://apnews.com/finance/';
+    const sources = [{ id: SOURCE_ID, external_id: 'apnews', poll_interval_ms: null }];
+    const seedConfigs = [{ id: 'seed-ap', source_id: SOURCE_ID, seed_url: seedUrl }];
+    const db = makeTestDb(sources, seedConfigs);
+    const browser = makeTestBrowser(new Map([[seedUrl, []]]), {
+      trackWaitForSelector: true,
+    });
+
+    const discovery = makeDiscovery({
+      db: db as any,
+      browser,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+    });
+
+    await discovery.runOnce();
+
+    const calls = (browser as any)._waitForSelectorCalls as Array<unknown>;
+    expect(calls.length).toBe(0);
   });
 });
