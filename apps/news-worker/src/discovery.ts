@@ -4,6 +4,46 @@ import type { Tracer } from '@modules/tracing';
 import { hashUrl, normalizeUrl } from './normalize-url';
 
 const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
+// ---------------------------------------------------------------------------
+// URL-shape filter — §12c
+// ---------------------------------------------------------------------------
+
+// Layer 1: global deny patterns anchored at path-segment boundaries so a
+// path like /finance/section-by-section/... is not incorrectly rejected.
+const GLOBAL_DENY_PATTERN =
+  /(?:^|\/)(section|author|live-updates|live-tv|tag|topic|category|search|video)\//i;
+
+// Layer 2: per-source article-path allowlists.
+// Sources absent from this map pass after global-deny only.
+const SOURCE_URL_ALLOWLIST: Record<string, RegExp[]> = {
+  cnbc: [
+    /\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.html$/, // /2026/04/22/slug.html
+  ],
+  // Yahoo Finance publishes multiple URL shapes — match any /news/ sub-path.
+  // A tighter pattern (e.g. requiring a trailing numeric ID) drops real articles.
+  'yahoo-finance': [
+    /\/news\/[^/]+/, // /news/<any-slug>
+  ],
+};
+
+export function isArticleUrl(url: string, externalId: string): boolean {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+
+  if (GLOBAL_DENY_PATTERN.test(pathname)) return false;
+
+  const allowlist = SOURCE_URL_ALLOWLIST[externalId];
+  if (allowlist) {
+    return allowlist.some((re) => re.test(pathname));
+  }
+
+  return true;
+}
 const PLAYWRIGHT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 5_000;
@@ -140,11 +180,12 @@ export function makeDiscovery({ db, browser, logger, tracer }: MakeDiscoveryOpts
   ): Promise<{ candidates: number; newUrls: number }> {
     const rawHrefs = await extractLinksWithRetry(seedUrl);
 
-    // Normalize + same-domain filter
+    // Normalize + same-domain filter + URL-shape filter (§12c)
     const candidates: Array<{ urlHash: string; url: string }> = [];
     for (const href of rawHrefs) {
       const normalized = normalizeUrl(href, seedUrl);
       if (!normalized) continue;
+      if (!isArticleUrl(normalized, source.externalId)) continue;
       candidates.push({ urlHash: hashUrl(normalized), url: normalized });
     }
 

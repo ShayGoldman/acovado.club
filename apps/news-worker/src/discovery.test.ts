@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Browser, Page } from 'playwright';
-import { makeDiscovery } from './discovery';
+import { isArticleUrl, makeDiscovery } from './discovery';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -116,6 +116,124 @@ function makeTestBrowser(hrefsByPage: Map<string, string[]>) {
 
 // ---------------------------------------------------------------------------
 // Tests
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// isArticleUrl — §12c URL-shape filter
+// ---------------------------------------------------------------------------
+
+describe('isArticleUrl — global deny patterns', () => {
+  const SOURCES_WITHOUT_ALLOWLIST = [
+    'reuters',
+    'apnews',
+    'marketwatch',
+    'benzinga',
+    'investing',
+    'seeking-alpha',
+  ];
+
+  it.each(SOURCES_WITHOUT_ALLOWLIST)('rejects /section/ paths for %s', (src) => {
+    expect(isArticleUrl('https://example.com/section/markets', src)).toBe(false);
+  });
+
+  it('rejects CNBC /section/ path', () => {
+    expect(isArticleUrl('https://www.cnbc.com/section/markets/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /author/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/author/jane-doe/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /live-updates/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/live-updates/fed-meeting/', 'cnbc')).toBe(
+      false,
+    );
+  });
+
+  it('rejects /live-tv/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/live-tv/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /tag/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/tag/tech/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /video/ paths for sources without allowlist', () => {
+    expect(isArticleUrl('https://www.reuters.com/video/some-clip/', 'reuters')).toBe(
+      false,
+    );
+  });
+
+  it('does NOT reject a path containing "section" as a word in an article slug', () => {
+    // /finance/section-by-section/... must not match — pattern is anchored at segment boundary
+    expect(
+      isArticleUrl(
+        'https://www.reuters.com/finance/section-by-section-review/',
+        'reuters',
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('isArticleUrl — CNBC allowlist', () => {
+  it('accepts date-slug article URLs', () => {
+    expect(
+      isArticleUrl('https://www.cnbc.com/2026/04/22/fed-rate-decision.html', 'cnbc'),
+    ).toBe(true);
+  });
+
+  it('rejects CNBC URLs that do not match date-slug pattern', () => {
+    expect(isArticleUrl('https://www.cnbc.com/markets/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects CNBC section page after global deny fires', () => {
+    expect(isArticleUrl('https://www.cnbc.com/section/investing/', 'cnbc')).toBe(false);
+  });
+});
+
+describe('isArticleUrl — yahoo-finance allowlist', () => {
+  it('accepts /news/<slug> article URLs', () => {
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/news/fed-signals-rate-cut-12345678.html',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts /news/ URLs without a trailing numeric ID (gotcha §12b: looser regex)', () => {
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/news/earnings-watch-q1-2026/',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects /quote/ paths for yahoo-finance (not in /news/ sub-path)', () => {
+    expect(isArticleUrl('https://finance.yahoo.com/quote/AAPL/', 'yahoo-finance')).toBe(
+      false,
+    );
+  });
+});
+
+describe('isArticleUrl — sources without allowlist pass through', () => {
+  it('accepts any non-denied path for reuters', () => {
+    expect(
+      isArticleUrl(
+        'https://www.reuters.com/markets/us/fed-holds-rates-2026-04-22/',
+        'reuters',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts apnews article path', () => {
+    expect(
+      isArticleUrl('https://apnews.com/article/economy-inflation-abc123', 'apnews'),
+    ).toBe(true);
+  });
+});
+
 // ---------------------------------------------------------------------------
 
 describe('makeDiscovery — dedup correctness', () => {

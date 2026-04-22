@@ -46,6 +46,59 @@ function getSqlParams(q: SQL<unknown>): unknown[] {
 }
 
 // ---------------------------------------------------------------------------
+// fetchCandidates fair-selection — validates CTE query shape without a live DB.
+// ---------------------------------------------------------------------------
+
+describe('makeArticleFetcher — fetchCandidates fair-selection query', () => {
+  it('uses a fair per-source CTE with ORDER BY rn and LIMIT 100', async () => {
+    // Track every SQL string that hits the DB mock.
+    const executedSql: SQL<unknown>[] = [];
+
+    let callCount = 0;
+    const db = {
+      async execute(query: SQL<unknown>) {
+        executedSql.push(query);
+        if (callCount++ === 0) {
+          // Return candidates from two sources: 200 from A, 10 from B.
+          // Real DB would apply the CTE; here we just verify the query shape.
+          return [];
+        }
+        return [];
+      },
+    };
+
+    const browser = {
+      newPage: async () => ({ goto: async () => {}, close: async () => {} }),
+    } as any;
+
+    const fetcher = makeArticleFetcher({
+      db,
+      browser,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+      maxRetries: 0,
+      concurrency: 1,
+    });
+
+    await fetcher.runOnce();
+
+    // The first executed SQL must be the candidates query.
+    expect(executedSql.length).toBeGreaterThan(0);
+    const candidateQuery = getSqlText(executedSql[0]!);
+
+    // Must use a CTE with ROW_NUMBER window function for fair selection.
+    expect(candidateQuery).toContain('WITH pending AS');
+    expect(candidateQuery).toContain('ROW_NUMBER()');
+    expect(candidateQuery).toContain('PARTITION BY');
+    // Deterministic ordering: rank then source to prevent non-determinism (gotcha §12b).
+    expect(candidateQuery).toContain('ORDER BY rn ASC, external_id ASC');
+    expect(candidateQuery).toContain('LIMIT');
+    // Must still anti-join against news_articles so fetched URLs are skipped.
+    expect(candidateQuery).toContain('acovado.news_articles');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Error-path INSERT — Principal requirement: must insert fetch_status='error'
 // so the anti-join candidate query drops the URL on subsequent runs.
 // ---------------------------------------------------------------------------

@@ -148,17 +148,34 @@ export function makeArticleFetcher({
   // ---------------------------------------------------------------------------
 
   async function fetchCandidates(): Promise<ArticleCandidate[]> {
-    // TODO: this LEFT JOIN anti-join degrades at scale as news_articles grows.
-    // A partial index on seen_urls (e.g. WHERE url NOT IN (...)) or a status column
-    // on seen_urls is the later fix; skipped for v1 single-worker architecture.
+    // Fair per-source selection: window function distributes the 100-row batch
+    // across all active sources with pending URLs so no single source starves others.
+    // ORDER BY rn ASC, external_id ASC before LIMIT preserves deterministic ordering
+    // (rank-1 rows from all sources first, then rank-2, etc.).
     const rows = await db.execute(sql`
-      SELECT su.url, su.discovered_by_source_id AS source_id, s.external_id
-      FROM acovado.seen_urls su
-      LEFT JOIN acovado.news_articles na ON na.url = su.url
-      JOIN acovado.sources s ON s.id = su.discovered_by_source_id
-      WHERE na.id IS NULL
-      ORDER BY su.first_seen_at ASC
-      LIMIT 100
+      WITH pending AS (
+        SELECT
+          su.url,
+          su.discovered_by_source_id                                   AS source_id,
+          s.external_id,
+          ROW_NUMBER() OVER (
+            PARTITION BY su.discovered_by_source_id
+            ORDER BY su.first_seen_at ASC
+          )                                                             AS rn,
+          COUNT(DISTINCT su.discovered_by_source_id) OVER ()           AS source_count
+        FROM acovado.seen_urls su
+        LEFT JOIN acovado.news_articles na ON na.url = su.url
+        JOIN  acovado.sources s
+              ON  s.id = su.discovered_by_source_id
+              AND s.kind = 'news'
+              AND s.active = true
+        WHERE na.id IS NULL
+      )
+      SELECT url, source_id, external_id
+      FROM   pending
+      WHERE  rn <= CEIL(100.0 / source_count)
+      ORDER BY rn ASC, external_id ASC
+      LIMIT  100
     `);
     return rows.map((r) => {
       const row = r as { url: string; source_id: string; external_id: string };
