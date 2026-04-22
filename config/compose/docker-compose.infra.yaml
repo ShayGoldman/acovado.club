@@ -69,7 +69,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: "512mb"
+          memory: "256mb"
 
   clickhouse:
     profiles: [observability]
@@ -91,7 +91,7 @@ services:
       resources:
         limits:
           cpus: 2
-          memory: "4gb"
+          memory: "3gb"
 
   signoz-telemetrystore-migrator:
     profiles: [observability]
@@ -130,7 +130,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: "2gb"
+          memory: "1500mb"
 
   otel-collector:
     profiles: [observability]
@@ -147,7 +147,7 @@ services:
       resources:
         limits:
           cpus: 1
-          memory: "2gb"
+          memory: "1gb"
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
