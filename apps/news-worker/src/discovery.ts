@@ -9,6 +9,50 @@ const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 5_000;
 
 // ---------------------------------------------------------------------------
+// URL-shape filter (§12c)
+// ---------------------------------------------------------------------------
+
+// Layer 1 — global deny: section indexes, author pages, live-blogs, tag/topic pages,
+// category pages, search, and pure-video pages. Anchored at path-segment boundaries
+// so a segment like /finance/section-by-section/... is NOT wrongly dropped.
+// Trailing (?:\/|$) also matches paths that end without a slash (e.g. /search at EOS).
+const GLOBAL_DENY =
+  /(?:^|\/)(?:section|author|live-updates|live-tv|tag|topic|category|search|video)(?:\/|$)/;
+
+// Layer 2 — per-source article-path allowlist. Sources absent from this map
+// pass through after Layer 1 only. yahoo-finance accepts multiple URL shapes
+// (not just trailing numeric-ID .html) so the allowlist is intentionally broad.
+const SOURCE_URL_ALLOWLIST: Record<string, RegExp[]> = {
+  cnbc: [
+    /\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.html$/, // /2026/04/22/slug.html
+  ],
+  'yahoo-finance': [
+    /\/news\/[^/]+/, // /news/<any-slug> (any extension, with or without trailing slash)
+    /\/[^/]+-\d+\.html$/, // /<slug>-12345678.html (legacy shape outside /news/)
+  ],
+};
+
+export function isArticleUrl(url: string, externalId: string): boolean {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+
+  // Layer 1: global deny patterns.
+  if (GLOBAL_DENY.test(pathname)) return false;
+
+  // Layer 2: per-source allowlist (only applied to sources with an entry).
+  const allowlist = SOURCE_URL_ALLOWLIST[externalId];
+  if (allowlist) {
+    return allowlist.some((re) => re.test(pathname));
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Narrow DB interface — real DBClient satisfies this; mocks do too in tests.
 // ---------------------------------------------------------------------------
 
@@ -140,11 +184,12 @@ export function makeDiscovery({ db, browser, logger, tracer }: MakeDiscoveryOpts
   ): Promise<{ candidates: number; newUrls: number }> {
     const rawHrefs = await extractLinksWithRetry(seedUrl);
 
-    // Normalize + same-domain filter
+    // Normalize + same-domain filter + article-URL shape filter
     const candidates: Array<{ urlHash: string; url: string }> = [];
     for (const href of rawHrefs) {
       const normalized = normalizeUrl(href, seedUrl);
       if (!normalized) continue;
+      if (!isArticleUrl(normalized, source.externalId)) continue;
       candidates.push({ urlHash: hashUrl(normalized), url: normalized });
     }
 

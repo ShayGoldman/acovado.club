@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Browser, Page } from 'playwright';
-import { makeDiscovery } from './discovery';
+import { isArticleUrl, makeDiscovery } from './discovery';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -118,12 +118,132 @@ function makeTestBrowser(hrefsByPage: Map<string, string[]>) {
 // Tests
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// isArticleUrl — §12c URL-shape filter
+// ---------------------------------------------------------------------------
+
+describe('isArticleUrl — global deny patterns', () => {
+  const SOURCES_WITHOUT_ALLOWLIST = [
+    'reuters',
+    'apnews',
+    'marketwatch',
+    'benzinga',
+    'investing',
+    'seeking-alpha',
+  ];
+
+  it.each(SOURCES_WITHOUT_ALLOWLIST)('rejects /section/ paths for %s', (src) => {
+    expect(isArticleUrl('https://example.com/section/markets', src)).toBe(false);
+  });
+
+  it('rejects CNBC /section/ path', () => {
+    expect(isArticleUrl('https://www.cnbc.com/section/markets/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /author/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/author/jane-doe/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /live-updates/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/live-updates/fed-meeting/', 'cnbc')).toBe(
+      false,
+    );
+  });
+
+  it('rejects /live-tv/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/live-tv/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /tag/ paths', () => {
+    expect(isArticleUrl('https://www.cnbc.com/tag/tech/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects /video/ paths for sources without allowlist', () => {
+    expect(isArticleUrl('https://www.reuters.com/video/some-clip/', 'reuters')).toBe(
+      false,
+    );
+  });
+
+  it('does NOT reject a path containing "section" as a word in an article slug', () => {
+    // /finance/section-by-section/... must not match — pattern is anchored at segment boundary
+    expect(
+      isArticleUrl(
+        'https://www.reuters.com/finance/section-by-section-review/',
+        'reuters',
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('isArticleUrl — CNBC allowlist', () => {
+  it('accepts date-slug article URLs', () => {
+    expect(
+      isArticleUrl('https://www.cnbc.com/2026/04/22/fed-rate-decision.html', 'cnbc'),
+    ).toBe(true);
+  });
+
+  it('rejects CNBC URLs that do not match date-slug pattern', () => {
+    expect(isArticleUrl('https://www.cnbc.com/markets/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects CNBC section page after global deny fires', () => {
+    expect(isArticleUrl('https://www.cnbc.com/section/investing/', 'cnbc')).toBe(false);
+  });
+});
+
+describe('isArticleUrl — yahoo-finance allowlist', () => {
+  it('accepts /news/<slug> article URLs', () => {
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/news/fed-signals-rate-cut-12345678.html',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts /news/ URLs without a trailing numeric ID (gotcha §12b: looser regex)', () => {
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/news/earnings-watch-q1-2026/',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects /quote/ paths for yahoo-finance (not in /news/ sub-path)', () => {
+    expect(isArticleUrl('https://finance.yahoo.com/quote/AAPL/', 'yahoo-finance')).toBe(
+      false,
+    );
+  });
+});
+
+describe('isArticleUrl — sources without allowlist pass through', () => {
+  it('accepts any non-denied path for reuters', () => {
+    expect(
+      isArticleUrl(
+        'https://www.reuters.com/markets/us/fed-holds-rates-2026-04-22/',
+        'reuters',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts apnews article path', () => {
+    expect(
+      isArticleUrl('https://apnews.com/article/economy-inflation-abc123', 'apnews'),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('makeDiscovery — dedup correctness', () => {
   const SOURCE_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
-  const SEED_URL = 'https://finance.yahoo.com/news/';
+  // Use a pass-through source (no URL-shape allowlist) so dedup tests
+  // are not affected by the article-URL filter added in §12c.
+  const SEED_URL = 'https://www.reuters.com/finance/';
 
   const defaultSources = [
-    { id: SOURCE_ID, external_id: 'yahoo-finance', poll_interval_ms: null },
+    { id: SOURCE_ID, external_id: 'reuters', poll_interval_ms: null },
   ];
   const defaultSeeds = [{ id: 'seed-1', source_id: SOURCE_ID, seed_url: SEED_URL }];
 
@@ -238,8 +358,144 @@ describe('makeDiscovery — dedup correctness', () => {
 
     await discovery.runOnce();
 
-    // Only the local Yahoo Finance article should be inserted
+    // Only the local Reuters article should be inserted
     expect(db.insertLog.length).toBe(1);
-    expect(db.insertLog[0]!.url).toContain('finance.yahoo.com');
+    expect(db.insertLog[0]!.url).toContain('reuters.com');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isArticleUrl — §12c URL-shape filter
+// ---------------------------------------------------------------------------
+
+describe('isArticleUrl — global deny patterns (all sources)', () => {
+  const sources = ['reuters', 'apnews', 'marketwatch', 'cnbc', 'yahoo-finance'];
+
+  it.each(sources)('rejects /section/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/section/markets/', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /author/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/author/john-smith/', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /live-updates/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/live-updates/fed-meeting/', src)).toBe(
+      false,
+    );
+  });
+
+  it.each(sources)('rejects /live-tv/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/live-tv/', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /tag/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/tag/markets/', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /topic/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/topic/economy/', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /category/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/category/finance/', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /search/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/search?q=stocks', src)).toBe(false);
+  });
+
+  it.each(sources)('rejects /video/ path for %s', (src) => {
+    expect(isArticleUrl('https://example.com/video/market-recap/', src)).toBe(false);
+  });
+
+  it('does NOT reject /finance/section-by-section/report (no segment boundary match)', () => {
+    // The deny regex must be anchored at segment boundaries — partial matches don't count.
+    expect(
+      isArticleUrl('https://example.com/finance/section-by-section/report', 'reuters'),
+    ).toBe(true);
+  });
+});
+
+describe('isArticleUrl — CNBC allowlist', () => {
+  it('accepts date-slug article URL', () => {
+    expect(
+      isArticleUrl('https://www.cnbc.com/2026/04/22/fed-holds-rates.html', 'cnbc'),
+    ).toBe(true);
+  });
+
+  it('rejects CNBC section index URL', () => {
+    expect(isArticleUrl('https://www.cnbc.com/section/markets/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects CNBC author page', () => {
+    expect(isArticleUrl('https://www.cnbc.com/author/jane-doe/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects CNBC live-tv page', () => {
+    expect(isArticleUrl('https://www.cnbc.com/live-tv/', 'cnbc')).toBe(false);
+  });
+
+  it('rejects CNBC URL that lacks a date prefix', () => {
+    // /markets/inside-markets.html — no date, should fail allowlist
+    expect(isArticleUrl('https://www.cnbc.com/markets/inside-markets.html', 'cnbc')).toBe(
+      false,
+    );
+  });
+});
+
+describe('isArticleUrl — yahoo-finance allowlist', () => {
+  it('accepts /news/slug-12345678.html (numeric ID shape)', () => {
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/news/fed-holds-rates-12345678.html',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts /news/slug-without-numeric-id.html (non-numeric slug)', () => {
+    // Loosened regex — numeric ID not required
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/news/markets-wrap-afternoon.html',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts legacy /<slug>-NNNN.html shape outside /news/', () => {
+    expect(
+      isArticleUrl(
+        'https://finance.yahoo.com/fed-holds-rates-98765432.html',
+        'yahoo-finance',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects yahoo-finance section page', () => {
+    expect(
+      isArticleUrl('https://finance.yahoo.com/topic/markets/', 'yahoo-finance'),
+    ).toBe(false);
+  });
+});
+
+describe('isArticleUrl — pass-through sources (no allowlist)', () => {
+  it('accepts a normal reuters article URL', () => {
+    expect(
+      isArticleUrl('https://www.reuters.com/markets/us/fed-holds-2026-04-22/', 'reuters'),
+    ).toBe(true);
+  });
+
+  it('accepts a normal apnews article URL', () => {
+    expect(
+      isArticleUrl('https://apnews.com/article/federal-reserve-abc123', 'apnews'),
+    ).toBe(true);
+  });
+
+  it('rejects reuters /author/ page via global deny', () => {
+    expect(isArticleUrl('https://www.reuters.com/author/jane-doe/', 'reuters')).toBe(
+      false,
+    );
   });
 });

@@ -46,6 +46,59 @@ function getSqlParams(q: SQL<unknown>): unknown[] {
 }
 
 // ---------------------------------------------------------------------------
+// fetchCandidates fair-selection — validates CTE query shape without a live DB.
+// ---------------------------------------------------------------------------
+
+describe('makeArticleFetcher — fetchCandidates fair-selection query', () => {
+  it('uses a fair per-source CTE with ORDER BY rn and LIMIT 100', async () => {
+    // Track every SQL string that hits the DB mock.
+    const executedSql: SQL<unknown>[] = [];
+
+    let callCount = 0;
+    const db = {
+      async execute(query: SQL<unknown>) {
+        executedSql.push(query);
+        if (callCount++ === 0) {
+          // Return candidates from two sources: 200 from A, 10 from B.
+          // Real DB would apply the CTE; here we just verify the query shape.
+          return [];
+        }
+        return [];
+      },
+    };
+
+    const browser = {
+      newPage: async () => ({ goto: async () => {}, close: async () => {} }),
+    } as any;
+
+    const fetcher = makeArticleFetcher({
+      db,
+      browser,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+      maxRetries: 0,
+      concurrency: 1,
+    });
+
+    await fetcher.runOnce();
+
+    // The first executed SQL must be the candidates query.
+    expect(executedSql.length).toBeGreaterThan(0);
+    const candidateQuery = getSqlText(executedSql[0]!);
+
+    // Must use a CTE with ROW_NUMBER window function for fair selection.
+    expect(candidateQuery).toContain('WITH pending AS');
+    expect(candidateQuery).toContain('ROW_NUMBER()');
+    expect(candidateQuery).toContain('PARTITION BY');
+    // Deterministic ordering: rank then source to prevent non-determinism (gotcha §12b).
+    expect(candidateQuery).toContain('ORDER BY rn ASC, external_id ASC');
+    expect(candidateQuery).toContain('LIMIT');
+    // Must still anti-join against news_articles so fetched URLs are skipped.
+    expect(candidateQuery).toContain('acovado.news_articles');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Error-path INSERT — Principal requirement: must insert fetch_status='error'
 // so the anti-join candidate query drops the URL on subsequent runs.
 // ---------------------------------------------------------------------------
@@ -168,5 +221,60 @@ describe('makeArticleFetcher — error path', () => {
       getSqlText(q).includes('INSERT INTO acovado.news_articles'),
     );
     expect(insertSqls.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchCandidates — §12b fair per-source selection query structure
+// ---------------------------------------------------------------------------
+
+describe('makeArticleFetcher — fair-selection candidate query (§12b)', () => {
+  it('issues a CTE with ROW_NUMBER PARTITION BY, fairness filter, ORDER BY rn, and LIMIT 100', async () => {
+    const executedSql: SQL<unknown>[] = [];
+
+    const db = {
+      async execute(query: SQL<unknown>) {
+        executedSql.push(query);
+        return [];
+      },
+    };
+
+    const browser = { newPage: async () => ({ close: async () => undefined }) } as any;
+
+    const fetcher = makeArticleFetcher({
+      db,
+      browser,
+      logger: makeNullLogger(),
+      tracer: makeNullTracer(),
+      concurrency: 1,
+    });
+
+    await fetcher.runOnce();
+
+    expect(executedSql.length).toBeGreaterThan(0);
+
+    const candidateSql = getSqlText(executedSql[0]!);
+
+    // CTE structure
+    expect(candidateSql).toMatch(/WITH\s+pending\s+AS/i);
+
+    // Per-source window function
+    expect(candidateSql).toMatch(/ROW_NUMBER\s*\(\s*\)\s+OVER\s*\(/i);
+    expect(candidateSql).toMatch(/PARTITION\s+BY\s+su\.discovered_by_source_id/i);
+
+    // Fairness filter: rn <= CEIL(100 / source_count)
+    expect(candidateSql).toMatch(/rn\s*<=\s*CEIL\s*\(100\.0\s*\/\s*source_count\)/i);
+
+    // Deterministic ordering: rank-1 first across all sources, then alphabetical by source
+    expect(candidateSql).toMatch(/ORDER\s+BY\s+rn\s+ASC,\s+external_id\s+ASC/i);
+
+    // Outer limit preserved
+    expect(candidateSql).toMatch(/LIMIT\s+100/i);
+
+    // Anti-join is still present
+    expect(candidateSql).toMatch(
+      /LEFT\s+JOIN\s+acovado\.news_articles\s+na\s+ON\s+na\.url\s*=\s*su\.url/i,
+    );
+    expect(candidateSql).toMatch(/WHERE\s+na\.id\s+IS\s+NULL/i);
   });
 });
