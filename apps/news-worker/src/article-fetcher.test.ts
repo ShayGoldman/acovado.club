@@ -260,16 +260,16 @@ describe('makeArticleFetcher — producer.send on success', () => {
       },
     };
 
+    // 384-char body — satisfies isAcceptable's MIN_BODY_LEN >= 200 guard.
+    const longBody = 'The Federal Reserve raised interest rates today. '.repeat(8);
+    const articleEl = { innerText: mock(async () => longBody) };
+
     const mockPage = {
       goto: mock(async () => {}),
       title: mock(async () => 'Fed Raises Rates'),
       close: mock(async () => {}),
-      evaluate: mock(async () => ({
-        text: 'The Federal Reserve raised $AAPL interest rates today.',
-        htmlHash: 'abc123def456abc1',
-      })),
-      // playwright-page evaluate may use $ selector — provide a fallback:
-      $: mock(async () => null),
+      evaluate: mock(async () => ''),
+      $: mock(async (selector: string) => (selector === 'article' ? articleEl : null)),
       $$: mock(async () => []),
       content: mock(async () => '<html><body>Fed Raises Rates</body></html>'),
       waitForSelector: mock(async () => null),
@@ -278,6 +278,10 @@ describe('makeArticleFetcher — producer.send on success', () => {
     const browserStub = {
       newPage: mock(async () => mockPage),
     } as any;
+
+    // Stub robots.txt — 404 triggers the permissive fallback (allowed = true).
+    const origFetch = (globalThis as any).fetch;
+    (globalThis as any).fetch = mock(async () => ({ ok: false, status: 404 }));
 
     const producer = makeNullProducer();
 
@@ -291,15 +295,28 @@ describe('makeArticleFetcher — producer.send on success', () => {
       concurrency: 1,
     });
 
-    await fetcher.runOnce();
+    try {
+      await fetcher.runOnce();
+    } finally {
+      (globalThis as any).fetch = origFetch;
+    }
 
-    // producer.send must have been called at least once on success path.
-    // If the body extractor stub doesn't produce text (returns null), the
-    // extract_failed path runs and send must NOT be called.
-    // This test asserts the wiring is in place; the exact stub behavior
-    // depends on makeBodyExtractor internals.
-    // Regardless of extractor outcome, producer.send must not throw.
-    expect(producer.send).toBeDefined();
+    // Success branch: producer.send must fire exactly once with the news contract payload.
+    expect(producer.send).toHaveBeenCalledTimes(1);
+    const [exchange, routingKey, payload] = (producer.send as any).mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(exchange).toBe('news');
+    expect(routingKey).toBe('article.collected');
+    expect(payload['sourceId']).toBe('src-uuid-ap');
+    expect(payload['externalId']).toBe('https://apnews.com/article/test-123');
+    expect(payload['url']).toBe('https://apnews.com/article/test-123');
+    expect(payload['title']).toBeTruthy();
+    expect(typeof payload['body']).toBe('string');
+    expect((payload['body'] as string).length).toBeLessThanOrEqual(8_000);
+    expect(new Date(payload['publishedAt'] as string).getTime()).not.toBeNaN();
   });
 
   it('does NOT call producer.send on extract_failed path', async () => {
