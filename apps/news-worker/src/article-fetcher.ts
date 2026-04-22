@@ -1,6 +1,8 @@
 import { type SQL, sql } from 'drizzle-orm';
 import type { Browser } from 'playwright';
 import robotsParser from 'robots-parser';
+import type { Producer } from '@modules/events';
+import { makeId } from '@modules/ids';
 import type { Logger } from '@modules/logger';
 import type { Tracer } from '@modules/tracing';
 import { makeBodyExtractor } from './body-extractor';
@@ -31,6 +33,8 @@ export interface MakeArticleFetcherOpts {
   browser: Browser;
   logger: Logger;
   tracer: Tracer;
+  /** Required — injected at startup; must be connected before fetcher runs. */
+  producer: Producer;
   navTimeoutMs?: number;
   maxRetries?: number;
   concurrency?: number;
@@ -50,6 +54,7 @@ export function makeArticleFetcher({
   browser,
   logger,
   tracer,
+  producer,
   navTimeoutMs = DEFAULT_NAV_TIMEOUT_MS,
   maxRetries = DEFAULT_MAX_RETRIES,
   concurrency = DEFAULT_CONCURRENCY,
@@ -298,6 +303,21 @@ export function makeArticleFetcher({
         VALUES (${sourceId}, ${url}, ${title}, ${text}, ${htmlHash}, 'success', NOW())
         ON CONFLICT (url) DO NOTHING
       `);
+
+      try {
+        await producer.send('news', 'article.collected', {
+          id: makeId(),
+          sourceId,
+          externalId: url,
+          title,
+          body: text.slice(0, 8_000),
+          url,
+          publishedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        logger.error({ err, url }, 'news.publish_after_insert_failed');
+        throw err;
+      }
 
       logger.info({ url, bodyLen: text.length, htmlHash }, 'news.fetch.success');
     } finally {

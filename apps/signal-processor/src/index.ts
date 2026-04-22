@@ -1,9 +1,14 @@
 import { parseEnv } from '@/env';
-import { makeMigrateDB } from '@modules/db';
+import { makeDBClient, makeMigrateDB } from '@modules/db';
 import { makeConsumer } from '@modules/events';
+import { makeClaudeProvider, makeInferenceClient } from '@modules/inference';
 import { makeLogger } from '@modules/logger';
+import { makeTickerExtractor } from '@modules/ticker-extractor';
 import { makeTracer } from '@modules/tracing';
 import pkg from '../package.json' with { type: 'json' };
+import { makeMessageHandler } from './handler';
+import { makeNewsArticleHandler } from './news-handler';
+import { makeYouTubeMessageHandler } from './youtube-handler';
 
 const VERSION = pkg.version;
 const COMMIT = Bun.env['COMMIT_SHA'] ?? 'unknown';
@@ -18,6 +23,14 @@ const tracer = makeTracer({
   logger,
 });
 
+const db = makeDBClient({ url: Env.DATABASE_URL, tracer });
+const inferenceClient = makeInferenceClient({ db, tracer });
+const claudeProvider = makeClaudeProvider({ apiKey: Env.ANTHROPIC_API_KEY });
+const tickerExtractor = makeTickerExtractor({
+  inferenceClient,
+  provider: claudeProvider,
+});
+
 await makeMigrateDB({ url: Env.DATABASE_URL, tracer })();
 
 const consumer = makeConsumer({
@@ -30,20 +43,26 @@ const consumer = makeConsumer({
       domain: 'reddit',
       queue: 'signal-processor',
       routingKey: 'post.collected',
-      onMessage: async () => {},
+      onMessage: makeMessageHandler({ db, tickerExtractor, tracer }),
     },
     {
       domain: 'youtube',
       queue: 'signal-processor',
       routingKey: 'video.collected',
-      onMessage: async () => {},
+      onMessage: makeYouTubeMessageHandler({ db, tickerExtractor, tracer }),
+    },
+    {
+      domain: 'news',
+      queue: 'signal-processor',
+      routingKey: 'article.collected',
+      onMessage: makeNewsArticleHandler({ db, tickerExtractor, tracer }),
     },
   ],
 });
 
 await consumer.connect();
 logger.info(
-  'signal-processor: consuming from reddit:signal-processor + youtube:signal-processor',
+  'signal-processor: consuming from reddit:signal-processor + youtube:signal-processor + news:signal-processor',
 );
 
 const server = Bun.serve({
