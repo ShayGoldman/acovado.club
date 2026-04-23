@@ -5,6 +5,7 @@ lib
 
 .pnpm-debug.log
 scripts
+!infra/scripts/
 .env
 
 .claude
