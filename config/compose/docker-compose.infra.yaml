@@ -3,8 +3,8 @@ name: acovado-infra
 x-acovado-logging: &acovado-logging
   driver: json-file
   options:
-    max-size: "50m"
-    max-file: "10"
+    max-size: "100m"
+    max-file: "3"
 
 services:
   postgres:
@@ -70,6 +70,7 @@ services:
         limits:
           cpus: "0.5"
           memory: "512mb"
+    logging: *acovado-logging
 
   clickhouse:
     profiles: [observability]
@@ -92,6 +93,7 @@ services:
         limits:
           cpus: 2
           memory: "4gb"
+    logging: *acovado-logging
 
   signoz-telemetrystore-migrator:
     profiles: [observability]
@@ -105,6 +107,7 @@ services:
         limits:
           cpus: "0.5"
           memory: "512mb"
+    logging: *acovado-logging
 
   signoz:
     profiles: [observability]
@@ -131,6 +134,7 @@ services:
         limits:
           cpus: 1
           memory: "2gb"
+    logging: *acovado-logging
 
   otel-collector:
     profiles: [observability]
@@ -148,6 +152,7 @@ services:
         limits:
           cpus: 1
           memory: "2gb"
+    logging: *acovado-logging
 
   stats:
     image: portainer/portainer-ce:2.25.1-alpine
