@@ -35,7 +35,7 @@ export function boundedErrSerializer(err: unknown, depth = 0): Record<string, un
   }
 
   for (const field of SAFE_FIELDS) {
-    const val = (err as Record<string, unknown>)[field];
+    const val = (err as unknown as Record<string, unknown>)[field];
     if (val !== undefined) {
       result[field] = val;
     }
