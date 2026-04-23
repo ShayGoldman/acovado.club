@@ -16,8 +16,7 @@ function makeSpyCtx() {
   const ctx: any = {
     log: {
       info: (data: Record<string, unknown>, msg: string) => infoCalls.push([data, msg]),
-      error: (data: Record<string, unknown>, msg: string) =>
-        errorCalls.push([data, msg]),
+      error: (data: Record<string, unknown>, msg: string) => errorCalls.push([data, msg]),
     },
     annotate: () => {},
     with: async (_name: string, fn: (c: any) => Promise<unknown>) => fn(ctx),
@@ -57,10 +56,13 @@ function makeMessage(body = LARGE_BODY): Message<RedditPostCollectedPayload> {
     },
     metadata: {
       messageId: 'msg-1',
+      correlationId: 'corr-1',
       domain: 'reddit',
       queue: 'signal-processor',
       routingKey: 'post.collected',
       headers: {},
+      timestamp: new Date().toISOString(),
+      version: '1',
     },
   };
 }

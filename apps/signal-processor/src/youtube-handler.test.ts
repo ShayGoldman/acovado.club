@@ -16,8 +16,7 @@ function makeSpyCtx() {
   const ctx: any = {
     log: {
       info: (data: Record<string, unknown>, msg: string) => infoCalls.push([data, msg]),
-      error: (data: Record<string, unknown>, msg: string) =>
-        errorCalls.push([data, msg]),
+      error: (data: Record<string, unknown>, msg: string) => errorCalls.push([data, msg]),
     },
     annotate: () => {},
     with: async (_name: string, fn: (c: any) => Promise<unknown>) => fn(ctx),
@@ -40,7 +39,9 @@ function makeStubTracer(ctx: any) {
   } as any;
 }
 
-function makeMessage(description = LARGE_DESCRIPTION): Message<YouTubeVideoCollectedPayload> {
+function makeMessage(
+  description = LARGE_DESCRIPTION,
+): Message<YouTubeVideoCollectedPayload> {
   return {
     payload: {
       id: 'msg-1',
@@ -54,10 +55,13 @@ function makeMessage(description = LARGE_DESCRIPTION): Message<YouTubeVideoColle
     },
     metadata: {
       messageId: 'msg-1',
+      correlationId: 'corr-1',
       domain: 'youtube',
       queue: 'signal-processor',
       routingKey: 'video.collected',
       headers: {},
+      timestamp: new Date().toISOString(),
+      version: '1',
     },
   };
 }
