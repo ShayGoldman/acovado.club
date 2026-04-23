@@ -76,6 +76,29 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function safeErrorFields(error: Error): {
+  errorName: string;
+  errorMessage: string;
+  errorStatus?: number;
+  isRetryable?: boolean;
+} {
+  const result: {
+    errorName: string;
+    errorMessage: string;
+    errorStatus?: number;
+    isRetryable?: boolean;
+  } = {
+    errorName: error.name,
+    errorMessage: error.message.slice(0, 200),
+  };
+  const e = error as unknown as Record<string, unknown>;
+  const statusCode = e['statusCode'];
+  const isRetryable = e['isRetryable'];
+  if (typeof statusCode === 'number') result.errorStatus = statusCode;
+  if (typeof isRetryable === 'boolean') result.isRetryable = isRetryable;
+  return result;
+}
+
 function normalizePrompt(prompt: unknown): string {
   // Handle string prompts
   if (typeof prompt === 'string') {
@@ -145,7 +168,7 @@ export function makeInferenceClient(opts: MakeInferenceClientOpts): InferenceCli
 
             if (!isRetriable) {
               ctx.log.debug(
-                { error: lastError, attempt: retryCount + 1 },
+                { ...safeErrorFields(lastError), attempt: retryCount + 1 },
                 'Non-retriable error, stopping retries',
               );
               break;
@@ -158,7 +181,7 @@ export function makeInferenceClient(opts: MakeInferenceClientOpts): InferenceCli
 
               ctx.log.debug(
                 {
-                  error: lastError,
+                  ...safeErrorFields(lastError),
                   attempt: retryCount,
                   maxAttempts: retryConfig.maxAttempts,
                   delayMs: delay,
@@ -208,7 +231,7 @@ export function makeInferenceClient(opts: MakeInferenceClientOpts): InferenceCli
         } else {
           ctx.log.error(
             {
-              error: lastError,
+              ...safeErrorFields(lastError!),
               model: request.model,
               durationMs: Math.round(durationMs),
               retryCount,
