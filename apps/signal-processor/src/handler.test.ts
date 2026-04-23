@@ -1,0 +1,188 @@
+import { describe, expect, it } from 'bun:test';
+import type { Message } from '@modules/events';
+import { makeMessageHandler } from './handler';
+import type { RedditPostCollectedPayload } from './types';
+
+// ---------------------------------------------------------------------------
+// Stubs
+// ---------------------------------------------------------------------------
+
+const LARGE_BODY = 'reddit post selftext content '.repeat(200); // ~5.6 KB
+
+function makeSpyCtx() {
+  const errorCalls: Array<[Record<string, unknown>, string]> = [];
+  const infoCalls: Array<[Record<string, unknown>, string]> = [];
+
+  const ctx: any = {
+    log: {
+      info: (data: Record<string, unknown>, msg: string) => infoCalls.push([data, msg]),
+      error: (data: Record<string, unknown>, msg: string) =>
+        errorCalls.push([data, msg]),
+    },
+    annotate: () => {},
+    with: async (_name: string, fn: (c: any) => Promise<unknown>) => fn(ctx),
+    annotations: new Map(),
+    setName: () => {},
+  };
+
+  return { ctx, errorCalls, infoCalls };
+}
+
+function makeStubTracer(ctx: any) {
+  return {
+    with: async (_name: string, optsOrFn: unknown, maybeFn?: unknown) => {
+      const fn =
+        typeof optsOrFn === 'function'
+          ? (optsOrFn as (c: any) => Promise<unknown>)
+          : (maybeFn as (c: any) => Promise<unknown>);
+      return fn(ctx);
+    },
+  } as any;
+}
+
+function makeMessage(body = LARGE_BODY): Message<RedditPostCollectedPayload> {
+  return {
+    payload: {
+      id: 'msg-1',
+      sourceId: 'src-uuid-wsb',
+      subreddit: 'wallstreetbets',
+      externalId: 'abc123',
+      title: 'YOLO GME to the moon',
+      body,
+      url: 'https://reddit.com/r/wallstreetbets/abc123',
+      permalink: '/r/wallstreetbets/comments/abc123/',
+      score: 100,
+      numComments: 42,
+      publishedAt: new Date().toISOString(),
+    },
+    metadata: {
+      messageId: 'msg-1',
+      domain: 'reddit',
+      queue: 'signal-processor',
+      routingKey: 'post.collected',
+      headers: {},
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Error-path logging redaction
+// ---------------------------------------------------------------------------
+
+describe('makeMessageHandler (reddit) — error-path logging redaction (ACO-106)', () => {
+  it('logs bounded error context and rethrows when DB throws', async () => {
+    const { ctx, errorCalls } = makeSpyCtx();
+    const dbError = Object.assign(new Error('Connection closed'), {
+      name: 'PostgresError',
+    });
+
+    const db = {
+      insert: () => ({
+        values: () => ({
+          onConflictDoUpdate: () => ({
+            returning: () => Promise.reject(dbError),
+          }),
+        }),
+      }),
+    } as any;
+
+    const handler = makeMessageHandler({
+      db,
+      tickerExtractor: { extractTickers: () => Promise.resolve([]) } as any,
+      tracer: makeStubTracer(ctx),
+    });
+
+    await expect(handler(makeMessage())).rejects.toThrow('Connection closed');
+
+    expect(errorCalls.length).toBe(1);
+    const [logData, logMsg] = errorCalls[0]!;
+    expect(logMsg).toBe('signal.error');
+    expect(logData['externalId']).toBe('abc123');
+    expect(logData['sourceId']).toBe('src-uuid-wsb');
+    expect(logData['errorName']).toBe('PostgresError');
+    expect(typeof logData['errorMessage']).toBe('string');
+  });
+
+  it('never includes the post body in the error log', async () => {
+    const { ctx, errorCalls } = makeSpyCtx();
+    const dbError = new Error('Connection closed');
+
+    const db = {
+      insert: () => ({
+        values: () => ({
+          onConflictDoUpdate: () => ({
+            returning: () => Promise.reject(dbError),
+          }),
+        }),
+      }),
+    } as any;
+
+    const handler = makeMessageHandler({
+      db,
+      tickerExtractor: { extractTickers: () => Promise.resolve([]) } as any,
+      tracer: makeStubTracer(ctx),
+    });
+
+    await expect(handler(makeMessage(LARGE_BODY))).rejects.toThrow();
+
+    const serialized = JSON.stringify(errorCalls);
+    expect(serialized).not.toContain(LARGE_BODY.slice(0, 50));
+  });
+
+  it('caps errorMessage at 200 chars for very long error messages', async () => {
+    const { ctx, errorCalls } = makeSpyCtx();
+    const dbError = new Error('x'.repeat(1000));
+
+    const db = {
+      insert: () => ({
+        values: () => ({
+          onConflictDoUpdate: () => ({
+            returning: () => Promise.reject(dbError),
+          }),
+        }),
+      }),
+    } as any;
+
+    const handler = makeMessageHandler({
+      db,
+      tickerExtractor: { extractTickers: () => Promise.resolve([]) } as any,
+      tracer: makeStubTracer(ctx),
+    });
+
+    await expect(handler(makeMessage())).rejects.toThrow();
+
+    const [logData] = errorCalls[0]!;
+    expect((logData['errorMessage'] as string).length).toBeLessThanOrEqual(200);
+  });
+
+  it('does not log an error on the success path', async () => {
+    const { ctx, errorCalls, infoCalls } = makeSpyCtx();
+    const fakeItem = { id: 'item-uuid-1', processedAt: null };
+
+    const db = {
+      insert: () => ({
+        values: () => ({
+          onConflictDoUpdate: () => ({
+            returning: () => Promise.resolve([fakeItem]),
+          }),
+        }),
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => Promise.resolve(),
+        }),
+      }),
+    } as any;
+
+    const handler = makeMessageHandler({
+      db,
+      tickerExtractor: { extractTickers: () => Promise.resolve([]) } as any,
+      tracer: makeStubTracer(ctx),
+    });
+
+    await handler(makeMessage('short body'));
+
+    expect(errorCalls.length).toBe(0);
+    expect(infoCalls.some(([, msg]) => msg === 'signal.done')).toBe(true);
+  });
+});

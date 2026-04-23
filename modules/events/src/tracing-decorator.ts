@@ -135,7 +135,15 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
         try {
           await handler(message, context);
         } catch (error: unknown) {
-          context.log.error({ error }, 'Error processing message');
+          const errorName = error instanceof Error ? error.name : 'UnknownError';
+          const errorMessage = (error instanceof Error ? error.message : String(error)).slice(
+            0,
+            200,
+          );
+          context.log.error(
+            { errorName, errorMessage, messageId, domain, routingKey },
+            'Error processing message',
+          );
           throw error;
         }
       });
@@ -182,7 +190,15 @@ export function makeTracingDecorator(opts: MakeTracingDecoratorOpts) {
           try {
             await send(domain, routingKey, messages, { headers: tracedHeaders });
           } catch (error: unknown) {
-            context.log.error({ error }, 'Error publishing message');
+            const errorName = error instanceof Error ? error.name : 'UnknownError';
+            const errorMessage = (error instanceof Error ? error.message : String(error)).slice(
+              0,
+              200,
+            );
+            context.log.error(
+              { errorName, errorMessage, domain, routingKey },
+              'Error publishing message',
+            );
             throw error;
           }
         },
