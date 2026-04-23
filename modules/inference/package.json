@@ -13,7 +13,8 @@
     "typecheck": "bun tsc --noEmit",
     "lint": "bunx biome lint --write .",
     "format": "bunx biome format --write .",
-    "check": "bunx biome check --write ."
+    "check": "bunx biome check --write .",
+    "test": "bun test"
   },
   "keywords": [],
   "author": "",
