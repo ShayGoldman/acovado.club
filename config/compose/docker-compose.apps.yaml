@@ -1,5 +1,11 @@
 name: acovado-apps
 
+x-acovado-logging: &acovado-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
   signal-processor:
     container_name: signal-processor
@@ -17,6 +23,7 @@ services:
         limits:
           cpus: 1
           memory: '512mb'
+    logging: *acovado-logging
 
   youtube-worker:
     container_name: youtube-worker
@@ -34,6 +41,7 @@ services:
         limits:
           cpus: 1
           memory: '512mb'
+    logging: *acovado-logging
 
   reddit-worker:
     container_name: reddit-worker
@@ -51,6 +59,7 @@ services:
         limits:
           cpus: 1
           memory: '512mb'
+    logging: *acovado-logging
 
   news-worker:
     container_name: news-worker
@@ -70,6 +79,7 @@ services:
           # 1024mb (double the other workers) — a live Chromium process sits in RSS.
           # Tune down in M5 hardening if V3 shows comfortable headroom.
           memory: '1024mb'
+    logging: *acovado-logging
 
   dashboard:
     container_name: dashboard
@@ -101,6 +111,7 @@ services:
         limits:
           cpus: 1
           memory: '512mb'
+    logging: *acovado-logging
 
 networks:
   internal-network:
