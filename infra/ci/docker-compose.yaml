@@ -1,0 +1,58 @@
+services:
+  ci:
+    image: drone/drone:2
+    container_name: ci
+    volumes:
+      - /var/lib/drone:/data
+    env_file:
+      - ${ENV_FILES_ROOT}/drone.env
+    environment:
+      DRONE_SERVER_HOST: ci.${DOMAIN}
+      DRONE_SERVER_PROTO: https
+      DRONE_USER_CREATE: username:ShayGoldman,admin:true
+    labels:
+      - "traefik.enable=true"
+
+      # General CI Router with Authentication
+      - "traefik.http.routers.ci.rule=Host(`ci.${DOMAIN}`)"
+      - "traefik.http.routers.ci.tls=true"
+      - "traefik.http.routers.ci.tls.certresolver=acovado"
+      - "traefik.http.routers.ci.entrypoints=websecure"
+      - "traefik.http.routers.ci.middlewares=auth"
+
+      # Webhook Router
+      - "traefik.http.routers.ci-webhook.rule=Host(`ci.${DOMAIN}`) && PathPrefix(`/hook`)"
+      - "traefik.http.routers.ci-webhook.entrypoints=websecure"
+      - "traefik.http.routers.ci-webhook.tls.certresolver=acovado"
+      - "traefik.http.routers.ci-webhook.middlewares="
+
+      # Badge Router (No Authentication)
+      - "traefik.http.routers.ci-badge.rule=Host(`ci.${DOMAIN}`) && Path(`/api/badges/ShayGoldman/acovado.club/status.svg`)"
+      - "traefik.http.routers.ci-badge.entrypoints=websecure"
+      - "traefik.http.routers.ci-badge.tls.certresolver=acovado"
+      - "traefik.http.routers.ci-badge.middlewares="
+    networks:
+      - proxy-network
+
+  ci-runner:
+    image: drone/drone-runner-docker:1
+    container_name: ci-runner
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ${ENV_FILES_ROOT}/drone.env
+    environment:
+      DRONE_RPC_PROTO: http
+      DRONE_RPC_HOST: ci
+      DRONE_RUNNER_CAPACITY: 1
+      DRONE_RUNNER_NAME: runner
+      DRONE_TRACE: "true"
+      DRONE_DEBUG: "true"
+    networks:
+      - proxy-network
+    depends_on:
+      - ci
+
+networks:
+  proxy-network:
+    external: true
